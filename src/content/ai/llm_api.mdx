@@ -1,0 +1,57 @@
+## LLM Api
+
+### DeepSeek
+
+``` json
+// 请求
+{
+  "model": "deepseek-chat",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful assistant."
+    },
+    {
+      "role": "user",
+      "content": "Hello!"
+    }
+  ],
+  "stream": false
+}
+// 响应
+{
+  "id": "ce88c22a-5ab9-42a8-acef-80c92f288198",
+  "object": "chat.completion",
+  "created": 1758701567,
+  "model": "deepseek-chat",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Hello! How can I help you today?"
+        "reasoning_content": "1"
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 12,
+    "completion_tokens": 9,
+    "total_tokens": 21,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 12
+  },
+  "system_fingerprint": "fp_f253fc19d1_prod0820_fp8_kvcache"
+}
+```
+`model`：模型名称，可选值为deepseek-chat和deepseek-reasoner。
+`messages`：消息列表，每个消息包含role和content。
+`role`：消息角色，`system`就是给系统设定一个角色和职责，`user`就是用户发送的消息，`assistant`就是模型回复的消息。
+`stream`：是否流式输出，可选值为true和false。
+`reasoning_content`： 推理内容，只有deepseek-reasoner模型才有。
+
