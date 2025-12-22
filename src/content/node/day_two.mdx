@@ -1,0 +1,158 @@
+## 调用顺序
+- Pipe：ValidationPipe（whitelist/forbid/transform）→ 拦住脏输入
+
+- Interceptor：ResponseInterceptor → 成功统一 `{code:0,message:'ok',data}`
+
+- Filter：AllExceptionsFilter → 错误统一 `{code:status,message,data:{path,timestamp}}`
+
+- 顺序：Pipe → Guard → Interceptor → Filter
+
+### ValidationPipe
+```ts
+app.useGlobalPipes(
+  new ValidationPipe({
+    whitelist: true, // DTO 未声明字段会被剔除
+    forbidNonWhitelisted: true, // DTO 未声明字段直接 400
+    transform: true, // 自动做类型转换（配合 DTO 类型）
+    transformOptions: { enableImplicitConversion: true },
+  }),
+);
+```
+
+## AOP
+
+想象一下，你正在经营一家奶茶店 🥤。
+
+* **核心业务 (Controller)** 是制作奶茶：加茶、加奶、摇匀。
+* 但是，除此之外，你还需要做一些**通用的事情**，比如：
+* 给每一杯奶茶**贴上标签**（数据格式化）。
+* **记录**卖出了多少杯（日志）。
+* **检查**顾客有没有付钱（权限验证）。
+
+
+
+如果把“贴标签”的动作写在每一个做奶茶的步骤里，那就太繁琐了。**AOP (Aspect-Oriented Programming)** 的思想就是把这些“通用”的步骤提取出来，做成一个**切面 (Aspect)**，像“外挂”一样统一加到核心业务上。
+
+## Nest拦截器 Interceptor
+
+```ts
+import {
+  CallHandler,
+  ExecutionContext,
+  Injectable,
+  NestInterceptor,
+} from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+
+@Injectable()
+export class ResponseInterceptor implements NestInterceptor {
+  intercept(_context: ExecutionContext, next: CallHandler): Observable<any> {
+    return next
+      .handle()
+      .pipe(map((data) => ({ code: 0, message: 'ok', data })));
+  }
+}
+```
+在 NestJS 中，拦截器就是 AOP 的一种实现方式。
+
+简单来说，它的作用是充当中间人，当接口(Controller)返回数据时，会把数据拦截下来，自动包装成一个标准的格式。
+
+这里的 `intercept` 方法就像是奶茶店的出餐口。
+
+1. **请求进来时**：它可以在 Controller 处理之前做点什么。
+2. **响应出去时**：这是重点！`next.handle()` 代表了 Controller 返回的原始数据（比如只是一个用户对象）。
+3. **管道处理 (`.pipe`)**：拦截器截获了这个原始数据，把它“包装”进 `{ code: 0, message: 'ok', data: ... }` 这个标准盒子里，然后再交给前端。
+
+这意味着 Controller 完全不需要知道“标准响应格式”是什么，它只需要返回纯粹的数据即可。
+
+## DTO和Controller
+
+```ts
+import { IsInt, IsString, Length, Min } from 'class-validator';
+
+export class EchoDto {
+  @IsString()
+  @Length(1, 50)
+  text!: string;
+
+  @IsInt()
+  @Min(1)
+  times!: number;
+}
+
+  @Post('echo')
+  echo(@Body() dto: EchoDto) {
+    return { repeated: dto.text.repeat(dto.times) };
+}
+```
+
+这段代码展示了 **NestJS** 中处理 HTTP 请求最核心的两个概念：**数据传输对象 (DTO)** 和 **控制器 (Controller)**。
+
+我们可以把这段代码看作是一个“严谨的复读机”功能。让我们拆开来看看它们是如何配合工作的。
+
+### 1. 第一段：`EchoDto` —— 它是守门员 🛡️
+
+这个类叫做 DTO (Data Transfer Object)。它的作用是定义“前端应该传给我什么样的数据”，并立下规矩。这里使用了 `class-validator` 库来进行装饰。
+
+* **`@IsString()` & `@Length(1, 50)**`:
+这规定了 `text` 字段必须是**字符串**，而且长度必须在 1 到 50 个字符之间。不能太短（空字符串），也不能太长。
+* **`@IsInt()` & `@Min(1)**`:
+这规定了 `times` 字段必须是**整数**，而且最小是 1。这意味着不能复读 0 次，也不能复读 0.5 次。
+
+### 2. 第二段：`echo` 方法 —— 它是业务员 💼
+
+这通常是写在 Controller（控制器）里的代码，用来真正处理请求。
+
+* **`@Post('echo')`**:
+这定义了一个路标。它告诉程序，只有当用户通过 **POST** 方法访问 `/echo` 这个路径时，才执行这段代码。
+* **`@Body() dto: EchoDto`**:
+**这是最神奇的地方！** 🪄
+NestJS 会自动把请求体（Request Body）里的 JSON 数据拿出来，尝试把它转换成 `EchoDto` 的格式。
+* 更重要的是，如果我们启用了全局验证管道（ValidationPipe），它会自动检查数据是否符合上面的“守门员”规则。
+
+
+* **`return ...`**:
+如果数据通过了检查，这里就会执行逻辑：使用 JS 的 `.repeat()` 方法把文字重复 N 遍，然后返回给用户。
+
+
+## 异常过滤器
+```ts
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+
+@Catch()
+export class AllExceptionsFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const res = ctx.getResponse<Response>();
+    const req = ctx.getRequest<Request>();
+
+    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    let message: any = 'Internal Server Error';
+
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+      const r = exception.getResponse();
+      message = typeof r === 'string' ? r : ((r as any).message ?? r);
+    }
+
+    res.status(status).json({
+      code: status,
+      message,
+      data: {
+        path: req.url,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+}
+```
+
+简单来说，它的作用就像是整个应用程序的“安全网” 🕸️。无论你的代码在哪里抛出了错误（比如数据库连接失败、找不到资源、或者代码逻辑错误），只要没有被局部处理，这个过滤器就会捕获它，并将其转换成一个格式统一的 JSON 响应返回给前端，而不是直接让程序崩溃或者返回令人困惑的默认错误信息。
