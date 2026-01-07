@@ -1,0 +1,40 @@
+## range
+
+range的作用是生成一个整数序列，通常用于循环中。
+```python
+for i in range(10):
+    print(i)
+```
+
+range的参数是：
+- start: 起始值，默认为0
+- end: 结束值，不包括结束值
+- step: 步长，默认为1，可以为负数，表示倒序
+
+range的返回值是一个迭代器，可以使用list()函数将其转换为列表。
+
+## 列表推导式
+列表推导式是一种简洁的创建列表的方式，通常用于创建新的列表，列表推导式的语法是：
+
+```python
+[expression for item in iterable if condition]
+```
+
+列表推导式的参数是：
+- expression: 表达式，用于生成列表的元素
+- item: 迭代器中的元素
+- iterable: 迭代器
+- condition: 条件，用于过滤元素
+
+有多层循环的列表推导式：
+  就类似于嵌套的for循环，但是更简洁。
+```python
+[expression for item1 in iterable1 if condition1 for item2 in iterable2 if condition2 ...]
+```
+
+列表推导式的参数是：
+- expression: 表达式，用于生成列表的元素
+- item1: 迭代器1中的元素
+- iterable1: 迭代器1
+- condition1: 条件1，用于过滤元素1
+- item2: 迭代器2中的元素

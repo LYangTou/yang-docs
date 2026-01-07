@@ -1,0 +1,106 @@
+### 内置方法
+- type: 获取变量类型
+```python
+a = 1
+print(type(a))  # <class 'int'>
+```
+
+- isinstance: 判断变量类型
+```python
+a = 1
+print(isinstance(a, int))  # True
+```
+type 不考虑继承关系，isinstance 会考虑继承关系。
+
+- del: 删除变量
+```python
+a = 1
+del a
+print(a)  # NameError: name 'a' is not defined
+```
+
+
+## 数字类型
+- int
+- float
+- bool
+- complex（复数）
+
+### 操作
+
+- //： 整除，向下取整
+- ** ： 幂运算 
+- /: 除法，结果始终为浮点数
+
+## 字符串
+python 字符串不能被改变。向一个索引位置赋值，比如word[0] = 'm'会导致错误。
+
+### 操作
+
+- [头下标:尾下标]：切片 索引值以 0 为开始值，-1 为从末尾的开始位置。
+- Python 使用反斜杠(\)转义特殊字符，如果你不想让反斜杠发生转义，可以在字符串前面添加一个 r，表示原始字符串：
+  ```python
+  print(r"Hello\nWorld")  # Hello\nWorld
+  ```
+## 列表
+
+### 操作
+
+- +：合并列表
+- [:]：切片 a[2:5] = []， 会改变列表长度
+- pop: 按照索引删除列表的元素，不传则默认删除最后一个
+- append: 添加元素到列表末尾
+- extend: 添加列表到列表末尾
+- insert: 按照索引插入元素
+- remove: 按照元素删除，如果元素不存在，会报错
+- clear: 清空列表
+- sort: 排序
+- reverse: 反转
+
+## 元祖 Tuple
+和列表相似，但是元祖的元素不能修改。但是元祖的元素可以包含列表，列表的元素可以修改。
+```python
+tup1 = ()    # 空元组
+tup2 = (20,) # 一个元素，需要在元素后添加逗号
+tuple = ( 'abcd', 786 , 2.23, 'runoob', 70.2, [1,2,3])
+tuple[0] = 'abc'  # 报错
+tuple[5][0] = 1  # 不报错
+print(tuple)  # ('abcd', 786, 2.23, 'runoob', 70.2, [1, 2, 3])
+```
+
+## Set
+集合（set）是一个无序的不重复元素序列。会自动去重
+```python
+sites = {'Google', 'Taobao', 'Runoob', 'Facebook', 'Zhihu', 'Baidu'}
+print(sites)  # {'Baidu', 'Facebook', 'Google', 'Runoob', 'Taobao', 'Zhihu'}
+```
+### 操作
+- in: 判断元素是否在集合中
+- 集合运算：交集、并集、差集、对称差集
+
+## 字典 Dictionary 
+和Object差不多，但是字典的键必须是不可变的，值可以是任意的。
+
+字典（dictionary）是Python中另一个非常有用的内置数据类型。
+字典是一种键值对（key-value）集合，字典中的元素没有顺序。
+```python
+dict = {'Name': 'Runoob', 'Age': 7, 'Class': 'First'}
+print(dict['Name'])  # Runoob
+print(dict['Age'])  # 7
+```
+
+### 操作
+- keys: 获取字典的所有键
+- values: 获取字典的所有值
+
+构造函数 dict() 可以直接从键值对序列中构建字典如下：
+```python
+>>>dict([('Runoob', 1), ('Google', 2), ('Taobao', 3)])
+{'Taobao': 3, 'Runoob': 1, 'Google': 2}
+ 
+>>> {x: x**2 for x in (2, 4, 6)}
+{2: 4, 4: 16, 6: 36}
+ 
+>>> dict(Runoob=1, Google=2, Taobao=3)
+{'Taobao': 3, 'Runoob': 1, 'Google': 2}
+```
