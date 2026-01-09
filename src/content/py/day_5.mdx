@@ -1,0 +1,51 @@
+## 字典 Dictionary 
+和Object差不多，但是字典的键必须是不可变的，值可以是任意的。
+
+字典（dictionary）是Python中另一个非常有用的内置数据类型。
+字典是一种键值对（key-value）集合，字典中的元素没有顺序。
+```python
+dict = {'Name': 'Runoob', 'Age': 7, 'Class': 'First'}
+print(dict['Name'])  # Runoob
+print(dict['Age'])  # 7
+```
+
+### 操作
+- keys: 获取字典的所有键
+- values: 获取字典的所有值
+- get: 获取字典的值，如果键不存在，返回默认值。如果用`s[a]`方式，key不存在会报错
+- del: 删除字典的键值对
+- items: 获取字典的键值对
+- pop(key, default): 删除字典的键值对，如果键不存在，返回默认值。
+- clear: 清空字典
+构造函数 dict() 可以直接从键值对序列中构建字典如下：
+```python
+dict([('Runoob', 1), ('Google', 2), ('Taobao', 3)])
+{'Taobao': 3, 'Runoob': 1, 'Google': 2}
+ 
+{x: x**2 for x in (2, 4, 6)}
+{2: 4, 4: 16, 6: 36}
+ 
+dict(Runoob=1, Google=2, Taobao=3)
+{'Taobao': 3, 'Runoob': 1, 'Google': 2}
+
+// 同时遍历key和value
+for key, value in student.items():
+    print(f"{key}: {value}")
+```
+
+
+## Set
+集合（set）是一个无序的不重复元素序列。使用花括号 {} 可以直接创建集合，例如：`fruits = {"apple", "banana", "orange"}`。重复的元素会被自动过滤掉
+
+
+```
+### 操作
+- in: 判断元素是否在集合中
+
+返回新集合
+- &: `A & B` 得到同时存在于 A 和 B 的元素
+- |: `A | B` 得到A和B所有元素的集合
+- -: `A - B` 得到在A中但不在B中的元素
+- ^: `A ^ B` 得到只在一个集合中出现，而不在两个集合交叉出现的元素
+
+
