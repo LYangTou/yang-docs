@@ -1,0 +1,152 @@
+# Day 12 笔记总结：Flask 入门（路由 + 模板 + 静态资源）
+
+## 1）今天做了什么
+
+* 搭建 Flask 最小项目结构：`app.py + templates/ + static/`
+* 写了基础路由、动态路由
+* 用 Jinja2 渲染模板（`render_template`）
+* 用模板继承（`base.html` + `{% extends %}` + `{% block %}`）
+* 用 `url_for()` 生成路由链接与静态资源链接
+
+---
+
+## 2）核心概念
+
+### 2.1 Flask 应用实例
+
+```python
+from flask import Flask
+app = Flask(__name__)
+```
+
+* `app` 是 Web 应用对象（接收请求、分发路由、返回响应）
+
+---
+
+### 2.2 路由（Route）
+
+```python
+@app.route("/")
+def home():
+    return "Hello"
+```
+
+* URL → 视图函数（handler）
+* 动态路由：
+
+```python
+@app.route("/user/<name>")
+def user(name):
+    return f"Hello {name}"
+```
+
+* 运行时 `<name>` 会被解析成函数参数
+
+---
+
+### 2.3 启动方式（推荐）
+
+```bash
+python -m flask --app app run --debug
+```
+
+* `--debug`：热重载 + 调试信息（开发用）
+
+---
+
+## 3）模板渲染（Jinja2）
+
+### 3.1 render_template
+
+```python
+from flask import render_template
+
+@app.route("/")
+def home():
+    return render_template("index.html", name="yang")
+```
+
+* 模板文件默认放 `templates/` 下
+* 传参用关键字参数：`name="yang"`
+
+### 3.2 模板变量与控制语法
+
+* `{{ name }}`：输出变量
+* `{% ... %}`：逻辑（if/for/extends/block）
+
+---
+
+## 4）模板继承（非常常用）
+
+* `base.html` 放公共布局（头部、导航、CSS引用）
+* 子模板只填充差异内容
+
+`base.html`：
+
+```html
+<title>{% block title %}{% endblock %}</title>
+{% block content %}{% endblock %}
+```
+
+`index.html`：
+
+```html
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}...{% endblock %}
+```
+
+---
+
+## 5）静态资源（CSS/JS/图片）
+
+* 静态文件放 `static/`
+* 引用必须用：
+
+```html
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+```
+
+---
+
+## 6）url_for 的两个用途（今天必须记住）
+
+1. **生成路由链接**
+
+```html
+<a href="{{ url_for('home') }}">Home</a>
+```
+
+> `home` 是视图函数名（endpoint），不是路径字符串
+
+2. **生成静态文件链接**
+
+```html
+{{ url_for('static', filename='style.css') }}
+```
+
+---
+
+## 7）项目结构（Day12 推荐）
+
+```
+day12_flask/
+  app.py
+  templates/
+    base.html
+    index.html
+    about.html
+  static/
+    style.css
+```
+
+---
+
+## 8）常见坑（今天最容易踩）
+
+* 文件名不要叫 `flask.py`（会覆盖包）
+* 模板必须在 `templates/`，否则 `TemplateNotFound`
+* CSS 必须在 `static/`，否则静态资源 404
+* `url_for('home')` 里的 `home` 必须是函数名，否则 BuildError
+* 端口冲突：`flask run -p 5001`
+

@@ -1,0 +1,197 @@
+下面是 **Day 9 笔记整理版（异常处理 + 调试 + logging）**，可直接复制到你的学习笔记里。
+
+---
+
+# Day 9 笔记：异常处理与调试（try/except + raise + logging）
+
+## 1）异常处理的目标
+
+* 让程序 **出错不崩**（给用户友好提示）
+* 让错误 **可定位**（有异常类型、堆栈、上下文信息）
+* 让代码 **更健壮**（对输入/文件/配置做兜底）
+
+---
+
+## 2）try / except / else / finally（必会）
+
+### 2.1 基本结构
+
+```python
+try:
+    # 可能出错的代码
+except SomeError:
+    # 处理异常
+```
+
+### 2.2 多分支捕获（从具体到通用）
+
+```python
+try:
+    ...
+except FileNotFoundError:
+    ...
+except UnicodeDecodeError:
+    ...
+except Exception as e:
+    ...
+```
+
+> `Exception` 放最后作为兜底，不要放在前面，否则后面的捕获永远不会执行。
+
+### 2.3 else / finally
+
+* `else`：**try 没报错才执行**
+* `finally`：**无论是否报错都执行**（资源清理、收尾逻辑）
+
+```python
+try:
+    ...
+except ValueError:
+    ...
+else:
+    # 没异常才走
+    ...
+finally:
+    # 一定会走
+    ...
+```
+
+---
+
+## 3）常见异常类型（今天至少认识这些）
+
+* `FileNotFoundError`：文件不存在
+* `UnicodeDecodeError`：编码不对（比如不是 UTF-8）
+* `ValueError`：类型转换失败（如 `int("abc")`）
+* `KeyError`：字典缺少 key（如 `data["x"]`）
+* `json.JSONDecodeError`：JSON 文件格式坏了（少逗号、少引号）
+
+---
+
+## 4）raise：主动抛异常（做输入校验）
+
+适用场景：参数不合法、业务前置条件不满足、必须阻止继续执行。
+
+```python
+def must_positive(n: int):
+    if n <= 0:
+        raise ValueError("n must be > 0")
+```
+
+### 重新抛出（了解）
+
+捕获后想交给上层处理：
+
+```python
+try:
+    ...
+except Exception:
+    # 记录完日志后
+    raise
+```
+
+---
+
+## 5）调试原则（实战很重要）
+
+* **try 块不要包太大**：try 太大不好定位哪行出错
+  ✅ 尽量只包“可能出错的那几行”
+* 捕获异常时输出：
+
+  * 异常类型（是什么错）
+  * 上下文（处理哪个文件/哪个配置）
+  * 堆栈（定位哪行出错）
+
+---
+
+## 6）logging（今天到“最小可用”即可）
+
+### 6.1 为什么不用 print
+
+* print 乱、无法分级、线上不好查
+* logging 有级别：`DEBUG / INFO / WARNING / ERROR / CRITICAL`
+* 后端/AI 项目基本都用 logging
+
+### 6.2 最小配置（必会）
+
+```python
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s"
+)
+```
+
+### 6.3 常用写法（必会）
+
+```python
+logging.info("start: %s", path)
+logging.warning("empty file: %s", path)
+logging.error("decode error: %s", path)
+logging.exception("unexpected error")  # 自动带堆栈（在 except 里用）
+```
+
+⚠️ 注意：logging 默认级别是 WARNING
+所以你要看见 info/debug，必须设置 `level=logging.INFO`。
+
+---
+
+## 7）Day 9 两个“稳健化”实践的关键点
+
+### 7.1 稳健读文件（词频统计场景）
+
+必须兜底：
+
+* 文件不存在 → 提示后 return
+* 编码错误 → 提示 + 建议 utf-8
+* 空文件 → warning + return
+
+结构建议：
+
+```python
+try:
+    with open(path, "r", encoding="utf-8") as f:
+        text = f.read()
+except FileNotFoundError:
+    ...
+except UnicodeDecodeError:
+    ...
+except Exception:
+    logging.exception(...)
+    ...
+else:
+    if not text.strip():
+        ...
+    else:
+        # 正常处理
+```
+
+### 7.2 稳健读 JSON 配置
+
+必须兜底：
+
+* 文件不存在：使用默认配置
+* JSON坏了：使用默认配置
+* 字段缺失：补默认值（dict.get 或 setdefault）
+
+---
+
+## 8）今日必会清单（验收）
+
+* [ ] 会写 `try/except`，并能区分多个异常分支
+* [ ] 会用 `Exception as e` 拿到异常信息
+* [ ] 知道 `else` / `finally` 的语义和使用场景
+* [ ] 会用 `raise ValueError(...)` 做参数校验
+* [ ] 会用 logging：`basicConfig + info/warning/error + exception`
+
+---
+
+## 9）易错点（非常常见）
+
+* ❌ `except Exception:` 写在最前面 → 后面捕获永远进不去
+* ❌ 捕获异常后什么都不做 → 静默失败，后面定位困难
+* ❌ 用 `"w"` 打开文件导致覆盖（本质是没理解模式，Day8 也会踩）
+* ❌ logging 不设置 level，结果 `info` 不显示，以为没执行
+* ❌ try 包太大，出了错不知道哪段逻辑触发
+
