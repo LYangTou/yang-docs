@@ -14,6 +14,7 @@
 - `INSTALLED_APPS`: 项目安装的模块，当自己建的app如(users)被注册到其中时才会被统一纳入管理（数据库迁移等操作）
 - `DEBUG`: 开发模式
 - `ALLOWED_HOSTS`: 允许的域名列表，用于限制请求的域名
+- `AUTH_USER_MODEL`: 用户模型，默认是`auth.User`，不需要显示定义。
 
 ## 路由
 
@@ -25,6 +26,8 @@
 - app路由：各业务模块自己的分表
 
 ### urls.py 
+urlpatterns是固定变量名，用于存储路由列表。
+#### 总路由
 ```python
 from django.urls import path, include
 
@@ -35,5 +38,28 @@ urlpatterns = [
     path('api/', include('api.urls')),
 ]
 ```
-`include`的作用就是把某一段URL前缀交给匹配到的模块进行处理
+`include`的作用就是把某一段URL前缀交给匹配到的模块进行处理，在总路由中并不会控制app内的路由细项，只是匹配到对应的app就作罢。
+后续的分发在app内的路由中
 
+#### app路由
+```python
+from django.urls import path
+
+urlpatterns = [
+    path('ping/', views.ping, name='login'),
+    path('health/', views.health, name='register'),
+]
+```
+`views.ping`和`views.health`是视图函数，用于处理请求。
+
+#### 视图函数
+视图函数是用于处理请求的函数，通常位于`views.py`文件中。
+```python
+def ping(request):
+    return HttpResponse('pong')
+```
+
+- request：请求对象，包含请求的URL、方法、头等信息
+- response：响应对象，包含响应的体、状态码、头等信息
+  - HttpResponse：返回普通文本 / HTML
+  - JsonResponse：返回JSON数据

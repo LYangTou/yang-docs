@@ -1,0 +1,119 @@
+Django model本质就是用python类来定义数据库表结构。
+通常一个model对应对应一个表，每个类属性通常对应一列表字段，Django还会自动生成数据库访问API。
+通常可以理解成四层：
+1. 结构层：表长什么样
+2. 关系层：表和表之间怎么链接
+3. 行为层：这一行数据有哪些方法
+4. 访问层：怎么查、怎么改
+
+## Model是什么
+
+```Python
+class Project(models.Model):
+    name = models.CharField(max_length=100)
+```
+这代表：
+- Project是一个Django model类
+- 它继承自models.Model
+- name是一个字段
+Django 会把它理解为：要有一张 project 对应的表，里面有一列 name，如果没有自己定义主键，Django会生成一个自增的id作为主键。
+
+所以：
+- 类 = 表
+- 字段 = 列
+- 实例 = 一行数据
+
+例如:
+```Python
+project = Project(name='Project 1')
+```
+这里只是创建了一个Project实例，并没有插入到数据库中。需要调用`save`方法才会插入到数据库中。
+
+app的model要生效，要加入settings中的INSTALLED_APPS；再执行`makemigrations`和`migrate`命令才会真正创建表。
+
+## 字段
+字段就是你表里的“列定义”。
+
+```python
+name = models.CharField(max_length=100)
+description = models.TextField()
+```
+官方文档说明，字段类型不仅决定数据库里存什么类型的数据，也会影响默认表单控件和最基本的验证规则。
+
+### 字段方法
+
+#### CharField
+``` python
+title = models.CharField(max_length=200)
+```
+短文本CharField 要求写 max_length，它决定底层 VARCHAR 的长度。
+
+#### TextField
+长文本
+
+#### DateField
+```python
+create_tm = models.DateField(auto_now_add=True)
+update_tm = models.DateFiled(auto_now=True)
+```
+- auto_now_add=True: 对象第一次创建时自动写当前时间
+- auto_now=True: 每次更新时自动设置为当前时间
+
+##### 字段参数
+字段参数是字段定义时可以传入的参数，用于控制字段的行为。
+
+- null: 控制数据库层能不能存NULL （`null=True`：数据库里允许空）
+  - 字符串字段别乱加`null=True`，因为这样会同时出现两种“空值”状态：NULL 和空字符串 ""，大多数情况下是多余的。
+- blank: 控制表单验证层呢能不能留空(`blank=True`: 提交表单时允许不填)
+    ```python
+    description = models.TextField(blank=True, default="")
+    ```
+- default: 默认值
+- choices: 限制字段只能取固定值
+    ```python
+    STATUS_CHOICES = [
+        ('draft', '草稿'),
+        ('published', '已发布'),
+        ('archived', '已归档'),
+    ]
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+    ``` 
+### 关系字段
+关系字段是 model 最核心的部分，因为后端的业务系统本质上就是表和表之间的关系。
+- ForeignKey: 多对一
+- OneToOneField: 一对一
+- ManyToManyField: 多对多
+
+#### ForeignKey
+官方定义：ForeignKey 表示 many-to-one，多对一关系
+```python
+    project = modles.ForeignKey(Project, on_delete=models.CASCADE)
+```
+意思是：
+- 一个Task属于一个Project
+- 但一个Project可以有多个Task
+数据库底层会自动变成一个 project_id 列。官方文档明确说，Django 会在外键字段名后面自动加 _id 作为数据库列名。
+###### 参数
+- on_delete: 被关联对象删除时，当前对象该怎么办
+    1. models.CASCADE: 级联删除，如果项目删了，下面任务也删了
+    2. models.SET_NULL: 关联对象删除后，当前对象的关联字段设置为NULL，SET_NULL 只有在 null=True 时才成立。
+        ```python
+        assignee = models.ForeignKey(
+            settings.AUTH_USER_MODEL,
+            on_delete=models.SET_NULL,
+            null=True,
+            blank=True,
+        )
+        ```
+        负责人删除，任务还保留，负责人字段置空
+- related_name：从被关联对象反向访问当前对象时使用的名字
+    ```python
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, # 默认配置 auth.User，不需要显示定义
+        on_delete=models.CASCADE,
+        related_name="owned_projects",
+    )
+    ```
+    - 正向：project.owner
+    - 反向：user.owned_projects.all()
+    也就是说，你不只是能从项目找到用户，还能从用户找到“他拥有的项目”
