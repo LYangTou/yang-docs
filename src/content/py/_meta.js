@@ -10,4 +10,6 @@ export default {
   'day_10': 'Day 10',
   'day_12': 'Day 12',
   'day_13': 'Day 13',
+  'record_1': '阶段性记录1',
+  'django': 'django',
 }

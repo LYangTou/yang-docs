@@ -1,0 +1,260 @@
+## 杂糅操作
+### 海象运算符
+
+海象运算符是一个新的运算符，用于在表达式中赋值。
+```python
+if (n := len(a)) > 10:
+    print(f"List is too long ({n} elements, expected <= 10)")
+```
+
+海象运算符的优先级比赋值运算符高，所以上面的表达式相当于：
+```python
+n = len(a)
+if n > 10:
+    print(f"List is too long ({n} elements, expected <= 10)")
+```
+
+### 解包
+通过拆包进行索引交换
+这一过程会创建一个 临时的元祖，用来存储两个值，然后赋值这两个值，最后该元祖将消失
+```python
+test_list = [1,2,3]
+print(test_list)
+test_list[0], test_list[1] = test_list[1], test_list[0]
+print(test_list)
+```
+
+### match case
+match case 是一个新的语法，用于匹配多个值。
+case相当于一个解包语句，所以会有如下问题，light无论是什么值，都会匹配到RED。将light的值赋值给了RED，类似(RED,) = (light,)
+```python
+RED='red'
+def take_truncated_action(light):
+    # match 解包语句，将light的值赋值给了RED，类似(RED,) = (light,)
+    case RED: 
+        print(RED, light)
+        print("Stop")
+```
+
+如果想要解决这个问题，可以如下：
+```python
+class ColorEnum:
+  RED='red'
+def take_truncated_action(light):
+    match light:
+        case ColorEnum.RED: # 想解决要这么干
+            print("Go")
+```
+
+也因为解包语句，所以可以如下：
+```python
+def contains_match(tree, value):
+  match tree:
+    case pivot, left, _ if value < pivot:
+        print(f"left: {left}, pivot: {pivot}, value: {value}")
+        return contains_match(left, value)
+    case pivot, _, right if value > pivot:
+        print(f"left: {left}, pivot: {pivot}, value: {value}")
+        return contains_match(right, value)
+    case (pivot, _, _) | pivot:
+        print(f"pivot: {pivot}, value: {value}")
+        return pivot == value
+
+print(contains_match(my_tree, 1))
+```
+
+## 字符串操作
+
+### bytes转字符串
+```python
+def to_str(bytes_to_str):
+  # 检测类型
+  if isinstance(bytes_to_str, bytes):
+    value = bytes_to_str.decode('utf-8')
+  else:
+    value = bytes_to_str
+  return value
+```
+
+###  bytes
+```python
+print(repr(to_str(b'hello')))
+print(repr(to_str('hello')))
+
+def to_bytes(bytes_or_str):
+  if isinstance(bytes_or_str, str):
+    value = bytes_or_str.encode("utf-8")
+  else:
+    value = bytes_or_str
+  return value
+
+print(repr(to_bytes('hello')))
+print(repr(to_bytes(b'hello')))
+
+blue_bytes = b"blue"
+blue_str = "blue"
+print(b"red %s" % blue_bytes)
+print("red %s" % blue_str)
+```
+
+### repr
+可以用来获取对象的 “官方” 字符串表示。
+```python
+print('Hello, World!') # Hello, World!
+print(repr('Hello, World!')) # 'Hello, World!'
+```
+
+### format
+可以用来格式化字符串。没啥大用了，一般可以用`f""`
+```python
+name = "Tom"
+age = 18
+
+print("我叫{}, 今年{}岁".format(name, age))
+print("我叫{0}, 今年{1}岁, 再说一次我叫{0}".format("Tom", 18))
+print("我叫{name}, 今年{age}岁".format(name="Tom", age=18))
+
+# 保持小数点格式
+# .2f 按照浮点数格式保留两位小数
+price = 12.3456
+print("价格：{:.2f}".format(price))
+print("{:.5f}".format(price))
+
+# 补0
+num = 5
+print("{:03d}".format(num))
+
+# 格式化字符串
+# !r 表示使用 repr() 函数进行格式化， repr就是用来得到对象的更正式、偏程序员看的字符串表示
+key = 1 
+value = 2.3456
+f"{key!r:<10} = {value:.2f}"
+```
+
+### __str__和__repr__
+通过自定义__str__和__repr__方法控制输出，方便调试
+```python
+class Test:
+    def __init__(self, name):
+        self.name = name
+    # 通过自定义__repr__方法 覆盖object自带的__repr__，来方便调试
+    def __repr__(self):
+        return f"Test(name={self.name!r})"
+
+class StringifiableBetterClass(Test):
+    def __str__(self):
+        return f"({self.name})"
+
+
+stringifiable_better_class = StringifiableBetterClass('s')
+print(stringifiable_better_class)
+print(f"{stringifiable_better_class!r}")
+```
+
+## 迭代器
+Python 的迭代器，你可以先把它理解成：
+    一个可以一次次往外拿值的对象，不是一次把所有值都给出，而是要一个给一个
+迭代器要满足两点：
+    1. 要有__iter__方法
+    2. 要有__next__方法
+```python
+class MyIterator:
+    def __init__(self, data):
+        self.data = data
+    def __iter__(self):
+        return self
+    def __next__(self):
+        return next(self.data)
+
+# 创建一个迭代器
+iter([1,2,3])
+# 使用next方法获取下一个值
+next(iter([1,2,3]))
+```
+`enumerate` 函数就是利用了迭代器的这个特性，来实现一个可以一次次往外拿值的对象，不是一次把所有值都给出，而是要一个给一个
+
+### zip 
+生成一个包含每个迭代器的下一个值的元祖，默认会取最短的迭代器的长度。取包不可能发生静默截断，并且迭代器长度不同时运行时报错，可用`strict`关键字。
+```python   
+names = ["Cecilia", "Lise", "Marie"]
+counts = [len(n) for n in names]
+longest_name = None
+max_count = 0
+
+for name, count in zip(names, counts):  # Changed
+    if count > max_count:
+        longest_name = name
+        max_count = count
+
+print(longest_name, max_count)
+```
+
+### yield
+`yield`会返回一个生成器，生成器是一个迭代器，可以被`next`调用。
+每次调用`next`，会返回一个值，知道生成器结束。
+生成器会记住上次执行的位置，下次调用`next`会从上次的位置执行。
+必须配合函数进行使用。
+
+```python
+def my_generator():
+    for i in range(10):
+        yield i
+
+a = my_generator()
+
+def read_file():
+  with open("todos.json", "r", encoding="utf-8") as file:
+        content = json.load(file)
+        for item in content:
+            yield int(item)
+b = read_file()
+```
+
+通过重写`__iter__`方法，可以实现迭代器，每次调用`__iter__`方法，都会返回一个新的迭代器。这样可以解决使用`list`、`sum`等函数时，会一次性读取所有值，清空迭代器。
+
+```python
+class ReadVisits:
+    def __init__(self, data_path):
+        self.data_path = data_path
+
+    def __iter__(self):
+        with open(self.data_path) as f:
+            content = json.load(f)
+            for item in content:
+              yield int(item)
+
+
+print("Example 11")
+visits = ReadVisits("todos.json")
+
+sum(visits)
+
+for item in visits:
+  print(item)
+```
+
+## 模块
+假设有一个文件`settings.py`，里面有如下内容：   
+```
+GLOBAL_SETTINGS = ...
+DEV_SETTINGS = ...
+PROD_SETTINGS = ...
+```
+
+当这个文件过大，或者要区分测试环境和生产环境时，我们可以将这个配置文件拆分成模块。文件结构如下
+```
+settings/
+  __init__.py
+  global_settings.py
+  dev_settings.py
+  prod_settings.py
+```
+
+`__init__.py` 文件是必须的，它告诉 Python 这个目录是一个包。
+`global_settings.py` 文件是全局配置，`dev_settings.py` 文件是开发环境配置，`prod_settings.py` 文件是生产环境配置。
+
+在`dev_settings`或`prod_settings`文件中，我们可以这样导入：
+```python
+from global_settings import *
+```
+这样因为python的运行时特质，两个文件中会自动导入global_settings中的所有变量。

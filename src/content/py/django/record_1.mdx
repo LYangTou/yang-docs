@@ -1,0 +1,39 @@
+## 文件作用
+
+- `manage.py`：管理Django项目的命令行工具
+- `settings.py`：Django项目的配置文件
+- `urls.py`：Django项目的URL配置文件
+
+## manage.py
+
+- `python manage.py runserver`: 启动开发服务器
+- `python manage.py startapp <app_name>`: 创建一个Django应用
+
+## settings.py
+
+- `INSTALLED_APPS`: 项目安装的模块，当自己建的app如(users)被注册到其中时才会被统一纳入管理（数据库迁移等操作）
+- `DEBUG`: 开发模式
+- `ALLOWED_HOSTS`: 允许的域名列表，用于限制请求的域名
+
+## 路由
+
+路由有 `urls.py`文件进行控制。
+
+- 项目级路由： 总闸口
+  - 先接住所有进入项目的请求
+  - 按 URL 前缀把请求分发给不同模块
+- app路由：各业务模块自己的分表
+
+### urls.py 
+```python
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('projects/', include('projects.urls')),
+    path('users/', include('users.urls')),
+    path('api/', include('api.urls')),
+]
+```
+`include`的作用就是把某一段URL前缀交给匹配到的模块进行处理
+
