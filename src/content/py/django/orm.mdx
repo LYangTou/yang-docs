@@ -1,0 +1,184 @@
+ORM = Object Relational Mapping，对象关系映射。
+意思是：
+- 数据库表 ↔ Python类（model）
+- 表里的一行记录 ↔ Python类实例（对象）
+- 表之间的关系 ↔ model之间的字段关系（ForeignKey/OneToOne/ManyToMany）
+
+## ORM解决了什么？
+
+如果没有ORM，得自己写SQL语句，比如：
+```SQL
+SELECT * FROM projects_project WHERE id = 1;
+```
+有了ORM
+```Python
+project = Project.objects.get(id=1)
+```
+Django会把这句Python语句翻译成底层的SQL语句，然后执行。
+
+## ORM的五个核心角色
+
+### Model: 模型层
+比如
+```python
+class Project(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+```
+这个类的本身描述是：
+- 表叫什么
+- 有哪些字段
+- 每个字段是什么类型
+- 和其他表怎么关联
+
+**Model是表结构的Python表述**
+
+### Instance实例模型
+比如
+```python
+project = Project.objects.get(id=1)
+```
+这里`project`就是一个实例。
+它代表的是`projects_project`表里的一行数据。
+**实例等于一条真是数据**
+
+### Manager: 管理器
+比如经常看到的`Poject.objects`，这里的`objects`就是管理器。
+**Manager是提供数据库查询操作的接口**，每个模型至少有一个Manager。
+所以
+```python
+Project.objects.create(...)
+Project.objects.get(...)
+Project.objects.filter(...)
+```
+这些操作本质上都是通过`objects`管理器向数据库发起操作。
+
+**Manager=模型通往数据库的大门**
+
+### QuerySet: 查询结果集合
+比如
+```python
+Project.objects.all()
+Task.objects.filter(status='todo')
+```
+这里返回的都不是简单的对象，而是QuerySet。
+QuerySet可以理解成：
+- 一组对象
+- 一个还没真正执行完的查询描述
+- 一个可以继续链式拼接条件的东西
+比如
+```python
+Task.objects.filter(project=project).filter(status="todo")
+```
+还是 QuerySet。Django 官方专门有一整套 QuerySet API。
+
+**QuerySet=查询语句的结果集 / 查询管道**
+
+### Relationship: 关系
+ORM最关键的一层，就是表和表之间的关系。
+
+Django的模型关系有三种：
+- ForeignKey: 多对一
+- OneToOneField: 一对一
+- ManyToManyField: 多对多
+比如
+```python
+class Task(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="tasks")
+```
+这就表示：多个 Task 属于一个 Project。
+数据库里其实会有外键字段，比如`project_id`。
+但ORM让直接写
+```python
+task.project
+```
+Django 会自动帮你处理关联查询和 JOIN。官方文档明确说了，跨关系查询时 Django 会自动在后台处理 SQL JOIN。
+
+---------------------------------------------------------------------------------------------------------
+
+## CURD操作
+
+### Create
+两种写法
+```python
+project = Project(name = '1', description = '2', owner=user)
+project.save()
+```
+或者
+```python
+Project.objects.create(name = '1', description = '2', owner=user)
+```
+Django 文档对创建对象的基础方式说得很清楚：实例化模型，然后 save()；而 create() 相当于更方便的一步到位。
+
+### Read
+最常见的是
+```python
+Project.objects.all()
+Project.objects.get(id=1)
+Porject.objects.filter(name='1')
+```
+区别是:
+- all()：返回所有对象
+- get()：查单条，要求唯一。返回一个对象，找不到会报错，找到多条也会报错。
+- filter()：返回多个对象。返回QuerySet，找不到也只是返回一个空QuerySet，不会报错。
+
+### Update
+```python
+project = Project.objects.get(id=1)
+project.name = 'new name'
+project.save()
+```
+本质是：
+- 先查出来
+- 改实例属性
+- 再save()
+
+### Delete
+```python
+project = Project.objects.get(id=1)
+project.delete()
+```
+或者批量
+```python
+Task.objects.filter(status="done").delete()
+```
+
+------------------------------------------------------------------------
+
+## 为什么说ORM精髓是关系
+要学会顺着关系查数据。
+
+### 正向查
+```python
+task.project
+comment.task
+project.owner
+```
+这表示：从当前对象，通过外键拿到它关联的那个对象
+
+例如`task.project.name`，就是这个任务属于哪个项目。
+
+### 反向查
+如果写了`related_name="tasks"`，就可以反向查
+```python
+project.tasks.all()
+```
+这表示：从当前对象，通过related_name拿到它关联的那个对象。
+
+Django 官方把这种东西叫 related manager。也就是说，反向关系本身也像一个 manager，可以 `.all()、.filter()、.count()`
+
+同理
+```python
+task.comments.all()
+user.owned_projects.all()
+```
+都属于反向查关系。
+
+## 跨表查询
+
+比如查询所有属于某个用户的待办任务
+```python
+Task.objects.filter(project__owner=user, status="todo")
+```
+这里的`project__owner`很关键，用双下划线`__`一层层往下走，它会自动做JOIN。
+
