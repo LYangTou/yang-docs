@@ -1,0 +1,75 @@
+## 通用概念
+### 路由系统
+Django的URLconf本质就是把URL模式映射到Python view，即`URL→view/APIView/ViewSet`。
+Django处理请求时，会先找到根URLconf，在按`urlpatterns`的顺序逐条匹配，命中后调用对应view。顺讯很重要，匹配到谁就用谁。
+也就是以下路线
+**发请求到某个URL → Django路由命中view → view决定查什么、校验什么、返回什么。**
+
+#### 动态路由参数
+`projects/<int:pk>/`
+- 从 URL 里抓一个参数
+- 参数名叫 pk
+- 类型是 int
+  官方内置 converter 里就有 int、str、slug、uuid、path
+
+### request.user
+Django认证系统负责用户、权限、密码处理等默认认证能力；在请求里可以通过`request.user`拿到当前用户。后续“当前用户”从session/cookie驱动，逐步转向成token/JWT驱动仍然是这套路线。
+
+**任何业务权限，最后都依赖后端知道当前请求对应哪个用户。**
+
+### model中的数据归属字段（如owner/creator/assignee）
+Django的模型和关系查询文档都将外键当做一等公民；关系字段不是附属品，而是后面查询、过滤、权限判断的基础。通过外键可以访问关联对象，也可以沿着关系继续查询。
+
+如`owner/creator/assignee`不是为了显示用户名才加的。而是为了解决：
+- 这条数据归属于谁
+- 谁有权访问
+- 谁有权修改
+- 谁可以在列表中看到它
+
+也就是说，**没有归属字段，根本没法做权限。**
+
+### 查询权限：权限首先体现在queryset上
+- `Project.objects.filter(owner=request.user)`
+- `Task.objects.filter(project__owner=request.user)`
+
+Django查询文档支持沿关系做查询，双下划线写法可以跨外键继续过滤；
+
+即列表页不是全查出再隐藏，而是数据库要限制。真正的权限永远应该出现在后端查询范围上。
+
+***权限控制的第一层，是queryset缩小。*
+
+### 对象级权限：查单条对象就带权限条件
+```python
+project = get_object_or_404(Project, pk=pk, owner=request.user)
+task = get_object_or_404(Task, pk=pk, project__owner=request.user)
+```
+`get_object_or_404()`: 按给定条件取对象，取不到就返回404。好处是：
+- 查询和权限合并在一起
+- 对象不存在、对象不属于你、结果统一成404
+- 代码短，而且不容易漏。
+
+### 输入也要限权：不只查结果要限制，传入参数也要限制
+```python
+form.fields["project"].queryset = Project.objects.filter(owner=request.user)。
+```
+
+不能只限制用户能看到什么，还要限制用户能提交什么。
+
+所以**任何外键输入、任何关联 ID 输入，都要做归属校验。**
+
+### service
+让业务逻辑脱离view，就是service层的作用，目的是为了：
+1. view不要知道太多业务细节。
+2. 同一套业务逻辑能被多个入口复用
+3. 权限逻辑、查询逻辑、状态变更逻辑更容易测试
+
+## 暂存概念
+
+### @login_required
+用来要求用户先登录再访问，后面会变成
+- authentication_classes
+- permission_classes
+- IsAuthenticated
+
+**任何受保护资源，都需要现有“认证通过”这一门禁。**
+
