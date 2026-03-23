@@ -1,0 +1,122 @@
+## Serializer是什么
+**Serializer是API的数据翻译层。**
+
+可以理解成：
+- model管数据库怎么存
+- Serializer管接口怎么对外表达
+
+比如数据库里有一个Project对象：
+```python 
+project = Project.objects.first()
+```
+它是python中的一个对象，而不是可以直接给前端用的JSON。
+
+这时候Serializer就可以把这个Project对象翻译成JSON格式的数据，供前端使用。
+```python
+ProjectSerializer(project).data
+```
+会把这个project变成类似
+```JSON
+{
+    "id": 13,
+    "name": "Project 0",
+    "description": "Project 0 description",
+    "owner": 6,
+    "created_at": "...",
+    "updated_at": "..."
+}
+```
+即**Serializer不是数据库工具，而是接口层工具**，解决怎么对外输出，怎么返回，怎么校验。
+
+## ModelSerializer是什么
+**ModelSerializer是Serializer的一个子类，是给django model用的快捷版本Serializer**
+
+比如
+```python
+class ProjectSerializer(serializers.ModelSerializer):
+    ...
+```
+这代表
+- 这个Serializer是围绕某个model写的
+- 不需要手动把每个字段定义一遍
+- 可以根据model自动生成一部分字段和默认行为。
+
+## class Meta是什么
+**class Meta是ModelSerializer里一个特殊的内部类，用来配置这个Serializer的行为和属性。**
+例如：
+
+```python
+class ProjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = ["id", "name", "description", "owner", "created_at", "updated_at"]
+```
+
+这代表：
+- 这个Serializer对应那些model
+- 这个Serializer要暴漏那些字段
+
+即Meta是一个serializer的配置单
+
+## fields
+**fields是Meta里一个属性，用来指定这个Serializer要暴漏哪些字段。**
+比如
+```python
+fields = ["id", "name", "description", "owner", "created_at", "updated_at"]
+```
+意思是：
+- API输出里要有这些字段
+- 后续输入校验时，也会根据这些字段来工作
+
+也就是说fileds是一个接口白名单
+
+## read_only_fields
+**read_only_fields表示这些字段可以被返回，但不应该由前端直接来提交修改**
+像id 和created_at这种字段，通常是由数据库自动生成的，不应该由用户来修改，所以我们可以把它们放在read_only_fields里。
+
+## serializer.data
+**serializer.data就是序列化后的结果**
+`serializer`本身只是一个“转换器对象”，真正的转换结果要看`serializer.data`，最终返回给前端的也是这份数据。
+
+## many=True
+**当序列化的是列表/queryset，而不是单个对象时，必须加many=True**
+```python
+ProjectSerializer(Project.objects.all(), many=True).data
+```
+因为DRF需要知道：
+- 传进来的是一个对象
+- 还是一组对象
+这是两种不同的处理方式
+
+## 执行流
+
+### 单对象序列化
+```python
+project = Project.objects.first()
+serializer = ProjectSerializer(project)
+serializer.data
+```
+执行流是：
+**数据库 → ORM查出model实例 → serializer接住 → .data产出可返回结构**
+
+### 列表序列化
+```python
+projects = Project.objects.all()
+serializer = ProjectSerializer(projects, many=True)
+serializer.data
+```
+执行流是：
+**数据库 → ORM查出queryset → serializer批量处理 → .data产出列表结构**
+
+## .save、.create、.update
+- save是统一入口
+- 新增数据时，内部会走create方法
+- 更新数据时，内部会走update方法
+ModelSerializer已经默认实现了基础版本save、create、update方法，满足基本的增删改需求，如果需要特殊处理，可以重写这些方法。
+
+## validated_data
+**validated_data是校验通过后的干净数据**
+也就是说：
+- 前端提供的原始数据未必可信
+- 先经过is_vaild()
+- 合格之后，留下来的就是validated_data
