@@ -1,0 +1,116 @@
+**后端必须明确告诉前端：什么数据能提交，什么数据不能提交，为什么不能提交，错误会以什么结构返回，**
+
+应该建立一个**API契约**的认知
+也就是：
+- 输入的数据格式是什么
+- 每个字段允许什么值
+- 不合法时返回是么
+- 登录与未登录分别会怎么样
+- 错误属于哪一层
+
+## Serializer不只是把对象转换成JSON
+之前的Serializer主要用来把model instance/queryset转换成JSON格式的数据，供前端使用；但它的功能远不止于此。
+
+### Serializer有两面
+
+一面是输出：
+- 把数据库对象序列化成接口返回
+
+另一面是输入：
+- 接住前端发来的JSON
+- 把原始值转换成内部值
+- 再做校验
+- 校验通过后才能保存
+
+DRF官方文档也明确说明了：serializer不只是表示输出数据，也负责反序列化和校验输入；.is_vaild(raise_exception=True)会在校验失败时抛出`ValidationError`，默认会返回`400 Bad Request`
+所以“
+**serializer是API输入输出契约的第一道核心**
+
+## 字段级校验和对象级校验
+
+### 字段级校验
+
+字段级校验之和某一个字段本身有关的规则，适合写：
+```python
+validate_title(self, value)
+```
+这里的意思是只校验title这个字段本身
+
+### 对象级校验
+比如：
+- due_date 不能早于当前时间
+- project 必须属于当前用户
+- 某两个字段的组合必须满足某个规则
+
+这种是多个字段放在一起才能判断，适合写在：
+```python
+validate(self, attrs)
+```
+
+这里意思是校验整体输入数据的整体合法性。
+
+### 关联字段不是普通整数，它背后是外键对象解析
+比如project传一个不存在的id
+```python
+    {
+        "project": 5
+    }
+```
+这对DRF来说，**是把主键ID解析成一个关联对象**
+也就是说它会把5变成一个Project实例。
+
+也就是说 
+**关联字段输入时，不只是接受一个数字，而是再做“ID → 关联对象”的转换。**
+
+### 标准错误流
+`ValidationError` + `is_vaild(raise_exception=True)`就是标准错误流。
+
+DRF的标准报错链路：
+1. request进来
+2. serializer接收数据
+3. 调用`is_vaild(raise_exception=True)`
+4. 只要校验失败，就抛`serializer.ValidationError`
+5. DRF默认异常处理器接住
+6. 返回`400 Bad Request`
+
+而后可以通过写自定义excepiton handler，统一控制错误响应风格。
+
+## perform_create和create
+create管整条创建请求怎么走，最终怎么会；perform_crate管数据已经校验通过后，真正保存时要补什么，怎么存。
+
+### create是更外层的方法
+在DRF里，`CreateModelMixin`提供了`.create(request, *args, **kwargs)`，它负责实现“创建并保存一个新对象实例”的整套动作；`ModelViewSet`正是通过混入这些mixin，才默认拥有.create、.update、.destory等action.
+
+可以把create理解成：
+- 接请求
+- 拿serializer
+- 校验数据
+- 调保存
+- 组织HTTP响应
+
+也就是说它关心的是整个POST请求流程。
+
+### perform_create是更内层的保存钩子
+- perform_create(self, serializer)
+- 由`CreateModelMixin`在保存新对象时嗲用
+- 适合设置那些“来自request，但不在request.data里的”隐式属性
+```python
+def perform_create(self, serializer):
+    return serializer.save(owner=self.request.user)
+```
+所以perform_create只关心：
+- 校验已经过了
+- 现在准备保存
+- 保存时要不要额外补字段
+
+### 核心区别
+`create`偏流程控制
+- 想改整个响应结构
+- 想改状态码
+- 想在保存前后插入整段额外流程
+- 想完全接管默认创建逻辑
+
+perform_create偏保存细节
+- 适合perform_create(self, serializer)
+- 从URL里补project_id
+- 保存前做一个很贴近落库时机的检查
