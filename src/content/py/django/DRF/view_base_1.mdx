@@ -1,0 +1,175 @@
+## Request
+在普通Django里，视图接收到的是`HttpRequest`。Django官方把view描述为：接受request，返回response的callable；类视图最终也还是围绕这个模型工作。
+
+到了DRF里，`APIView`和`@api_view`会把原本的Django request包装成DRF的`Request`对象。
+写API时，以后最常用的不是`request.POST`而是`request.data`。
+
+因为`request.data`是DRF为API输入准备的统一入口，更适合处理JSON、表单等API请求体。如果请求体格式不对，访问`request.data`可能触发解析错误，`APIView`和`@api_view`会负责把它转成合适的错误响应。
+
+## Response
+`Response`是DRF的响应对象。它和Django原生的`HttpRequest`/`JsonResponse`最大的区别，不只是‘也能返回JSON’，而是它会进入DRF的渲染与内容协商流程。
+DRF明确了：返回`Response`时，通常应该配合`APIView`或`@api_view`使用，这样才能享受DRF的内容协商、渲染器等功能。
+
+## @api_view
+`@api_view`是DRF提供的一个装饰器，用于将函数视图转换为API视图。它的作用是：它接收一个HTTP方法列表，声明这个函数视图能处理那些方法。
+
+例如：
+```python   
+@api_view(["GET"])
+def project_list(request):
+    ...
+```
+
+它的含义是：
+- 这是一个DRF函数式API视图
+- 这个接口只接受GET
+- 进入函数时拿到的是DRF
+- 返回时应该用DRF
+
+## 类视图（Class-Based View）
+类视图是一种和函数视图并列的写法：它把view写成Python对象，而不是普通函数。它并不是替代函数视图，而是提供了另一种组织方式，尤其适合把不同HTTP方法拆成不同方法来写。
+```python
+class MyView(View):
+    def get(self, request):
+        ...
+```
+也就是说：
+- 函数视图：把所有逻辑放在一个函数里
+- 类视图：把逻辑挂到一个类上，再按HTTP方法拆开
+
+### 在URL中使用
+类视图不是直接把类名放进`path()`，而是要调用`as_view()`
+```python
+urlpatterns = [
+    path("my-view/", MyView.as_view()),
+]
+```
+因为URL路由需要的是一个可调用对象。
+类本身不是最终直接用来处理请求的那个callable，`as_view()`会把这个类转换成Django可以接住请求的view callable。
+
+### 类视图是怎么分发GET/POST的
+简单理解就是
+- 来的是GET，就找`get()`
+- 来的是POST，就找`post()`
+- 来的是PUT，就找`put()`
+- 没写对应方法的就返回405 Method Not Allowed
+
+所以类视图最适合的场景是：一个接口要处理多种请求方法时，类视图比函数视图更自然。
+
+### APIView
+APIView是DRF提供的一个类视图基类，专门为API设计。它在Django的基础上添加了很多API相关的功能，比如内容协商、渲染器、权限控制等。
+可以这样理解关系：
+- Django的View：提供了基本的类视图功能
+- DRF的APIView：在Django View基础上，添加了API相关的功能和约定
+
+例如：
+```python
+class ProjectListAPIView(APIView):
+    def get(self, request):
+        ...
+```
+
+它的含义是：
+- 用类来写接口
+- GET请求进来执行get
+- 视图里拿到的是DRF的Request
+- 结尾返回Response
+
+### 类视图的执行流
+Django View 文档给出了基础流程：setup() → dispatch() → 最终 HTTP 方法处理。
+
+当前可以简单理解：
+1. URL匹配到`APIView.as_view()`，进入这个类视图
+2. Django创建这次请求对应的view示例
+3. `dispatch()`判断这次是GET还是POST
+4. 如果是GET，就去执行`get()`
+5. `get()`里写查询、序列化、返回相应
+6. 最终把`Response`返回出去
+
+### 执行流程完整版
+```python 
+┌────────────────────────────────────────────┐
+│                你自己写的代码               │
+├────────────────────────────────────────────┤
+│ class ProjectListAPIView(APIView):         │
+│     def get(self, request):                │
+│         ...                                │
+└────────────────────────────────────────────┘
+
+
+┌────────────────────────────────────────────┐
+│         Django / DRF 框架自动做的事情       │
+├────────────────────────────────────────────┤
+│ urls.py                                    │
+│ path("projects-class/",                    │
+│      ProjectListAPIView.as_view())         │
+│                                            │
+│ 1. as_view()                               │
+│    把“类”变成 Django 能调用的 view callable │
+│                                            │
+│ 2. 请求来了                                │
+│    Django 创建当前视图实例                 │
+│                                            │
+│ 3. setup()                                 │
+│    自动把：                                │
+│    - request 放到 self.request             │
+│    - URL 参数放到 self.args / self.kwargs  │
+│                                            │
+│ 4. dispatch()                              │
+│    自动判断 HTTP 方法                      │
+│    - GET  -> 去找 get()                    │
+│    - POST -> 去找 post()                   │
+│    - 其他不支持 -> 405                     │
+│                                            │
+│ 5. 真正调用你写的 get(self, request)       │
+│                                            │
+│ 6. 你返回 Response(...)                    │
+│                                            │
+│ 7. DRF finalize_response()                 │
+│    自动做响应收尾、内容协商、渲染          │
+└────────────────────────────────────────────┘
+```
+- setup: Django 文档写得很直接：setup(request, *args, **kwargs) 会在 dispatch() 之前执行，把当前 HttpRequest 赋给 self.request，把 URL 里抓到的位置参数和关键字参数分别赋给 self.args 和 self.kwargs。如果你自己重写 setup()，必须调用 super()。
+- dispatch: Django 文档把 dispatch() 叫作真正的 “view part”。默认实现会检查 HTTP 方法，然后把 GET 分发给 get()，POST 分发给 post()，以此类推；默认情况下，HEAD 会委托给 get()；如果这个方法不支持，就走 http_method_not_allowed()，默认返回 HttpResponseNotAllowed。
+
+路径访问后执行流程图：
+```
+浏览器 / 前端请求
+        │
+        ▼
+urls.py
+path("projects-class/", ProjectListAPIView.as_view())
+        │
+        ▼
+【框架】as_view()
+把类转换成 callable
+        │
+        ▼
+【框架】创建 ProjectListAPIView 实例
+        │
+        ▼
+【框架】setup(request, *args, **kwargs)
+- self.request = request
+- self.args = args
+- self.kwargs = kwargs
+        │
+        ▼
+【框架】dispatch(request, *args, **kwargs)
+- 看这次是不是 GET / POST / PUT ...
+        │
+        ▼
+如果这次是 GET
+        │
+        ▼
+【你自己写的】get(self, request)
+- 查数据库
+- serializer 序列化
+- return Response(...)
+        │
+        ▼
+【框架】finalize_response(...)
+- 把 Response 渲染成最终返回内容
+        │
+        ▼
+返回给客户端
+```

@@ -1,0 +1,133 @@
+## 总结
+1. ViewSet是按“动作”组织接口，不是按照HTTP方法组织接口
+    `ViewSet`更强调`list`、`retrieve`、`update`这类操作
+2. Router的作用是自动把ViewSet变成URL
+3. ReadOnlyModelViewSet天生就是只读资源视图
+    它默认提供`list`和`retrieve`(获取详情)两个动作，分别对应HTTP的GET方法。
+4. get_queryset()决定这类资源能看到那些数据
+5. basename不是URL路径，而是路由前缀
+6. DefaultRouter不只是生成资源路由，还会额外生成API根入口
+
+## APIView和ViewSet的本质区别
+APIView思维模式是：
+- 来一个 GET 请求，就进 .get()
+- 来一个 POST 请求，就进 .post()
+
+官方文档也是这么定义的：APIView 仍然是基于请求方法分发，只是 DRF 会把请求变成 Request，响应变成 Response，并加上认证、权限、内容协商这些 API 能力。
+
+而今天的 ViewSet 思维模式变成：
+
+- 列表 = list
+- 单条详情 = retrieve
+- 创建 = create
+- 整体更新 = update
+- 局部更新 = partial_update
+- 删除 = destroy
+
+也就是说：
+
+- APIView 更像“HTTP 方法驱动”
+- ViewSet 更像“资源动作驱动”
+
+## ReadOnlyModelViewSet
+ReadOnlyModelViewSet 提供默认的 list() 和 retrieve() 动作。
+本质上已经获得了两类只读能力：
+- 资源列表
+- 单资源详情
+
+而 ModelViewSet 会把 create / update / partial_update / destroy / list / retrieve 一次性全带上
+
+## get_queryset和list
+- get_queryset()管的事：这类资源能看到那些数据
+- list()管的事：当访问资源列表时，返回什么数据
+
+GenericViewSet 带有 get_queryset() 和 get_object() 这些通用行为。ReadOnlyModelViewSet 又是在它之上叠加 list/retrieve 的 mixin
+
+所以
+- router 把 /api/projects/ 映射到 list
+- list 内部会去拿 queryset
+- queryset 来自重写的 get_queryset()
+- 然后 DRF 再序列化返回
+
+这就是为什么你没手写 list()，接口照样能正常返回。
+
+## router解决了什么问题
+ViewSet 的一个重要价值，就是把重复逻辑合并到一个类里，再通过 router 自动处理 URL 绑定；代价是显式性会少一点。
+```python
+router.register("projects", ProjectViewSet, basename="project")
+router.register("tasks", TaskViewSet, basename="task")
+```
+这样后端接口不再是零散URL集合，而是按自愿规则统一组织的API
+
+## basename
+- basename 是创建URL名称时用的基础名
+- 如果ViewSet有.queryset属性，通常可以自动推断
+- 如果只有get_queryset()，就必须显式提供 basename
+
+## 执行流
+```
+浏览器/Apifox 请求
+    ↓
+config/urls.py
+path("api/", include("api.urls"))
+    ↓
+api/urls.py
+router.register("projects", ProjectViewSet, basename="project")
+    ↓
+DefaultRouter 自动匹配 URL
+    ↓
+ProjectViewSet 的 list / retrieve 动作
+    ↓
+get_queryset() 过滤出当前用户自己的数据
+    ↓
+serializer_class 序列化
+    ↓
+Response 返回 JSON
+```
+
+## 通用行为
+DRF 已经帮你提前写好的一套可复用基础逻辑。
+你不用每个接口都从零开始写“查数据、找单个对象、序列化、过滤、分页”这些重复代码，而是通过继承这些基类和 mixin，直接拿来用。DRF 的 generic views 文档明确说，类视图的一个关键好处，就是可以把可复用行为拆出来组合；GenericAPIView 再配合 mixin，可以快速构建常见的 API 模式。
+
+## GenericViewSet
+**GenericViewSet = 有通用行为，但没有默认动作**
+
+源码说明得非常直接：GenericViewSet 默认不提供任何 action，但包含 get_object 和 get_queryset 这类基础通用行为。
+
+也就是说：
+
+- 它会帮你准备“查数据、找对象”这套底座
+- 但它不会直接给你 list()、create()、retrieve() 这些动作
+
+### 通用行为属性
+- get_queryset()：定义这类资源能看到哪些数据
+- get_object()：在详情接口里，根据pk等条件取出单个对象
+- filter_queryset()：把过滤的数据应用到queryset
+- get_serializer_class：决定当前需求用哪个序列化器
+- paginate_querset(): 如果开了分页，就把queryset先分页
+- perform_create / perform_update / perform_destroy：在创建、更新、删除时，给你挂业务逻辑的钩子
+
+### 通用行为体系
+```
+APIView
+  └─ 提供 API 基础能力
+     （Request / Response / 内容协商 / 异常处理）
+
+GenericAPIView
+  └─ 提供通用行为
+     - get_queryset()
+     - get_object()
+     - filter_queryset()
+     - get_serializer_class()
+     - paginate_queryset()
+
+GenericViewSet
+  └─ 把 GenericAPIView 的通用行为带进 ViewSet 体系
+     - 但默认没有 list/create/retrieve 这些动作
+
+ReadOnlyModelViewSet
+  └─ GenericViewSet
+     + ListModelMixin
+     + RetrieveModelMixin
+     = 自动拥有 list / retrieve
+```
