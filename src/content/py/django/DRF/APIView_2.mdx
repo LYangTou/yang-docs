@@ -1,0 +1,54 @@
+这份笔记总结了我们之前讨论的 Django REST Framework (DRF) 视图核心知识。我们可以通过这个结构清晰地回顾视图是如何处理一个请求的。
+
+## 1. 视图的两种形态 🎭
+
+DRF 提供了两种方式来编写视图，它们都具备自动处理 `Request` 和 `Response` 的能力。
+
+### A. 基于类的视图 (APIView)
+* **继承关系**：继承自 `rest_framework.views.APIView`。
+* **配置方式**：通过类属性直接定义。
+* **适用场景**：逻辑复杂、需要高度定制或符合 RESTful 规范（GET/POST 分离）的接口。
+
+### B. 基于函数的视图 (@api_view)
+* **定义方式**：普通 Python 函数 + `@api_view(['METHOD'])` 装饰器。
+* **配置方式**：通过叠加专用装饰器（如 `@permission_classes`）。
+* **适用场景**：逻辑简单的临时接口。
+
+---
+
+## 2. 核心对象：数据交互的桥梁 🌉
+
+* **`request.data`**：核心 API。它自动解析了 JSON、表单等数据，你不再需要手动处理 `json.loads`。
+* **`request.query_params`**：更具语义化的 `GET` 参数获取方式。
+* **`Response(data, status)`**：自动执行“内容协商”，根据客户端要求返回 JSON 或 HTML。
+
+---
+
+## 3. Dispatch 流程：请求的幕后旅程 ⚙️
+
+当一个请求到达 `APIView` 时，它会经历以下关键步骤：
+
+1.  **`.dispatch()`**：入口方法。它负责把原生的 Django 请求包装成 DRF `Request`，并确定该调用哪个 handler（如 `.get()` 或 `.post()`）。
+2.  **`.initial()`**：**核心安检站**。在执行业务逻辑前，它会依次触发“安保三部曲”：
+    * **认证 (Authentication)**：查验身份。
+    * **权限 (Permissions)**：核实权限。
+    * **限流 (Throttling)**：检查频率。
+3.  **Handler 执行**：执行你写的 `.get()` 或 `.post()` 逻辑。
+4.  **`.handle_exception()`**：**安全气囊**。如果上述过程报错，它会将异常转化为标准 JSON 响应。
+5.  **`.finalize_response()`**：最后修饰。确保响应头和内容格式正确。
+
+
+
+---
+
+## 4. 策略配置 API 速查表 📋
+
+无论是类还是函数，配置的逻辑是一致的：
+
+| 策略 | APIView 属性 | @api_view 对应装饰器 | 常用内置类 |
+| :--- | :--- | :--- | :--- |
+| **身份认证** | `authentication_classes` | `@authentication_classes` | `TokenAuthentication`, `SessionAuthentication` |
+| **权限控制** | `permission_classes` | `@permission_classes` | `IsAuthenticated`, `IsAdminUser`, `AllowAny` |
+| **访问限流** | `throttle_classes` | `@throttle_classes` | `UserRateThrottle`, `AnonRateThrottle` |
+
+---

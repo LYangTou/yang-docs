@@ -1,0 +1,86 @@
+# 📘 Django REST Framework 分页 (Pagination) 完全手册
+
+## 1. 核心概念：为什么需要分页？
+当数据库中有成千上万条记录时，一次性返回所有数据会导致：
+* **服务器压力大**：内存占用激增。
+* **网络延迟高**：传输大量 JSON 数据耗时。
+* **用户体验差**：前端渲染大量数据会卡顿。
+
+
+
+---
+
+## 2. 三种内置分页方案对比
+
+| 方案名称 | URL 示例 | 优点 | 缺点 | 适用场景 |
+| :--- | :--- | :--- | :--- | :--- |
+| **PageNumber** | `?page=2` | 直观，支持直接跳页。 | 大数据量下 `OFFSET` 性能差。 | 后台管理、文章列表。 |
+| **LimitOffset** | `?limit=10&offset=20` | 极其灵活，由客户端决定数量。 | 同样存在大数据量性能瓶颈。 | 需要高度自定义显示的 API。 |
+| **Cursor** | `?cursor=XYZ` | **性能最优**，且能防止数据漂移。 | 不支持跳转到特定页码。 | 移动端信息流（无限滚动）。 |
+
+---
+
+## 3. 配置与实现步骤
+
+### 第一步：全局配置 (Global Settings)
+在 `settings.py` 中开启默认分页，确保所有 `ListAPIView` 自动生效。
+
+```python
+# settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10  # 默认每页显示 10 条
+}
+```
+
+### 第二步：局部覆盖 (Local Overrides)
+如果某个接口（如“最近动态”）需要特殊的游标分页，可以在视图中单独定义。
+
+```python
+from rest_framework.pagination import CursorPagination
+from rest_framework import viewsets
+
+class NewestFeedPagination(CursorPagination):
+    page_size = 20
+    ordering = '-created_at' # 游标分页必须指定排序字段
+
+class FeedViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Feed.objects.all()
+    # 局部配置将覆盖全局配置
+    pagination_class = NewestFeedPagination
+```
+
+### 第三步：自定义响应格式 (Custom Response)
+如果你想修改返回的 JSON 结构（如添加“总页数”），请继承基类并重写 `get_paginated_response`。
+
+```python
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+
+class StandardPagination(PageNumberPagination):
+    page_size_query_param = 'size' # 允许前端传 ?size=20
+    max_page_size = 100            # 最大限制
+
+    def get_paginated_response(self, data):
+        return Response({
+            'meta': {
+                'total_records': self.page.paginator.count,
+                'total_pages': self.page.paginator.num_pages,
+                'current_page': self.page.number,
+            },
+            'links': {
+                'next': self.get_next_link(),
+                'prev': self.get_previous_link(),
+            },
+            'results': data
+        })
+```
+
+---
+
+## 4. 关键知识点总结 (Cheat Sheet)
+
+1.  **优先级**：视图中的 `pagination_class` > `settings.py` 中的全局配置。
+2.  **触发条件**：分页仅在 `.list()` 动作（通常是 `ListAPIView` 或 `ViewSet` 的列表请求）中自动触发。
+3.  **关闭分页**：在视图中设置 `pagination_class = None` 即可禁用。
+4.  **数学逻辑**：总页数 = **向上取整 (总条数 / 每页大小)**。

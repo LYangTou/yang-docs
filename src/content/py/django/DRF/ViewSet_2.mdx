@@ -1,0 +1,71 @@
+为了方便你复习和查阅，我把我们讨论的 Django REST Framework (DRF) **ViewSet** 核心知识点整理成了这份笔记，并附带了一个完整的代码示例。
+
+---
+
+### 📝 DRF ViewSet 核心笔记
+
+* **基本概念** 🧩：`ViewSet` 将多个相关视图逻辑（如列表、详情、创建、删除）组合在一个类中。它不使用 `.get()` 或 `.post()`，而是使用动作（Actions）如 `.list()` 和 `.retrieve()`。
+* **常用内置类** 🛠️：
+    * `ModelViewSet`：支持完整的 CRUD（增删改查）。
+    * `ReadOnlyModelViewSet`：仅支持只读操作（`list` 和 `retrieve`）。
+* **自动化路由** 🛣️：配合 `DefaultRouter` 使用，可以自动生成符合 RESTful 规范的 URL 模式，减少手动配置。
+* **自定义动作** ⚙️：使用 `@action` 装饰器。
+    * `detail=True`：针对单个对象（URL 包含 ID）。
+    * `detail=False`：针对集合（URL 不含 ID）。
+* **动态权限控制** 🕵️‍♂️：通过 `self.action` 在 `get_permissions()` 中为不同操作设置不同权限。
+
+---
+
+### 💻 代码讲解示例
+
+假设我们要实现一个图书管理系统：
+
+```python
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from .models import Book
+from .serializers import BookSerializer
+
+class BookViewSet(viewsets.ModelViewSet):
+    """
+    一个包含标准 CRUD 和自定义动作的图书 ViewSet
+    """
+    queryset = Book.objects.all()
+    serializer_class = BookSerializer
+
+    # 1. 动态权限控制 🕵️‍♂️
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]  # 登录即可查看
+        return [IsAdminUser()]          # 只有管理员能修改/删除
+
+    # 2. 自定义详情动作 (detail=True) ⚙️
+    # 生成 URL: /books/{id}/mark_sold_out/
+    @action(detail=True, methods=['post'])
+    def mark_sold_out(self, request, pk=None):
+        book = self.get_object()
+        book.is_available = False
+        book.save()
+        return Response({'status': f'图书《{book.title}》已标记为售罄'})
+
+    # 3. 自定义集合动作 (detail=False) ⚙️
+    # 生成 URL: /books/recent/
+    @action(detail=False, methods=['get'])
+    def recent(self, request):
+        # 获取最近上架的 5 本书
+        recent_books = self.queryset.order_by('-created_at')[:5]
+        serializer = self.get_serializer(recent_books, many=True)
+        return Response(serializer.data)
+```
+
+**路由注册方式：**
+```python
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r'books', BookViewSet)
+urlpatterns = router.urls
+```
+
