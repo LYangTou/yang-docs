@@ -6,6 +6,6 @@ export default {
     'APIView_2': 'APIView_2',
     'generic_views': '通用视图',
     'ViewSet_1': 'ViewSet_1',
-    'Viewset_2': 'ViewSet_2',
+    'ViewSet_2': 'ViewSet_2',
     'pagination': '分页',
 }
