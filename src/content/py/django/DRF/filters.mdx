@@ -1,0 +1,130 @@
+
+## 📖 DRF 核心组件指南：过滤机制 (Filtering)
+
+> **核心思想**：DRF 的列表视图默认返回所有的数据库记录。为了按需返回数据子集，DRF 提供了从**底层手动拦截**到**高层配置驱动**的全套过滤解决方案。
+
+---
+
+## 一、 🛠 基础手动过滤：重写 `.get_queryset()`
+
+**核心原理**：`GenericAPIView` 及其子类通过调用 `.get_queryset()` 获取数据。通过在视图中重写该方法，可以根据请求上下文（当前用户、URL 参数、查询字符串）动态返回 QuerySet。它不仅控制列表返回，还作为详情视图（单个对象查找）的安全防线。
+
+### 1. 常见 API 应用与写法
+
+* **场景 A：根据当前登录用户过滤（数据隔离）**
+    ```python
+    def get_queryset(self):
+        # 仅返回当前请求用户购买的记录
+        return Purchase.objects.filter(purchaser=self.request.user)
+    ```
+
+* **场景 B：根据 URL 路径参数过滤**
+    ```python
+    # URL: /api/purchases/<username>/
+    def get_queryset(self):
+        username = self.kwargs['username']
+        return Purchase.objects.filter(purchaser__username=username)
+    ```
+
+* **场景 C：根据 URL Query 字符串过滤**
+    ```python
+    # URL: /api/purchases?username=tom
+    def get_queryset(self):
+        queryset = Purchase.objects.all()
+        username = self.request.query_params.get('username')
+        if username:
+            queryset = queryset.filter(purchaser__username=username)
+        return queryset
+    ```
+
+### 2. 进阶特性
+* **组合使用**：可以先用 `.get_queryset()` 划定基础数据范围，再交由“通用过滤后端”进行二次筛选。
+* **隐式权限控制**：详情视图在获取单个对象前，会先经过 `.get_queryset()` 过滤。如果目标对象不在返回的 QuerySet 中，会安全地抛出 `404 Not Found` 而不是越权访问。
+
+---
+
+## 二、 ⚙️ 核心 API：通用过滤后端 (Generic Filter Backends)
+
+
+
+**核心原理**：提供标准化的过滤、搜索和排序功能，支持全局配置或视图局部配置，并能自动集成到 DRF 可视化浏览器界面 (Browsable API) 中。
+
+**全局配置示例**：
+```python
+# settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend']
+}
+```
+
+### 1. 三大内置/核心过滤器对比与使用
+
+| 过滤器类 | 核心定位 | 是否需要额外安装库？ | API 应用场景 | URL 示例 |
+| :--- | :--- | :--- | :--- | :--- |
+| **`DjangoFilterBackend`** | **精确/条件筛选** | ✅ 是 (`django-filter`) | 针对具体字段的精确匹配（如分类、状态、价格区间）。 | `?category=clothing&in_stock=True` |
+| **`SearchFilter`** | **智能文本/模糊搜索** | ❌ 否 (DRF 内置) | 提供全局搜索框，跨多个文本字段查找包含特定关键字的数据。 | `?search=apple` |
+| **`OrderingFilter`** | **结果动态排序** | ❌ 否 (DRF 内置) | 允许前端点击表头按升序/降序排列数据。 | `?ordering=-price,name` |
+
+### 2. 具体写法说明
+
+#### A. `DjangoFilterBackend` (精确筛选)
+```python
+from django_filters.rest_framework import DjangoFilterBackend
+
+class ProductList(generics.ListAPIView):
+    queryset = Product.objects.all()
+    filter_backends = [DjangoFilterBackend]
+    # 指定允许被精确过滤的字段
+    filterset_fields = ['category', 'in_stock'] 
+```
+
+#### B. `SearchFilter` (模糊搜索)
+```python
+from rest_framework import filters
+
+class UserListView(generics.ListAPIView):
+    queryset = User.objects.all()
+    filter_backends = [filters.SearchFilter]
+    # 指定搜索范围，支持双下划线跨表搜索
+    search_fields = ['username', 'email', 'profile__profession']
+```
+* *进阶前缀修饰符*：`^` (以...开头), `=` (精确匹配), `@` (PostgreSQL全文搜索), `$` (正则匹配)。例如：`search_fields = ['=username', '^email']`
+
+#### C. `OrderingFilter` (动态排序)
+```python
+from rest_framework import filters
+
+class UserListView(generics.ListAPIView):
+    queryset = User.objects.all()
+    filter_backends = [filters.OrderingFilter]
+    # 【安全白名单】明确指定允许客户端排序的字段，防止敏感字段暴漏
+    ordering_fields = ['username', 'email'] 
+    # 【默认值】客户端未传参数时，后端的默认排序方式
+    ordering = ['username']
+```
+
+---
+
+## 三、 🎨 自定义与第三方扩展
+
+### 1. 自定义通用过滤后端
+**应用场景**：当业务逻辑非常特殊且需要跨多个视图全局复用时（例如：只允许对象创建者查看数据）。
+**写法**：继承 `BaseFilterBackend` 并重写 `filter_queryset` 方法。
+
+```python
+from rest_framework import filters
+
+class IsOwnerFilterBackend(filters.BaseFilterBackend):
+    def filter_queryset(self, request, queryset, view):
+        return queryset.filter(owner=request.user)
+
+# 视图中使用
+# filter_backends = [IsOwnerFilterBackend]
+```
+
+### 2. 社区推荐扩展包
+当内置功能无法满足需求时，可引入以下优秀库：
+* **`django-rest-framework-filters`**：支持更复杂的跨表关系和多维度的 FilterSet。
+* **`djangorestframework-word-filter`**：用于替代 `SearchFilter`，支持完整的单词匹配（Full word search）。
+* **`django-url-filter`**：提供类似 Serializer 嵌套结构的 URL 过滤语法。
+* **`drf-url-filters`**：自带严格的 Query 参数类型校验机制。
