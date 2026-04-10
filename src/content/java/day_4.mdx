@@ -1,70 +1,129 @@
-面对对象技术三大特征
-- 继承
-- 封装
-- 多态
+## 面向对象技术三大特征
 
-## 继承
+### 核心总结
+- **继承（Inheritance）**：解决代码复用和层级设计问题（子类拥有父类特征）。
+- **封装（Encapsulation）**：解决数据安全和控制问题（隐藏细节，暴露接口）。
+- **多态（Polymorphism）**：解决程序扩展性和灵活性问题（同一行为不同表现）。
 
-- 根据现有类创建新类
-- 子类继承父类所有non-private属性和方法
-- 利用`extends`实现继承
+---
 
-对象间是IS A关系（什么是一个什么）就可以用继承。has a 关系（什么有什么）就不适合继承。
+## 继承（Inheritance）深度扩充
 
-### 继承相关语法
-- Super Class: 超类，提供方法供别的类继承
-- Sub Class: 子类，继承别的类
+### 1. 设计原则：IS-A vs HAS-A
+- **IS-A（继承）**：`Dog` **是一个** `Animal`。
+    - 不恰当继承：`Stack extends Vector`（栈应该是一个封装了向量的类，而不是一个向量本身，继承导致了栈拥有不合理的 `insert` 方法）。
+- **HAS-A（组合/聚合）**：`Car` **有一个** `Engine`。
+    - **最佳实践**：优先使用**组合**而非继承。组合比继承耦合度更低。
+
+### 2. 继承了什么？（底层细节纠正）
+您笔记中写“子类继承父类所有 non-private 属性和方法”。
+- **内存视角的真实情况**：子类对象在堆内存中，**确实包含了父类定义的私有属性**（占用了内存空间），只是子类没有**直接访问权限**。
+- 父类 `private` 成员必须通过父类提供的 `public/protected` 的 getter/setter 间接操作。
+
+### 3. 继承相关语法细化
+
+#### `super` 关键字（内存模型补充）
+- **构造器中的 `super()`**：
+    - 默认隐式存在。若父类**没有无参构造器**，子类构造器**必须显式调用** `super(参数)`，且必须在第一行。
+    - **创建子类对象时，父类构造器先执行**：先有父类的数据初始化，才有子类的扩展数据。
+
 ```java
-class SubClass extends SuperClass {}
+class Father {
+    String name;
+    Father(String name) { this.name = name; } // 无无参构造
+}
+
+class Son extends Father {
+    Son(String name) {
+        super(name); // 必须显式调用，且首行
+    }
+}
 ```
 
-### instanceof
-判断某个对象是否是某个类的实例
+#### 方法重写（Override）补充规则
+- **返回值类型**：JDK 5+ 支持**协变返回类型**。即子类重写方法的返回值可以是父类返回值类型的子类。
+    ```java
+    class Animal { Animal getOne() { return null; } }
+    class Dog extends Animal {
+        @Override
+        Dog getOne() { return new Dog(); } // 返回子类类型合法
+    }
+    ```
+- **异常抛出**：重写方法抛出的受检异常范围不能比父类更大（可以更小或不抛）。
 
-### super
-用于在子类中指代父类对象
+### 4. `instanceof` 深度辨析
+- **作用**：判断左侧对象是否为右侧类（或其子类）的实例。
+- **底层实现**：检查对象的 `_klass` 指针指向的元数据与目标类的继承链。
+- **避坑**：
+    ```java
+    // 关于 null
+    System.out.println(null instanceof String); // false，永远返回 false，不会抛空指针
+    ```
 
-- 访问父属性
-- 访问父方法
-- 构造器：再创建子类对象时，会同时创建父类对象
+### 5. `Object` 类——万类之源
 
-### Override
-重写
-1. 方法名和参数照抄
-2. 返回值类型要和父类一样（或者时subType）
-3. 访问权限要大于或等于父类访问权限
+| 方法 | 默认行为 | 何时重写 |
+| :--- | :--- | :--- |
+| `toString()` | `类名@十六进制哈希码` | 打印日志/调试时希望看到对象内容 |
+| `equals()` | `this == obj` （比较内存地址） | 需要比较**逻辑相等性**（如ID相同即为同一人） |
+| `hashCode()` | 返回对象地址转换的整数 | **必须与 equals 同时重写**，保证容器（HashSet）正确性 |
+| `finalize()` | 空方法 | **已过时（JDK 9+）**，资源清理请用 `try-with-resources` |
+
+#### `equals` 重写标准模板（合约规范）
+必须满足：**自反性、对称性、传递性、一致性** 以及与 `null` 比较返回 false。
+
 ```java
-class Car extends F {
+@Override
+public boolean equals(Object obj) {
+    // 1. 地址相同直接true
+    if (this == obj) return true;
+    // 2. 类型检查（推荐用 instanceof，注意 null 情况）
+    if (!(obj instanceof Person)) return false;
+    // 3. 强制转换
+    Person p = (Person) obj;
+    // 4. 关键业务字段对比
+    return Objects.equals(this.id, p.id) && Objects.equals(this.name, p.name);
+}
+
+@Override
+public int hashCode() {
+    return Objects.hash(id, name); // 必须与 equals 用到的字段一致
+}
+```
+
+### 6. `final` 关键字的深入理解
+
+| 修饰对象 | 效果 | 特殊说明 |
+| :--- | :--- | :--- |
+| **类** | 不可被继承 | 例如 `String`、`Integer`，保证了不可变性和安全性 |
+| **方法** | 不可被重写 | 常用于模板方法模式中锁定算法骨架 |
+| **基本变量** | 值不可变 | 编译时常量会被内联优化 |
+| **引用变量** | **引用地址**不可变 | 指向的对象内部属性依然可以修改 |
+
+---
+
+## 继承的分类（扩展阅读）
+
+### Java 官方规范
+- **单继承**：一个类**只能有一个直接父类**（`extends` 后面只能写一个类）。
+- **多重继承**：A extends B, B extends C（多层，允许）。
+- **多接口实现**：`implements A, B, C`（Java 利用接口规避了多继承带来的**钻石问题/菱形缺陷**）。
+
+### 钻石问题（Diamond Problem）
+假设 Java 支持多继承类：类 A 有方法 `run()`，类 B 和类 C 都继承了 A 并重写了 `run()`，类 D 同时继承了 B 和 C。
+- **困惑**：D 调用 `run()` 时不知道该走 B 的逻辑还是 C 的逻辑。
+- **Java 解决方案**：
+    - **类**：不允许，编译报错。
+    - **接口**：允许。若多个接口有同名 `default` 方法，子类**必须手动重写**该方法以消除歧义。
+
+```java
+interface A { default void run() { System.out.println("A"); } }
+interface B { default void run() { System.out.println("B"); } }
+class C implements A, B {
     @Override
-    void start () {
-
+    public void run() {
+        // 必须手动解决冲突，例如指定调用某一个
+        A.super.run(); 
     }
 }
 ```
-
-### final关键字
-- 修饰变量：变量不可以更改
-- 修饰方法： 方法不可被重写
-- 修饰类：类不可以被继承
-
-### Object类
-- Object类是所有类的父类
-- Object类方法属性可以被所有对象是用
-- 没有写extends也默认继承Object
-
-### toString方法
-类重写了后便于阅读
-
-### equals
-本身`equals`只是做了一个this和obj对比，可以通过重写类的`equals`来设置需要的对比功能
-```java
-class Object {
-    public boolean equals (obj) {
-        return this ==obj
-    }
-}
-```
-
-## 继承的分类
-- 单继承
-- 多继承

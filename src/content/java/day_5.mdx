@@ -1,0 +1,143 @@
+## 封装（Encapsulation）
+
+### 核心理解纠正与深化
+
+- **“高内聚、低耦合”的代码体现**：
+    - **高内聚**：一个类只做一件事。例如 `UserService` 只处理用户逻辑，不处理发短信逻辑。
+    - **低耦合**：修改 A 类时，尽量不影响 B 类。通过 `private` 隐藏细节，即使内部实现翻天覆地，调用方代码无需改动。
+
+### 访问权限控制的实战意义
+| 权限 | 典型应用场景 |
+| :--- | :--- |
+| `private` | 实体类的 `id`、`password`；工具类的核心算法逻辑。 |
+| `default` | 包内协作的 Helper 类，不想被外部 Jar 包引用。 |
+| `protected` | 专门设计给子类使用的钩子方法（如 `doGet`）。 |
+| `public` | API 接口方法，常量。 |
+
+### Java Bean 规范（补充强制要求）
+1. 类必须是 `public`。
+2. 必须有一个**无参构造器**（若未写其他构造器，默认自带；若写了有参构造器，**必须显式写出无参构造器**）。
+3. 属性私有化（`private`）。
+4. 提供符合命名规则的 `getter` 和 `setter`。
+    - `boolean` 类型的 getter 建议命名为 `isXxx()` 而非 `getXxx()`。
+
+---
+
+## 多态（Polymorphism）
+
+### 定义升华
+> 编译时看左边，运行时看右边。
+
+多态存在的**三个必要条件**（缺一不可）：
+1. **继承**（或接口实现）。
+2. **方法重写**。
+3. **父类引用指向子类对象**。
+
+### 代码修正与运行解析
+您提供的示例代码存在**类定义缺失继承关系**的笔误，`Square` 和 `Circle` 必须 `extends Shape` 才能实现多态。
+
+**修正后的标准代码：**
+```java
+// 父类（或接口更好）
+class Shape {
+    public double calc() {
+        System.out.println("父类计算");
+        return 0;
+    }
+}
+
+// 正方形：必须继承 Shape
+class Square extends Shape {
+    private int width;
+
+    // 构造器写法修正（不能有 void）
+    public Square(int width) {
+        this.width = width;
+    }
+
+    @Override
+    public double calc() {
+        return this.width * this.width;
+    }
+}
+
+// 圆形：必须继承 Shape
+class Circle extends Shape {
+    private int radius; // 变量名建议改为 radius 更贴切
+
+    public Circle(int radius) {
+        this.radius = radius;
+    }
+
+    @Override
+    public double calc() {
+        return this.radius * this.radius * 3.14;
+    }
+}
+
+// 测试类
+public class ShapeCalc {
+    public static void main(String[] args) {
+        // 1. 父类引用指向子类对象（向上转型）
+        Shape circle = new Circle(3);
+        Shape square = new Square(3);
+
+        // 2. 调用方法
+        System.out.println(circle.calc()); // 输出 28.26 (圆形面积)
+        System.out.println(square.calc()); // 输出 9.0   (正方形面积)
+
+        // 3. 多态在数组/集合中的应用
+        Shape[] shapes = {new Circle(2), new Square(4)};
+        for (Shape s : shapes) {
+            // 根据实际对象类型，调用对应的重写方法
+            System.out.println(s.calc()); 
+        }
+    }
+}
+```
+
+### 多态的底层原理：动态绑定
+- **静态绑定**：编译时确定调用哪个方法（如：`private`、`static`、`final`、构造器）。
+- **动态绑定**：运行时根据对象实际类型确定调用哪个方法。
+- **JVM 指令**：`invokevirtual` 指令会先去操作数栈顶的对象实际类型（`Circle`）的方法表中查找 `calc` 方法，而不是看引用类型（`Shape`）。
+
+---
+
+## 对象转型（Type Casting）
+
+### 向上转型（Upcasting）—— 安全、自动
+- **特点**：**无需强转**，完全安全。
+- **代价**：子类**特有**的方法丢失（无法调用）。
+    ```java
+    Circle c = new Circle(3);
+    Shape s = c;          // 向上转型，OK
+    // s.xxx();           // 只能调用 Shape 中定义的方法，无法调用 Circle 特有的方法
+    ```
+
+### 向下转型（Downcasting）—— 危险、需强转
+- **前提**：该引用原本指向的对象**确实**是子类类型。
+- **报错原因分析**：您的笔记里 `Shape shape = new Shape(); Circle c = (Circle) shape;` 会报 `ClassCastException`。
+    - **内存真相**：`shape` 指向的堆内存里就是一个纯粹的 `Shape` 对象，里面根本没有 `Circle` 类的特有数据（`radius`）。强转相当于硬要把一只**普通的动物**当成**狗**来让他看门，它做不到。
+
+- **正确且安全的向下转型姿势**：
+    ```java
+    Shape s = new Circle(3); // 向上转型
+
+    // 方式1：instanceof 守卫
+    if (s instanceof Circle) {
+        Circle c = (Circle) s; // 安全
+        System.out.println(c.calc());
+    }
+
+    // 方式2：JDK 16+ 模式匹配（语法糖）
+    if (s instanceof Circle c) {
+        // 直接使用变量 c
+        System.out.println(c.calc());
+    }
+    ```
+
+### 转型总结表
+| 转型方向 | 语法 | 安全性 | 典型场景 |
+| :--- | :--- | :--- | :--- |
+| 向上转型 | `Parent p = new Child();` | 100% 安全 | 方法参数传递、集合存储 |
+| 向下转型 | `Child c = (Child) p;` | **风险极高** | 调用子类特有方法前必须做 `instanceof` 检查 |

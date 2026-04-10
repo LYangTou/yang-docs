@@ -4,4 +4,5 @@ export default {
   'spreadsheet': '数据库',
   'vue3': 'vue3读码',
   'py': 'python',
+  'java': 'java'
 }
