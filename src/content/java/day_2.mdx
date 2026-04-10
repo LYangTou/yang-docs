@@ -1,0 +1,235 @@
+
+## 面向对象 Object Oriented
+
+### 核心概念补充
+- **OOP (Object-Oriented Programming)**：使用类和对象进行编程的方法论。
+- **OOD (Object-Oriented Design)**：将需求转化为类与接口的抽象设计过程。
+- **OOT (Object-Oriented Technology)**：涵盖分析、设计、编程、测试的全链路技术栈。
+
+### 对象的特征
+- **状态（State）**：存储在成员变量（字段）中的数据。
+- **行为（Behavior）**：通过方法定义的逻辑。
+- **补充：标识（Identity）**：每个对象在JVM堆内存中都有唯一的地址/哈希码，即使状态相同，两个对象也是独立的个体。
+
+---
+
+## 类与对象
+
+### 类的定义规则
+- 一个 `.java` 文件中可以包含多个类。
+- **规则**：只能有一个 `public` 修饰的类，且类名必须与文件名**完全一致**。
+- **补充：内部类**：类中还可以定义内部类（Inner Class），不受此规则限制。
+
+### 构造器（Constructor）
+- **作用**：创建对象时初始化状态，**必须与类名同名，无返回值类型**。
+- **默认构造器**：若未定义任何构造器，编译器自动生成无参构造器；若定义了一个有参构造器，则默认无参构造器**失效**（需显式写出）。
+```java
+class Car {
+    int topSpeed;
+    int totalSeats;
+
+    // 无参构造器
+    Car() {}
+
+    // 有参构造器
+    Car(int speed) {
+        this.topSpeed = speed; // this指代当前对象
+    }
+
+    // 构造器互相调用
+    Car(int speed, int seats) {
+        this(speed); // 必须放在第一行，调用本类另一个构造器
+        this.totalSeats = seats;
+    }
+}
+```
+
+---
+
+## 三大特性深度扩充
+
+### 1. 封装（Encapsulation）
+**定义**：隐藏内部实现细节，仅暴露有限的访问接口。
+
+#### 权限修饰符（Access Modifiers）
+| 修饰符 | 本类 | 同包 | 子类 | 全局 |
+| :--- | :---: | :---: | :---: | :---: |
+| `private` | ✅ | ❌ | ❌ | ❌ |
+| **默认 (default)** | ✅ | ✅ | ❌ | ❌ |
+| `protected` | ✅ | ✅ | ✅ | ❌ |
+| `public` | ✅ | ✅ | ✅ | ✅ |
+
+#### JavaBean 规范（Getter / Setter）
+```java
+public class Person {
+    private String name; // 字段私有
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name; // 可以在此处加校验逻辑
+    }
+}
+```
+
+### 2. 继承（Inheritance）
+**关键字**：`extends`。Java 是**单继承**（一个类只能有一个直接父类），但支持多重继承层次。
+
+```java
+class Animal {
+    String type;
+    public void eat() { System.out.println("eating..."); }
+}
+
+class Dog extends Animal {
+    String breed;
+
+    // 方法重写 (Override)
+    @Override // 注解，帮助编译器检查是否正确重写
+    public void eat() {
+        super.eat(); // 调用父类被覆盖的方法
+        System.out.println("Dog is eating bone");
+    }
+}
+```
+
+- **子类能继承什么？**
+    - 继承父类 `public` 和 `protected` 成员。
+    - 若同包，继承默认权限成员。
+    - **不继承**：构造器、`private` 成员（但可通过父类 public 方法间接访问）。
+
+- **对象创建顺序**：
+    > 父类静态代码块 -> 子类静态代码块 -> 父类构造代码块/构造器 -> 子类构造代码块/构造器。
+
+### 3. 多态（Polymorphism）
+**定义**：同一个行为具有多个不同表现形式。Java 中多态分为两种：
+
+#### 编译时多态（重载 - Overload）
+- 方法名相同，**参数列表不同**（个数、类型、顺序）。
+- 与返回值类型、访问修饰符无关。
+```java
+void print(int a) { }
+void print(String s) { } // 重载
+```
+
+#### 运行时多态（重写 - Override）
+- 父类引用指向子类对象。
+```java
+Animal a = new Dog(); // 向上转型
+a.eat(); // 输出 "Dog is eating bone" (调用的是子类重写的方法)
+
+// 向下转型 (强制)
+if (a instanceof Dog) {
+    Dog d = (Dog) a;
+}
+```
+
+---
+
+## 关键字与修饰符补充
+
+### `this` vs `super`
+- `this`：指代**当前对象**的引用。常用于区分成员变量和局部变量、调用本类构造器。
+- `super`：指代**父类对象**的引用。用于调用父类构造器（必须首行）、调用父类被覆盖的方法。
+
+### `static`（静态）
+- **静态变量**：属于类，所有对象共享一份。
+- **静态方法**：只能访问静态成员，**不能**使用 `this`/`super`。
+- **静态代码块**：类加载时执行一次，用于初始化静态资源。
+
+### `final`（最终）
+- **修饰变量**：基本类型值不可变；引用类型**引用地址不可变**，但对象内容可变。
+- **修饰方法**：该方法不能被子类重写。
+- **修饰类**：该类不能被继承（如 `String`、`Math`）。
+
+---
+
+## 抽象类与接口（核心扩充）
+
+### 抽象类 (Abstract Class)
+- 包含抽象方法（无方法体）的类必须声明为抽象类。
+- **不能实例化**，必须由子类实现抽象方法。
+- 可以有构造器（供子类调用）、成员变量、具体方法。
+
+```java
+abstract class Shape {
+    String color;
+    abstract double area(); // 抽象方法
+    public void printColor() { System.out.println(color); } // 具体方法
+}
+```
+
+### 接口 (Interface)
+- JDK 8 前：只有**常量**（`public static final`）和**抽象方法**。
+- JDK 8+：支持 `default` 方法（带默认实现）和 `static` 方法。
+- JDK 9+：支持 `private` 方法（辅助 default 方法复用）。
+- 类可以**实现多个接口**，弥补单继承限制。
+
+```java
+interface Flyable {
+    void fly(); // 默认 public abstract
+
+    default void land() {
+        System.out.println("Landing...");
+    }
+}
+```
+
+### 抽象类 vs 接口（面试重点）
+| 对比项 | 抽象类 | 接口 |
+| :--- | :--- | :--- |
+| 关键字 | `extends` | `implements` |
+| 多继承 | 单继承 | 可实现多个 |
+| 成员变量 | 任意类型 | 只能 `public static final` 常量 |
+| 构造器 | 有 | 无 |
+| 设计理念 | **是什么** (is-a) | **能做什么** (has-a / can-do) |
+
+---
+
+## 常用方法重写规则
+
+### `equals()` 与 `hashCode()`
+- **约定**：若重写 `equals`，**必须**重写 `hashCode`。
+- **原因**：HashSet、HashMap 等容器先比较哈希值再比较 equals，若不一致会导致逻辑错误。
+```java
+@Override
+public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (!(obj instanceof Person)) return false;
+    Person p = (Person) obj;
+    return Objects.equals(name, p.name);
+}
+
+@Override
+public int hashCode() {
+    return Objects.hash(name);
+}
+```
+
+### `toString()`
+- 打印对象时默认调用，推荐重写以输出有意义的调试信息。
+
+---
+
+## 内部类（Inner Class）概览
+- **成员内部类**：像成员变量一样，可访问外部类私有属性。
+- **静态内部类**：`static` 修饰，不依赖外部类实例。
+- **局部内部类**：定义在方法内。
+- **匿名内部类**：最常用，常用于简化接口实现（如事件监听、线程创建）。
+```java
+// 匿名内部类示例
+Runnable r = new Runnable() {
+    @Override
+    public void run() {
+        System.out.println("Running");
+    }
+};
+```
+
+---
+
+## 对象初始化流程总结
+1. **加载类**：执行父类静态代码块 → 子类静态代码块。
+2. **创建对象**：分配内存 → 父类成员变量初始化/构造代码块 → 父类构造器执行 → 子类成员变量初始化/构造代码块 → 子类构造器执行。

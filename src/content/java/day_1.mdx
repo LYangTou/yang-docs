@@ -1,0 +1,228 @@
+## 基础类型
+
+### byte
+- 数值范围：`-128` ~ `127`。
+- 占用空间：**1字节**（8位）。
+- **底层原理补充**：
+    - 最高位（最左边第一位）为**符号位**（0正1负）。
+    - 负数采用**补码**形式存储（原码取反加1）。
+    - 为什么是 -128？因为 `1000 0000` 被规定为 -128，而没有 -0 的概念。
+- **应用场景**：IO流操作（文件读写）、网络传输中的原始字节数据。
+
+### short
+- 数值范围：`-2^15` ~ `2^15-1` （即 -32,768 ~ 32,767）。
+- 占用空间：**2字节**（16位）。
+- **注意**：Java 中 `short` 和 `byte` 参与算术运算时，会**自动提升为 int 类型**。
+
+### int
+- 数值范围：`-2^31` ~ `2^31-1` （约 ±21亿）。
+- 占用空间：**4字节**（32位）。
+- **特殊注意**：
+    - Java 中整数字面量（如 `100`）默认就是 `int` 类型。
+    - 在 JDK 8+ 中，支持 `int` 无符号操作（`Integer.parseUnsignedInt`），但基础类型仍是有符号的。
+
+### long
+- 数值范围：`-2^63` ~ `2^63-1`。
+- 占用空间：**8字节**（64位）。
+- **语法细节**：定义 `long` 变量时，若数值超过 `int` 范围，必须在数字后加 `L` 或 `l`。
+    ```java
+    long big = 3000000000L; // 不加L会编译报错，因为右侧字面量被当作int处理
+    ```
+
+### 小数类型
+- **float**：单精度，占 **4字节**。**必须**在数字后加 `F` 或 `f`。
+- **double**：双精度，占 **8字节**。小数默认类型。
+- **浮点数精度问题（核心扩充）**：
+    - **原因**：计算机采用二进制无法精确表示某些十进制小数（如 `0.1`），就像十进制无法精确表示 1/3 一样。
+    - **代码陷阱**：
+        ```java
+        System.out.println(0.1 + 0.2 == 0.3); // 输出 false
+        ```
+    - **解决方案**：需要精确计算（如金额）时，**禁止使用 float/double**，必须使用 `BigDecimal` 类。
+        ```java
+        BigDecimal a = new BigDecimal("0.1");
+        BigDecimal b = new BigDecimal("0.2");
+        System.out.println(a.add(b).equals(new BigDecimal("0.3"))); // 输出 true
+        ```
+
+### char
+- **编码**：Unicode 编码字符。
+- 占用空间：**2字节**（16位）。
+- 范围：`\u0000` 到 `\uFFFF`。
+- **扩充知识**：
+    - 虽然默认是 2 字节，但在处理生僻字（如 `𠮷`）时，Unicode 辅助平面字符需要**两个 char 来表示**（代理对）。
+    - `char` 可以直接参与**算术运算**，运算时转为 ASCII/Unicode 数值。
+
+### boolean
+- **官方定义**：只有 `true` 和 `false` 两个值。
+- **底层存储扩充**：
+    - JVM 规范并未规定 boolean 具体占多少字节。**单个** boolean 变量在编译后通常映射为 **int** 类型（占4字节）。
+    - 在 **boolean 数组**中，JVM 为了节省空间，通常将其实现为 **1字节** 的 byte 数组。
+
+---
+
+## 包装类
+
+### 基本对应关系与构造
+| 基础类型 | 包装类 | 构造示例 |
+| :--- | :--- | :--- |
+| byte | Byte | `Byte a = new Byte((byte) 1);` |
+| short | Short | `Short b = new Short((short) 1);` |
+| int | **Integer** | `Integer c = new Integer(10);` |
+| long | Long | `Long d = new Long(10L);` |
+| float | Float | `Float e = new Float(1.0f);` |
+| double | Double | `Double f = new Double(1.0);` |
+| char | Character | `Character g = new Character('a');` |
+| boolean | Boolean | `Boolean h = new Boolean(true);` |
+
+### 自动装箱与拆箱（核心扩充）
+- **JDK 1.5 引入的特性**：编译器自动完成基本类型与包装类的转换。
+- **示例**：
+    ```java
+    Integer num = 10;        // 自动装箱：底层调用 Integer.valueOf(10)
+    int x = num;             // 自动拆箱：底层调用 num.intValue()
+    ```
+- **重要陷阱（缓存池）**：
+    - `Integer`、`Byte`、`Short`、`Long`、`Character` 对 **-128 ~ 127** 范围内的对象有**缓存机制**。
+    ```java
+    Integer a = 100;
+    Integer b = 100;
+    System.out.println(a == b); // true (指向同一缓存对象)
+
+    Integer c = 200;
+    Integer d = 200;
+    System.out.println(c == d); // false (new了两个新对象)
+    ```
+    - **建议**：比较包装类数值**永远使用 `.equals()` 方法**，不要使用 `==`。
+
+---
+
+## 引用类型
+
+### 数组
+- **默认值规则**：
+    - 数值类型数组（int, double等）：默认值 `0` 或 `0.0`。
+    - char 数组：默认值 `\u0000`（空字符）。
+    - boolean 数组：默认值 `false`。
+    - **引用类型数组**（String, 自定义类）：默认值 **`null`**。
+- **多维数组补充**：Java 支持锯齿数组（每行列数可以不同）。
+
+### String
+- **不变性（Immutable）深入理解**：
+    - **底层实现**：JDK 8 及之前是 `private final char value[]`；JDK 9+ 改为 `private final byte[] value`（压缩存储空间）。
+    - **final 的含义**：`value` 数组引用不可变，数组内容也无法被外部修改（因为没有暴露修改方法）。
+    - **拼接的本质**：`s += "d"` 实际上 JVM 会使用 `StringBuilder` 创建新对象。
+
+- **字符串常量池（String Pool）**：
+    - 直接写双引号创建的字符串，会在编译期放入常量池。
+    - `new String("abc")` 会创建 **1个或2个对象**（若池中无"abc"，先在池中创建一个，再在堆中创建一个）。
+    - `intern()` 方法可以主动将字符串放入常量池。
+
+#### StringBuilder
+- **特性**：**非线程安全**，性能最高。
+- **常用方法**：
+    - `append()`：追加。
+    - `insert(offset, str)`：插入。
+    - `delete(start, end)`：删除。
+    - `reverse()`：反转。
+
+#### StringBuffer
+- **特性**：**线程安全**（方法上加了 `synchronized` 锁），性能略低于 `StringBuilder`。
+- 用法与 `StringBuilder` 完全一致。
+
+#### 常用方法扩充
+
+- **获取特定位置字符**
+    ```java
+    String a = "123123";
+    char c = a.charAt(2); // 索引从0开始，结果为 '3'
+    ```
+
+- **字符串拼接**
+    ```java
+    String result = s1.concat(s2).concat(s3);
+    // 注意：concat 也是返回新对象，原对象不变
+    ```
+
+- **字符串截取**
+    ```java
+    String sub = a.substring(1, 3); // 左闭右开 [1,3)，结果为 "23"
+    ```
+
+- **替换与分割**
+    ```java
+    String replaced = a.replace("1", "A"); // 替换所有
+    String[] parts = a.split("2");         // 根据正则分割
+    ```
+
+- **判空安全（最佳实践）**
+    ```java
+    // 防止空指针异常，推荐将字面量写前面
+    if ("OK".equals(status)) { ... }
+    
+    // 判断字符串非空且非null (常用工具写法)
+    if (str != null && !str.isEmpty()) { ... }
+    ```
+
+#### format 格式化细节扩充
+```java
+// 常用占位符
+String result = String.format(
+    "整数: %d, 浮点数: %f, 保留两位: %.2f, 字符串: %s, 十六进制: %x", 
+    1, 1.2, 1.65, "abc", 255
+);
+// 输出：整数: 1, 浮点数: 1.200000, 保留两位: 1.65, 字符串: abc, 十六进制: ff
+```
+
+---
+
+## 数字与字符串相互转化（完整扩充）
+
+### 字符串 -> 数字
+| 目标类型 | 推荐方法 | 注意事项 |
+| :--- | :--- | :--- |
+| int | `Integer.parseInt("100")` | 若字符串含空格或字母，抛 `NumberFormatException` |
+| long | `Long.parseLong("100L")` | 数值后**不能**带 `L` 后缀 |
+| double | `Double.parseDouble("1.23")` | 支持科学计数法如 `"1.2e3"` |
+| 大数/精确 | `new BigDecimal("1.23")` | **强烈推荐**：入参必须是 String，避免浮点精度丢失 |
+
+### 数字 -> 字符串
+```java
+int num = 100;
+
+// 方式1：最简单直观
+String s1 = num + "";
+
+// 方式2：静态方法（推荐，可读性好）
+String s2 = String.valueOf(num);
+
+// 方式3：包装类方法
+String s3 = Integer.toString(num);
+
+// 进阶：指定进制转换
+String hex = Integer.toHexString(255); // 输出 "ff"
+String binary = Integer.toBinaryString(5); // 输出 "101"
+```
+
+---
+
+### 扩展：BigDecimal 高精度计算补充
+由于笔记提到了浮点数比较，这里补充 `BigDecimal` 的常用操作：
+
+```java
+import java.math.BigDecimal;
+
+BigDecimal price = new BigDecimal("19.99");
+BigDecimal count = new BigDecimal("3");
+
+// 1. 乘法 (保留两位小数，四舍五入)
+BigDecimal total = price.multiply(count).setScale(2, RoundingMode.HALF_UP);
+
+// 2. 除法 (必须指定舍入模式，否则除不尽报错)
+BigDecimal avg = total.divide(new BigDecimal("3"), 2, RoundingMode.HALF_UP);
+
+// 3. 比较 (不能用 equals，因为 2.0 和 2.00 可能不等)
+if (price.compareTo(BigDecimal.ZERO) > 0) {
+    System.out.println("大于0");
+}
+```

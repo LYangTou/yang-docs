@@ -1,0 +1,70 @@
+面对对象技术三大特征
+- 继承
+- 封装
+- 多态
+
+## 继承
+
+- 根据现有类创建新类
+- 子类继承父类所有non-private属性和方法
+- 利用`extends`实现继承
+
+对象间是IS A关系（什么是一个什么）就可以用继承。has a 关系（什么有什么）就不适合继承。
+
+### 继承相关语法
+- Super Class: 超类，提供方法供别的类继承
+- Sub Class: 子类，继承别的类
+```java
+class SubClass extends SuperClass {}
+```
+
+### instanceof
+判断某个对象是否是某个类的实例
+
+### super
+用于在子类中指代父类对象
+
+- 访问父属性
+- 访问父方法
+- 构造器：再创建子类对象时，会同时创建父类对象
+
+### Override
+重写
+1. 方法名和参数照抄
+2. 返回值类型要和父类一样（或者时subType）
+3. 访问权限要大于或等于父类访问权限
+```java
+class Car extends F {
+    @Override
+    void start () {
+
+    }
+}
+```
+
+### final关键字
+- 修饰变量：变量不可以更改
+- 修饰方法： 方法不可被重写
+- 修饰类：类不可以被继承
+
+### Object类
+- Object类是所有类的父类
+- Object类方法属性可以被所有对象是用
+- 没有写extends也默认继承Object
+
+### toString方法
+类重写了后便于阅读
+
+### equals
+本身`equals`只是做了一个this和obj对比，可以通过重写类的`equals`来设置需要的对比功能
+```java
+class Object {
+    public boolean equals (obj) {
+        return this ==obj
+    }
+}
+```
+
+## 继承的分类
+- 单继承
+- 多继承

@@ -8,5 +8,6 @@ export default {
     'ViewSet_1': 'ViewSet_1',
     'ViewSet_2': 'ViewSet_2',
     'pagination': '分页',
-    'filters': '过滤器'
+    'filters': '过滤器',
+    'authencation': '认证机制'
 }

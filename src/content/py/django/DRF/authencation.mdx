@@ -1,0 +1,125 @@
+# Django REST Framework (DRF) 认证机制学习笔记
+
+## 1. 核心机制：认证 (Authentication) vs 权限 (Permissions)
+
+在 DRF 中，安全防线分为明确的两步，绝不能混淆：
+
+* **认证 (Authentication) = “前台保安”**：负责识别请求头中的凭证（如 Token、Cookie），确认“你是谁”。它**只负责识别，不负责拦截**。成功后，会将用户信息赋值给 `request.user` 和 `request.auth`；失败或无凭证时，会赋值为 `AnonymousUser` 和 `None`。
+* **权限 (Permissions) = “门禁锁”**：紧跟在认证之后运行。它利用认证得出的状态（如 `request.user.is_authenticated`）来决定“你能不能进”。未登录用户被拦截并返回 401/403 错误，是权限类的功劳。
+
+## 2. 认证的配置方式
+
+DRF 按照列表顺序依次尝试认证类，一旦某个类认证成功，便停止后续尝试。
+
+### 全局配置 (推荐)
+在 `settings.py` 中为整个项目设置默认认证方式：
+```python
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ]
+}
+```
+
+### 局部配置
+为特定视图 (View) 覆盖全局配置：
+```python
+# 基于类的视图 (CBV)
+from rest_framework.views import APIView
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.permissions import IsAuthenticated
+
+class PaymentView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated] # 配合权限类使用
+```
+
+## 3. 内置认证方案剖析
+
+### 3.1 TokenAuthentication (内置 Token 认证)
+* **适用场景**：机器对机器通信 (M2M)、自动化脚本、对外提供固定 API 密钥、极简物联网项目。
+* **局限性**：Token 与 User 在数据库中是**一对一**关联。默认永久有效，且**无法原生支持多设备独立登录/互踢**。
+* **安全要求**：由于是明文传输，生产环境中**必须强制使用 HTTPS**。
+
+**代码实战：签发与验证 Token**
+1. 注册应用并迁移数据库：
+```python
+INSTALLED_APPS = [
+    # ...
+    'rest_framework.authtoken'
+]
+# 记得运行 python manage.py migrate
+```
+2. 暴露获取 Token 的 API：
+```python
+from django.urls import path
+from rest_framework.authtoken import views
+
+urlpatterns = [
+    path('api-token-auth/', views.obtain_auth_token)
+]
+```
+3. 前端请求格式：必须在 HTTP Headers 中带上 `Authorization`，格式为 `Token <空格> <密钥字符串>`。
+```javascript
+fetch('https://api.example.com/data/', {
+    headers: {
+        'Authorization': 'Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b'
+    }
+})
+```
+
+### 3.2 SessionAuthentication (会话认证)
+* **底层**：依赖 Django 自带的 Session 和浏览器 Cookie 机制。
+* **适用场景**：前后端部署在同一主域名下的 AJAX 请求。
+* **核心注意点**：为了防范跨站请求伪造 (CSRF) 攻击，当发起 POST/PUT 等写操作时，前端除了自动携带 Cookie，还必须在 Header 中手动添加 `X-CSRFToken`。
+
+### 3.3 BasicAuthentication (基础认证)
+每次请求在 Header 中传输 Base64 编码的账号密码。极度不安全，仅限本地开发测试使用。
+
+## 4. 自定义认证 (Custom Authentication)
+
+当需要对接内部单点登录 (SSO) 或自定义请求头时，需手写认证类。
+
+### 编写规范（三项纪律）
+必须继承 `BaseAuthentication` 并重写 `authenticate(self, request)` 方法，严格返回以下三种结果之一：
+1.  **认证成功**：返回元组 `(user, auth)`。
+2.  **不归我管**：请求中没有需要的凭证，返回 `None`（交给下一个配置的认证类处理）。
+3.  **查出伪造/过期**：抛出 `AuthenticationFailed` 异常（立刻中断请求，返回 401）。
+
+### 代码示例：校验自定义 Header
+```python
+from rest_framework.authentication import BaseAuthentication
+from rest_framework.exceptions import AuthenticationFailed
+from django.contrib.auth.models import User
+
+class SuperTokenAuthentication(BaseAuthentication):
+    def authenticate(self, request):
+        token = request.META.get('HTTP_X_SUPER_TOKEN')
+        
+        if not token:
+            return None # 没传 token，放行给下一个认证类
+            
+        if token != "my_secret_token_123":
+            raise AuthenticationFailed('无效的凭证！') # 凭证不对，立刻拦截
+            
+        try:
+            user = User.objects.get(username='admin')
+            return (user, token) # 成功，返回用户和凭证
+        except User.DoesNotExist:
+            raise AuthenticationFailed('找不到该凭证对应的用户')
+```
+
+## 5. 进阶架构：Token 查找策略与第三方登录
+
+### 5.1 Token 映射 User 的三种演进方案
+1.  **查数据库表（传统）**：每次请求都去查表（如内置的 `authtoken_token` 表），容易成为性能瓶颈。
+2.  **查 Redis 缓存（高性能）**：将 Token 作为 Key 存入 Redis，利用其高性能和 TTL（自动过期）特性。
+3.  **无状态 JWT (现代主流)**：JSON Web Token 自身携带加密后的用户信息（如 `user_id`）。服务端无需查表，直接用 `SECRET_KEY` 解密验证，完美解决多端登录和扩展性问题。
+
+### 5.2 第三方登录（如微信）与 JWT 的配合架构
+一个常见的误区是“需要手写自定义认证类来对接微信 API”。标准的现代前后端分离架构如下：
+
+1.  **登录阶段（门卫室查验）**：前端拿到微信的 `code` 发给后端的登录接口。后端在**登录视图 (View)** 中调用微信 API 换取 `OpenID`。
+2.  **签发自有凭证**：后端确认身份后，使用自己的 `SECRET_KEY` 为该用户签发一个 JWT 传给前端。
+3.  **后续业务请求**：前端拿着**后端签发的 JWT** 去请求业务接口。DRF 只需要配置标准的 JWT 认证类（如 `djangorestframework-simplejwt`）即可自动解密认人。整个日常交互**完全不再依赖微信服务器**。
