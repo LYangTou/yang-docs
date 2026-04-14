@@ -1,0 +1,104 @@
+抓住三大集合List/Set/Map
+集合可以认为是对数据进行增删改查的容器。
+集合框架是用于标识和操作集合的统一体系结构（framework）。
+
+由三个主要部分组成：
+- 接口：标识集合的抽象
+- 实现：集合接口的具体实现。本质上，他们是可重用的数据结构
+- 算法：对实现集合接口的对象执行计算的方法。相同的方法可以用于适当集合接口的许多不同实现（多态）。本质上，算法是可重用的功能。
+
+集合代码的相关位置
+- 大部分集合类位于java.util包下
+- 在java.util.concurrent包下提供了并发容器
+
+### 三大重要集合接口和实现类
+- List->ArrayList(动态数组)
+- Set->HashSet(高中数学中的集合，无重复元素)
+- Map->HashMap(字典值，键值对)
+
+        |Collection接口|                       |Map接口|
+              |                                   |
+              |                                   |
+ List接口   -- | --  Set接口                     HashMap
+    |                 |
+    |                 |
+ArrayList          HashSet
+
+### Collection
+集合的根interface，具体的方法由各自的子类去实现。提供两个标准构造器，一个无参的，一个参数Collection类型的。
+
+集合框架都需要用`equals`方法，判断对象实例是否包含在这个类中，重写`equals`就要重写`hashCode`。
+
+Collection实际上是继承自Iterable
+
+#### 暴露的重要的方法
+Query Operations
+- size
+- isEmpty
+- contains：是否包含对象
+- Iterator
+- toArray: 返回一个同顺序的Object数组
+
+Modification Operations
+- add
+- remove
+
+Bulk Operations
+- cotainsAll
+- addAll
+- removeAll
+- clear
+
+### Iterable
+实现该接口的对象（继承该接口的类）就允许使用`for each`进行遍历。所以所有Collection集合的对象都可以使用`for-each`。
+
+- iteartor：返回一个迭代器
+- forEach
+- Spliterator
+
+### Itearator
+代替了Enumeration（已废弃），允许从底层集合下面remove元素，让集合可以动态变化。
+- hasNext: 用来判断有没有更多元素
+- next: 获取下一个元素
+- remove: 没实现，自己实现？
+- forEachRemaining
+
+迭代器实现例子
+```java
+public class MyIterator implements Iterator {
+    private final int[] nums;
+    private int cursor;
+    public MyIterator() {
+        this.nums = new int[]{1, 4, 3, 6, 7, 9};
+        this.cursor = 0;
+    }
+
+
+    @Override
+    public boolean hasNext() {
+        return this.cursor != this.nums.length;
+    }
+
+    @Override
+    public Object next() {
+        return this.nums[this.cursor++];
+    }
+
+    public static void main(String[] args) {
+        Iterator i = new MyIterator();
+        while (i.hasNext()) {
+            int num = (int) i.next();
+            System.out.println(num);
+        }
+    }
+}
+```
+
+### List
+是一个有序集合和数组很像。可以通过下标或者搜索元素。允许重复元素
+
+- sort
+- addAll 可以从某个index插入
+- removeAll
+- retainAll
+- replaceALL
