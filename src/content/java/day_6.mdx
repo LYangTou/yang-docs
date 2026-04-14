@@ -1,0 +1,318 @@
+
+### 📘 Java 面向对象之「抽象」详解笔记（拓展版）
+
+#### 一、抽象的核心思想
+
+**定义**  
+从众多事物中抽取出共同的、本质性的特征，而舍弃其非本质特征的过程。
+
+**在面向对象编程中的体现**  
+- 对外：只暴露对象**做什么**（行为签名）  
+- 对内：隐藏**怎么做**（具体实现细节）  
+
+> **目的**：降低系统复杂度、提升可维护性、实现多态。
+
+**经典场景**：  
+计算不同平面图形（圆形、矩形、三角形）的面积。每种图形计算逻辑不同，但调用者只关心「有求面积这个能力」，不关心具体公式。
+
+---
+
+#### 二、抽象方法（Abstract Method）
+
+##### 语法
+```java
+[访问修饰符] abstract 返回类型 方法名 (参数列表);
+```
+
+##### 规则要点
+| 规则 | 说明 |
+|------|------|
+| 修饰符 | 必须使用 `abstract` 关键字 |
+| 方法体 | 不能有方法体 `{ }`，以分号结束 |
+| 可见性 | **不能是 `private`**（否则子类无法实现） |
+| 所在位置 | 只能存在于抽象类或接口中 |
+
+##### 代码示例
+```java
+public abstract class Shape {
+    // 抽象方法：只声明不实现
+    public abstract double getArea();
+    
+    // 抽象方法可以有参数
+    public abstract void draw(String color);
+}
+```
+
+---
+
+#### 三、抽象类（Abstract Class）
+
+##### 定义语法
+```java
+[访问修饰符] abstract class 类名 {
+    // 成员变量、构造器、抽象方法、具体方法...
+}
+```
+
+##### 核心特性
+| 特性 | 说明 |
+|------|------|
+| 实例化 | **不能**用 `new` 创建抽象类对象 |
+| 继承 | 必须被子类继承后才能使用 |
+| 抽象方法实现 | 子类必须实现父类**所有**抽象方法，除非子类也是抽象类 |
+| 具体方法 | 抽象类中可以包含已实现的方法（代码复用） |
+| 构造器 | 可以有构造器，供子类调用初始化字段 |
+
+##### 代码示例
+```java
+// 抽象类
+public abstract class Animal {
+    private String name;
+    
+    // 构造器（供子类使用）
+    public Animal(String name) {
+        this.name = name;
+    }
+    
+    // 具体方法（所有子类通用）
+    public void sleep() {
+        System.out.println(name + " is sleeping.");
+    }
+    
+    // 抽象方法（子类必须各自实现）
+    public abstract void makeSound();
+    
+    public String getName() {
+        return name;
+    }
+}
+
+// 具体子类
+public class Dog extends Animal {
+    public Dog(String name) {
+        super(name);
+    }
+    
+    @Override
+    public void makeSound() {
+        System.out.println(getName() + " says: Woof!");
+    }
+}
+
+// 使用
+public class Test {
+    public static void main(String[] args) {
+        Animal dog = new Dog("Buddy");
+        dog.makeSound();  // Buddy says: Woof!
+        dog.sleep();      // Buddy is sleeping.  (继承的具体方法)
+    }
+}
+```
+
+---
+
+#### 四、接口（Interface）
+
+##### 定义语法
+```java
+[访问修饰符] interface 接口名 {
+    // 常量（public static final）
+    // 抽象方法（public abstract）
+    // 默认方法（default）
+    // 静态方法（static）
+    // 私有方法（private，Java 9+）
+}
+```
+
+##### 实现语法
+```java
+class 类名 implements 接口名1, 接口名2, ... {
+    // 必须实现所有抽象方法
+}
+```
+
+##### 版本演变特性
+| JDK 版本 | 允许的成员 |
+|----------|------------|
+| 1.7 及以前 | 常量（`public static final`）<br>抽象方法（`public abstract`） |
+| 1.8 新增 | `default` 方法（带默认实现）<br>`static` 方法（接口直接调用） |
+| 1.9 新增 | `private` 方法（辅助默认方法复用代码） |
+
+##### 字段与方法修饰符（默认与固定）
+- 字段：**`public static final`** （即便不写也自动补全）
+- 抽象方法：**`public abstract`** （即便不写也自动补全）
+- 默认方法：必须显式使用 `default` 关键字，且默认为 `public`
+- 静态方法：默认为 `public`
+
+##### 多实现与多继承
+- 一个类只能 `extends` **一个**父类（单继承）
+- 一个类可以 `implements` **多个**接口（多实现）
+- 接口可以 `extends` **多个**其他接口
+
+##### 代码示例（包含 JDK 8 特性）
+```java
+// 接口定义
+public interface Flyable {
+    // 常量（隐式 public static final）
+    int MAX_SPEED = 1200;
+    
+    // 抽象方法（隐式 public abstract）
+    void fly();
+    
+    // 默认方法（Java 8+）
+    default void takeOff() {
+        System.out.println("Preparing for takeoff...");
+        checkEngine();   // 调用私有方法（Java 9+）
+    }
+    
+    // 静态方法（Java 8+）
+    static void showMaxSpeed() {
+        System.out.println("Max speed is " + MAX_SPEED);
+    }
+    
+    // 私有方法（Java 9+，辅助默认方法内部复用）
+    // private void checkEngine() {
+    //     System.out.println("Engine check complete.");
+    // }
+}
+
+// 另一个接口
+public interface Landable {
+    default void land() {
+        System.out.println("Landing on runway.");
+    }
+}
+
+// 实现类（多实现）
+public class Airplane implements Flyable, Landable {
+    @Override
+    public void fly() {
+        System.out.println("Airplane is flying at " + MAX_SPEED + " km/h");
+    }
+    
+    // 可选择覆盖默认方法
+    @Override
+    public void takeOff() {
+        // 如果想调用接口的默认实现
+        Flyable.super.takeOff();
+        System.out.println("Airplane specific takeoff procedure.");
+    }
+}
+
+// 使用演示
+public class TestInterface {
+    public static void main(String[] args) {
+        Airplane plane = new Airplane();
+        plane.takeOff();   // 默认方法 + 覆盖逻辑
+        plane.fly();       // 实现的抽象方法
+        plane.land();      // 来自 Landable 的默认方法
+        
+        // 调用接口静态方法
+        Flyable.showMaxSpeed();
+    }
+}
+```
+
+---
+
+#### 五、抽象类 vs. 接口（对比表格）
+
+| 比较维度 | 抽象类 (Abstract Class) | 接口 (Interface) |
+|----------|--------------------------|-------------------|
+| 关键字 | `abstract class` | `interface` |
+| 继承/实现 | 子类用 `extends`（单继承） | 实现类用 `implements`（多实现） |
+| 构造器 | ✅ 可以有构造器 | ❌ 不能有构造器 |
+| 字段（成员变量） | 任意类型（实例变量、静态变量） | 只能是 `public static final` 常量 |
+| 方法实现 | 可以有抽象方法和具体方法 | 抽象方法、`default` 方法、`static` 方法、`private` 方法 |
+| 访问修饰符 | 可以拥有任意权限修饰符 | 成员默认 `public`，不能降低可见性 |
+| 设计理念 | **is-a** 关系，模板式继承，强调代码复用 | **has-a / can-do** 关系，定义契约，强调行为规范 |
+| 何时使用 | 多个子类共享部分实现代码；需要非静态/非 final 字段 | 定义跨类层次的功能规范；需要多重继承行为 |
+
+---
+
+#### 六、最佳实践建议
+
+1. **优先使用接口** 定义行为规范，利用多实现提升灵活性。
+2. **抽象类用于模板模式**，将通用代码下沉到父类，变化部分留给子类。
+3. **JDK 8 的 `default` 方法** 主要用于接口演进，不要滥用它替代抽象类。
+4. **遵循单一职责原则**：接口应该小而专一，避免“胖接口”。
+5. **结合使用**：接口 + 抽象骨架实现（如 `AbstractList` 实现 `List` 接口）是常见设计模式。
+
+---
+
+#### 七、综合案例：图形面积计算（接口 + 抽象类）
+
+```java
+// 接口：定义“可计算面积”的契约
+interface Measurable {
+    double getArea();
+    
+    // 默认方法：打印面积（所有可测量对象通用）
+    default void printArea() {
+        System.out.println("Area: " + getArea());
+    }
+}
+
+// 抽象类：提供一些共用字段（例如形状名称）
+abstract class Shape implements Measurable {
+    protected String shapeName;
+    
+    public Shape(String shapeName) {
+        this.shapeName = shapeName;
+    }
+    
+    // 具体方法：打印名称
+    public void displayName() {
+        System.out.println("Shape: " + shapeName);
+    }
+    
+    // 抽象方法 getArea() 交给子类实现（由 Measurable 接口强制要求）
+}
+
+// 具体实现：圆形
+class Circle extends Shape {
+    private double radius;
+    
+    public Circle(double radius) {
+        super("Circle");
+        this.radius = radius;
+    }
+    
+    @Override
+    public double getArea() {
+        return Math.PI * radius * radius;
+    }
+}
+
+// 具体实现：矩形
+class Rectangle extends Shape {
+    private double width, height;
+    
+    public Rectangle(double width, double height) {
+        super("Rectangle");
+        this.width = width;
+        this.height = height;
+    }
+    
+    @Override
+    public double getArea() {
+        return width * height;
+    }
+}
+
+// 测试类
+public class AreaDemo {
+    public static void main(String[] args) {
+        Measurable circle = new Circle(5.0);
+        Measurable rectangle = new Rectangle(4.0, 6.0);
+        
+        circle.printArea();     // Area: 78.53981633974483
+        rectangle.printArea();  // Area: 24.0
+        
+        // 如果需要调用 Shape 中的方法，需要转型
+        if (circle instanceof Shape) {
+            ((Shape) circle).displayName();   // Shape: Circle
+        }
+    }
+}
+```
