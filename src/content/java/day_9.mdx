@@ -237,3 +237,59 @@ public boolean remove(Object o) {
         return modified;
     }
     ```
+
+### 内部的类迭代器
+#### Itr
+Itr 实现的Iterator
+- expectedModCount: 并发限制
+- lastRet
+- cursor
+
+#### ListItr
+继承Itr实现ListIterator，游标继承自Itr
+
+### subList方法
+```java
+public List<E> subList(int fromIndex, int toIndex) {
+    return (this instanceof RandomAccess ?
+            new RandomAccessSubList<>(this, fromIndex, toIndex) :
+            new SubList<>(this, fromIndex, toIndex));
+}
+```
+RandomAccess是用于处理随机访问的方式（也就是可以通过下标方法）的处理类
+对于实现RandomAccess的List实现类，用for loop比用迭代器循环性能更好。
+
+SubList类就是用传入sublist方法的参数截了一段进行的封装
+
+### equals
+```java
+ public boolean equals(Object o) {
+      if (o == this)
+          return true;
+      if (!(o instanceof List))
+          return false;
+
+      ListIterator<E> e1 = listIterator();
+      ListIterator<?> e2 = ((List<?>) o).listIterator();
+      while (e1.hasNext() && e2.hasNext()) {
+          E o1 = e1.next();
+          Object o2 = e2.next();
+          if (!(o1==null ? o2==null : o1.equals(o2)))
+              return false;
+      }
+      return !(e1.hasNext() || e2.hasNext());
+  }
+```
+
+### hashCode
+哈希散列，提取元素的特征进行处理。关键点在于避免哈希冲突。
+就是为了快速判断元素相等，应用在equals里面？
+hashCode不相等一定不相等，相等也不一定相等。
+```java
+public int hashCode() {
+    int hashCode = 1;
+    for (E e : this)
+        hashCode = 31*hashCode + (e==null ? 0 : e.hashCode());
+    return hashCode;
+}
+```
