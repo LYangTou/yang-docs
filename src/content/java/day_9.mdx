@@ -1,0 +1,239 @@
+## AbstractCollection
+AbstractCollection实现了Collection接口，提供了一个Collection的一个最小实现。
+如果要实现一个不可变的实现，只需要提供size和iterator。
+contains已经实现
+
+### contains
+```java
+public boolean contains(Object o) {
+    Iterator<E> it = iterator();
+    if (o==null) {
+        while (it.hasNext())
+            if (it.next()==null)
+                return true;
+    } else {
+        while (it.hasNext())
+            if (o.equals(it.next()))
+                return true;
+    }
+    return false;
+}
+```
+
+### toArray
+toArray实现：
+```java
+public Object[] toArray() {
+    // 根据当前的 size() 预估数组大小
+    Object[] r = new Object[size()];
+    Iterator<E> it = iterator();
+    for (int i = 0; i < r.length; i++) {
+        if (! it.hasNext()) // 集合元素比预期的少
+            return Arrays.copyOf(r, i);
+        r[i] = it.next();
+    }
+    // 集合元素可能比预期的多，交给 finishToArray 处理
+    return it.hasNext() ? finishToArray(r, it) : r;
+}
+```
+
+- 该方法的核心逻辑是处理集合在迭代过程中可能发生的变化。
+
+- 初始化：根据 size() 的返回值创建一个长度相当的数组 r。
+
+- 主循环：遍历数组 r 的每个位置。循环中优先检查 it.hasNext()，如果为 false，说明集合实际元素变少，直接返回一个长度截断至 i 的新数组。
+
+- 循环结束：如果迭代器仍有元素，说明实际元素比预期多，调用 finishToArray(r, it) 来扩充数组并填充剩余元素。否则，直接返回 r。
+
+```java
+private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+
+private static <T> T[] finishToArray(T[] r, Iterator<?> it) {
+    int i = r.length;
+    while (it.hasNext()) {
+        int cap = r.length;
+        if (i == cap) { // 数组已满，需要扩容
+            int newCap = cap + (cap >> 1) + 1; // 扩容约 1.5 倍
+            if (newCap - MAX_ARRAY_SIZE > 0)
+                newCap = hugeCapacity(cap + 1);
+            r = Arrays.copyOf(r, newCap);
+        }
+        r[i++] = (T)it.next();
+    }
+    // 如果数组有富余空间，截断至实际大小 i
+    return (i == r.length) ? r : Arrays.copyOf(r, i);
+}
+
+private static int hugeCapacity(int minCapacity) {
+    if (minCapacity < 0) // 溢出
+        throw new OutOfMemoryError("Required array size too large");
+    return (minCapacity > MAX_ARRAY_SIZE) ?
+        Integer.MAX_VALUE :
+        MAX_ARRAY_SIZE;
+}
+```
+
+- 初始化：变量 i 记录已填充的元素总数，等于传入数组 r 的长度。
+
+- 扩容循环：处理迭代器中所有剩余元素。
+
+    1. 触发扩容：当 i 等于当前数组容量 r.length 时，表示数组已满。
+    2. 计算容量：新容量按 cap + (cap >> 1) + 1 计算，即原容量的约 1.5 倍。
+    3. 边界检查：若新容量超过 MAX_ARRAY_SIZE，调用 hugeCapacity 方法处理：
+        minCapacity > MAX_ARRAY_SIZE：说明容量需求极大，返回 Integer.MAX_VALUE。
+        minCapacity < 0：发生整数溢出，抛出 OutOfMemoryError。
+    4. 执行扩容：使用 Arrays.copyOf 创建新数组。
+    5. 填充元素：将迭代器元素填入新数组，i 递增。
+- 收尾截断：循环结束返回最终数组，若 i 小于 r.length 则返回截断后的副本，以节省空间
+
+### add
+因为是可变或者不可变的Collection，所以不是abstract方法，而是抛出异常
+
+### remove
+```java
+public boolean remove(Object o) {
+    Iterator<E> it = iterator();
+    if (o==null) {
+        while (it.hasNext()) {
+            if (it.next()==null) {
+                it.remove();
+                return true;
+            }
+        }
+    } else {
+        while (it.hasNext()) {
+            if (o.equals(it.next())) {
+                it.remove();
+                return true;
+            }
+        }
+    }
+    return false;
+}
+```
+---
+## AbstractList
+- **继承链**：`AbstractCollection` → `AbstractList` → `AbstractSequentialList` → `LinkedList`
+- **`AbstractList` 是链表吗？**  
+  不是。`AbstractList` 是一个**骨架实现**，旨在简化**基于索引（随机访问）** 的 List 实现。
+- **设计分歧**：
+  - 如果子类底层是**数组**（如 `ArrayList`），继承 `AbstractList` 非常高效。
+  - 如果子类底层是**链表**（如 `LinkedList`），直接继承 `AbstractList` 会导致 `get(index)` 效率极低（O(n)）。因此 Java 提供了 `AbstractSequentialList`，通过**迭代器**实现操作，专门服务于顺序访问结构。
+
+### 实现不可变与可变列表的要求
+
+| 列表类型 | 必须实现的抽象方法 | 可选覆盖（如需修改功能） | 备注 |
+| :--- | :--- | :--- | :--- |
+| **不可变列表** | `get(int index)`  `size()` | 无 | `set`、`add`、`remove` 默认抛出 `UnsupportedOperationException` |
+| **可变列表** | 上述 + `set(int index, E e)` | `add(int index, E e)`  `remove(int index)` | 必须覆盖 `set`；若不覆盖 `add`/`remove`，则无法增删元素（仅能修改现有元素）。 |
+
+> **重要提示**：`AbstractList` 中的 `add` 和 `remove` 默认实现直接抛出异常，需要动态扩容时必须自行覆盖。
+
+### Search操作
+
+- indexOf
+   查找元素**第一次出现**的位置。
+
+    ```java
+    /**
+     * 返回指定元素在列表中第一次出现的索引。
+     * 如果列表不包含该元素，则返回 -1。
+     * 内部通过 ListIterator 从前往后遍历。
+     *
+     * @param o 要搜索的元素，可以为 null
+     * @return 元素首次出现的索引，未找到则返回 -1
+     */
+    public int indexOf(Object o) {
+        // 获取列表迭代器，从索引 0 开始
+        ListIterator<E> it = listIterator();
+        
+        // 特殊处理 null 值，因为 null 无法调用 equals 方法
+        if (o == null) {
+            while (it.hasNext()) {
+                // 使用 == 比较引用，查找 null 元素
+                if (it.next() == null) {
+                    // 因为调用了 next()，光标已移到元素之后，需返回前一个元素的索引
+                    return it.previousIndex();
+                }
+            }
+        } else {
+            while (it.hasNext()) {
+                // 非空对象，调用 equals 方法比较内容是否相等
+                if (o.equals(it.next())) {
+                    return it.previousIndex();
+                }
+            }
+        }
+        // 遍历结束未找到，返回 -1
+        return -1;
+    }
+    ```
+- lastIndexOf
+    查找元素最后一次出现的位置。优化点在于从末尾向前遍历。
+    ```java
+    /**
+    * 返回指定元素在列表中最后一次出现的索引。
+    * 如果列表不包含该元素，则返回 -1。
+    * 优化：直接从列表末尾开始向前遍历，避免无效的从头扫描。
+    *
+    * @param o 要搜索的元素，可以为 null
+    * @return 元素最后一次出现的索引，未找到则返回 -1
+    */
+    public int lastIndexOf(Object o) {
+        // 获取列表迭代器，初始位置设置在列表末尾（size() 处）
+        ListIterator<E> it = listIterator(size());
+        
+        if (o == null) {
+            while (it.hasPrevious()) {
+                // 向前移动并获取元素
+                if (it.previous() == null) {
+                    // 返回该元素之后的索引，即当前元素的索引
+                    return it.nextIndex();
+                }
+            }
+        } else {
+            while (it.hasPrevious()) {
+                if (o.equals(it.previous())) {
+                    return it.nextIndex();
+                }
+            }
+        }
+        return -1;
+    }
+    ```
+
+### Bulk Operations
+- clear
+    清空整个列表。
+    ```java
+    // 受保护的方法，用于批量删除。子类（如 ArrayList）通常覆盖它以利用数组拷贝优化性能。
+    protected void removeRange(int fromIndex, int toIndex) {
+        ListIterator<E> it = listIterator(fromIndex);
+        for (int i=0, n=toIndex-fromIndex; i<n; i++) {
+            it.next();
+            it.remove();
+        }
+    }
+
+    public void clear() {
+        removeRange(0, size());
+    }
+    ```
+
+- addAll
+    ```java
+    private void rangeCheckForAdd(int index) {
+        if (index < 0 || index > size())
+            throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
+    }
+
+    public boolean addAll(int index, Collection<? extends E> c) {
+        rangeCheckForAdd(index);
+        boolean modified = false;
+        for (E e : c) {
+            add(index++, e);
+            modified = true;
+        }
+        return modified;
+    }
+    ```
