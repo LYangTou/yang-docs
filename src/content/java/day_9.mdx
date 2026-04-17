@@ -293,3 +293,32 @@ public int hashCode() {
     return hashCode;
 }
 ```
+
+## AbstractSet
+继承自AbstractCollection，实现Set接口。
+- equals
+- hashCode
+- removeAll
+
+## AbstractQueue
+继承自AbstractCollection，实现Queue接口
+
+## AbstractMap
+AbstractMap实现自Map接口，里面有一个entrySet，存的键值对，根据这个值来实现size的方法。
+- containsValue
+- containsKey
+- get
+上面三个方法都建立在iterator上，进行遍历比对。
+
+Modification Operations
+- put： 未实现
+- remove: 思路也是先迭代器遍历，遍历之后赋给currectEntry，找到之后remove
+- putAll
+- clear: entrySet().clear()
+
+Views
+- keySet
+- values
+
+内部类
+- SimpleEntry： 可变键值对，value可以通过setValue改变

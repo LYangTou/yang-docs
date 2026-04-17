@@ -1,228 +1,718 @@
-## 基础类型
+# Java 基础类型、包装类、String、数组 笔记
 
-### byte
-- 数值范围：`-128` ~ `127`。
-- 占用空间：**1字节**（8位）。
-- **底层原理补充**：
-    - 最高位（最左边第一位）为**符号位**（0正1负）。
-    - 负数采用**补码**形式存储（原码取反加1）。
-    - 为什么是 -128？因为 `1000 0000` 被规定为 -128，而没有 -0 的概念。
-- **应用场景**：IO流操作（文件读写）、网络传输中的原始字节数据。
+## 一、基础类型
 
-### short
-- 数值范围：`-2^15` ~ `2^15-1` （即 -32,768 ~ 32,767）。
-- 占用空间：**2字节**（16位）。
-- **注意**：Java 中 `short` 和 `byte` 参与算术运算时，会**自动提升为 int 类型**。
+### 1. byte
 
-### int
-- 数值范围：`-2^31` ~ `2^31-1` （约 ±21亿）。
-- 占用空间：**4字节**（32位）。
-- **特殊注意**：
-    - Java 中整数字面量（如 `100`）默认就是 `int` 类型。
-    - 在 JDK 8+ 中，支持 `int` 无符号操作（`Integer.parseUnsignedInt`），但基础类型仍是有符号的。
-
-### long
-- 数值范围：`-2^63` ~ `2^63-1`。
-- 占用空间：**8字节**（64位）。
-- **语法细节**：定义 `long` 变量时，若数值超过 `int` 范围，必须在数字后加 `L` 或 `l`。
-    ```java
-    long big = 3000000000L; // 不加L会编译报错，因为右侧字面量被当作int处理
-    ```
-
-### 小数类型
-- **float**：单精度，占 **4字节**。**必须**在数字后加 `F` 或 `f`。
-- **double**：双精度，占 **8字节**。小数默认类型。
-- **浮点数精度问题（核心扩充）**：
-    - **原因**：计算机采用二进制无法精确表示某些十进制小数（如 `0.1`），就像十进制无法精确表示 1/3 一样。
-    - **代码陷阱**：
-        ```java
-        System.out.println(0.1 + 0.2 == 0.3); // 输出 false
-        ```
-    - **解决方案**：需要精确计算（如金额）时，**禁止使用 float/double**，必须使用 `BigDecimal` 类。
-        ```java
-        BigDecimal a = new BigDecimal("0.1");
-        BigDecimal b = new BigDecimal("0.2");
-        System.out.println(a.add(b).equals(new BigDecimal("0.3"))); // 输出 true
-        ```
-
-### char
-- **编码**：Unicode 编码字符。
-- 占用空间：**2字节**（16位）。
-- 范围：`\u0000` 到 `\uFFFF`。
-- **扩充知识**：
-    - 虽然默认是 2 字节，但在处理生僻字（如 `𠮷`）时，Unicode 辅助平面字符需要**两个 char 来表示**（代理对）。
-    - `char` 可以直接参与**算术运算**，运算时转为 ASCII/Unicode 数值。
-
-### boolean
-- **官方定义**：只有 `true` 和 `false` 两个值。
-- **底层存储扩充**：
-    - JVM 规范并未规定 boolean 具体占多少字节。**单个** boolean 变量在编译后通常映射为 **int** 类型（占4字节）。
-    - 在 **boolean 数组**中，JVM 为了节省空间，通常将其实现为 **1字节** 的 byte 数组。
+* 数值范围：`-128 ~ 127`
+* 占用空间：**1字节**
+* 最高位是符号位：`0` 表示正数，`1` 表示负数
+* 负数以**补码**形式存储
+* 应用场景：文件读写、网络传输中的字节数据
 
 ---
 
-## 包装类
+### 2. short
 
-### 基本对应关系与构造
-| 基础类型 | 包装类 | 构造示例 |
-| :--- | :--- | :--- |
-| byte | Byte | `Byte a = new Byte((byte) 1);` |
-| short | Short | `Short b = new Short((short) 1);` |
-| int | **Integer** | `Integer c = new Integer(10);` |
-| long | Long | `Long d = new Long(10L);` |
-| float | Float | `Float e = new Float(1.0f);` |
-| double | Double | `Double f = new Double(1.0);` |
-| char | Character | `Character g = new Character('a');` |
-| boolean | Boolean | `Boolean h = new Boolean(true);` |
+* 数值范围：`-32768 ~ 32767`
+* 占用空间：**2字节**
+* 注意：`byte`、`short`、`char` 参与算术运算时，都会先提升为 `int`
 
-### 自动装箱与拆箱（核心扩充）
-- **JDK 1.5 引入的特性**：编译器自动完成基本类型与包装类的转换。
-- **示例**：
-    ```java
-    Integer num = 10;        // 自动装箱：底层调用 Integer.valueOf(10)
-    int x = num;             // 自动拆箱：底层调用 num.intValue()
-    ```
-- **重要陷阱（缓存池）**：
-    - `Integer`、`Byte`、`Short`、`Long`、`Character` 对 **-128 ~ 127** 范围内的对象有**缓存机制**。
-    ```java
-    Integer a = 100;
-    Integer b = 100;
-    System.out.println(a == b); // true (指向同一缓存对象)
-
-    Integer c = 200;
-    Integer d = 200;
-    System.out.println(c == d); // false (new了两个新对象)
-    ```
-    - **建议**：比较包装类数值**永远使用 `.equals()` 方法**，不要使用 `==`。
-
----
-
-## 引用类型
-
-### 数组
-- **默认值规则**：
-    - 数值类型数组（int, double等）：默认值 `0` 或 `0.0`。
-    - char 数组：默认值 `\u0000`（空字符）。
-    - boolean 数组：默认值 `false`。
-    - **引用类型数组**（String, 自定义类）：默认值 **`null`**。
-- **多维数组补充**：Java 支持锯齿数组（每行列数可以不同）。
-
-### String
-- **不变性（Immutable）深入理解**：
-    - **底层实现**：JDK 8 及之前是 `private final char value[]`；JDK 9+ 改为 `private final byte[] value`（压缩存储空间）。
-    - **final 的含义**：`value` 数组引用不可变，数组内容也无法被外部修改（因为没有暴露修改方法）。
-    - **拼接的本质**：`s += "d"` 实际上 JVM 会使用 `StringBuilder` 创建新对象。
-
-- **字符串常量池（String Pool）**：
-    - 直接写双引号创建的字符串，会在编译期放入常量池。
-    - `new String("abc")` 会创建 **1个或2个对象**（若池中无"abc"，先在池中创建一个，再在堆中创建一个）。
-    - `intern()` 方法可以主动将字符串放入常量池。
-
-#### StringBuilder
-- **特性**：**非线程安全**，性能最高。
-- **常用方法**：
-    - `append()`：追加。
-    - `insert(offset, str)`：插入。
-    - `delete(start, end)`：删除。
-    - `reverse()`：反转。
-
-#### StringBuffer
-- **特性**：**线程安全**（方法上加了 `synchronized` 锁），性能略低于 `StringBuilder`。
-- 用法与 `StringBuilder` 完全一致。
-
-#### 常用方法扩充
-
-- **获取特定位置字符**
-    ```java
-    String a = "123123";
-    char c = a.charAt(2); // 索引从0开始，结果为 '3'
-    ```
-
-- **字符串拼接**
-    ```java
-    String result = s1.concat(s2).concat(s3);
-    // 注意：concat 也是返回新对象，原对象不变
-    ```
-
-- **字符串截取**
-    ```java
-    String sub = a.substring(1, 3); // 左闭右开 [1,3)，结果为 "23"
-    ```
-
-- **替换与分割**
-    ```java
-    String replaced = a.replace("1", "A"); // 替换所有
-    String[] parts = a.split("2");         // 根据正则分割
-    ```
-
-- **判空安全（最佳实践）**
-    ```java
-    // 防止空指针异常，推荐将字面量写前面
-    if ("OK".equals(status)) { ... }
-    
-    // 判断字符串非空且非null (常用工具写法)
-    if (str != null && !str.isEmpty()) { ... }
-    ```
-
-#### format 格式化细节扩充
 ```java
-// 常用占位符
-String result = String.format(
-    "整数: %d, 浮点数: %f, 保留两位: %.2f, 字符串: %s, 十六进制: %x", 
-    1, 1.2, 1.65, "abc", 255
-);
-// 输出：整数: 1, 浮点数: 1.200000, 保留两位: 1.65, 字符串: abc, 十六进制: ff
+short a = 1;
+short b = 2;
+// short c = a + b; // 报错
+int c = a + b;
 ```
 
 ---
 
-## 数字与字符串相互转化（完整扩充）
+### 3. int
 
-### 字符串 -> 数字
-| 目标类型 | 推荐方法 | 注意事项 |
-| :--- | :--- | :--- |
-| int | `Integer.parseInt("100")` | 若字符串含空格或字母，抛 `NumberFormatException` |
-| long | `Long.parseLong("100L")` | 数值后**不能**带 `L` 后缀 |
-| double | `Double.parseDouble("1.23")` | 支持科学计数法如 `"1.2e3"` |
-| 大数/精确 | `new BigDecimal("1.23")` | **强烈推荐**：入参必须是 String，避免浮点精度丢失 |
+* 数值范围：`-2^31 ~ 2^31 - 1`
+* 占用空间：**4字节**
+* 整数字面量默认就是 `int`
 
-### 数字 -> 字符串
 ```java
-int num = 100;
-
-// 方式1：最简单直观
-String s1 = num + "";
-
-// 方式2：静态方法（推荐，可读性好）
-String s2 = String.valueOf(num);
-
-// 方式3：包装类方法
-String s3 = Integer.toString(num);
-
-// 进阶：指定进制转换
-String hex = Integer.toHexString(255); // 输出 "ff"
-String binary = Integer.toBinaryString(5); // 输出 "101"
+int a = 100;
 ```
 
 ---
 
-### 扩展：BigDecimal 高精度计算补充
-由于笔记提到了浮点数比较，这里补充 `BigDecimal` 的常用操作：
+### 4. long
+
+* 数值范围：`-2^63 ~ 2^63 - 1`
+* 占用空间：**8字节**
+* 如果数值超出 `int` 范围，必须加 `L`
 
 ```java
-import java.math.BigDecimal;
+long big = 3000000000L;
+```
 
-BigDecimal price = new BigDecimal("19.99");
-BigDecimal count = new BigDecimal("3");
+原因：
 
-// 1. 乘法 (保留两位小数，四舍五入)
-BigDecimal total = price.multiply(count).setScale(2, RoundingMode.HALF_UP);
+* 整数字面量默认是 `int`
+* `3000000000` 已经超出 `int` 范围，所以必须加 `L`
 
-// 2. 除法 (必须指定舍入模式，否则除不尽报错)
-BigDecimal avg = total.divide(new BigDecimal("3"), 2, RoundingMode.HALF_UP);
+---
 
-// 3. 比较 (不能用 equals，因为 2.0 和 2.00 可能不等)
-if (price.compareTo(BigDecimal.ZERO) > 0) {
-    System.out.println("大于0");
+### 5. float
+
+* 单精度浮点数
+* 占用空间：**4字节**
+* 必须加 `F` 或 `f`
+
+```java
+float f = 1.23F;
+```
+
+原因：
+
+* 小数字面量默认是 `double`
+* `double` 不能直接赋值给 `float`
+
+---
+
+### 6. double
+
+* 双精度浮点数
+* 占用空间：**8字节**
+* 小数默认类型就是 `double`
+
+```java
+double d = 1.23;
+```
+
+---
+
+### 7. 浮点数精度问题
+
+* `float` / `double` 适合近似计算
+* 不适合精确比较和金额计算
+
+```java
+System.out.println(0.1 + 0.2 == 0.3); // false
+```
+
+原因：
+
+* 二进制无法精确表示某些十进制小数
+
+精确计算要用 `BigDecimal`
+
+```java
+BigDecimal a = new BigDecimal("0.1");
+BigDecimal b = new BigDecimal("0.2");
+System.out.println(a.add(b).equals(new BigDecimal("0.3"))); // true
+```
+
+---
+
+### 8. char
+
+* 占用空间：**2字节**
+* 表示一个字符，本质上保存的是一个 **UTF-16 编码单元**
+* 范围：`\u0000 ~ \uFFFF`
+
+```java
+char c = 'A';
+char c2 = '中';
+```
+
+补充：
+
+* `char` 可以参与运算，运算时会转成整数
+
+```java
+char c = 'A';
+int num = c;   // 65
+
+int x = 66;
+char c2 = (char) x; // 'B'
+```
+
+---
+
+### 9. boolean
+
+* 只有两个值：`true` 和 `false`
+* Java 语言层面不规定它具体占多少字节
+* 学习基础时只需要记住它表示真假即可
+
+---
+
+## 二、包装类
+
+### 1. 对应关系
+
+| 基础类型    | 包装类       |
+| ------- | --------- |
+| byte    | Byte      |
+| short   | Short     |
+| int     | Integer   |
+| long    | Long      |
+| float   | Float     |
+| double  | Double    |
+| char    | Character |
+| boolean | Boolean   |
+
+---
+
+### 2. 推荐写法
+
+不推荐记 `new Integer(10)` 这种旧写法，推荐：
+
+```java
+Integer a = Integer.valueOf(10);
+Integer b = 10; // 自动装箱
+```
+
+---
+
+### 3. 自动装箱与拆箱
+
+```java
+Integer num = 10; // 自动装箱
+int x = num;      // 自动拆箱
+```
+
+本质：
+
+* 装箱：`Integer.valueOf(10)`
+* 拆箱：`num.intValue()`
+
+---
+
+### 4. 自动拆箱空指针问题
+
+```java
+Integer a = null;
+// int b = a; // NullPointerException
+```
+
+原因：
+
+* 自动拆箱本质上会调用 `a.intValue()`
+* `a` 为 `null` 时会空指针
+
+---
+
+### 5. 缓存池
+
+`Integer` 等包装类对部分范围的值有缓存机制：
+
+```java
+Integer a = 100;
+Integer b = 100;
+System.out.println(a == b); // true
+
+Integer c = 200;
+Integer d = 200;
+System.out.println(c == d); // false
+```
+
+结论：
+
+* `==` 比较的是地址
+* `equals()` 比较的是值
+* 比较包装类内容时，优先用 `equals()`
+
+```java
+System.out.println(c.equals(d)); // true
+```
+
+---
+
+## 三、String
+
+### 1. String 的特点
+
+* `String` 是**不可变对象**
+* 字符串内容一旦创建，就不能修改
+
+```java
+String s = "abc";
+s += "d";
+```
+
+这里不是修改原字符串，而是创建了一个新字符串。
+
+---
+
+### 2. 字符串常量池
+
+直接写双引号的字符串会进入常量池：
+
+```java
+String a = "abc";
+String b = "abc";
+System.out.println(a == b); // true
+```
+
+`new String("abc")` 创建的是堆中的新对象：
+
+```java
+String a = "abc";
+String b = new String("abc");
+
+System.out.println(a == b);      // false
+System.out.println(a.equals(b)); // true
+```
+
+---
+
+### 3. 常用方法
+
+#### 获取长度
+
+```java
+String s = "hello";
+System.out.println(s.length());
+```
+
+#### 获取指定位置字符
+
+```java
+char c = s.charAt(1);
+```
+
+#### 截取字符串
+
+```java
+String sub = s.substring(1, 4); // 左闭右开
+```
+
+#### 拼接
+
+```java
+String result = s1.concat(s2);
+```
+
+#### 替换
+
+```java
+String replaced = s.replace("a", "A");
+```
+
+#### 分割
+
+```java
+String ip = "192.168.1.1";
+String[] arr = ip.split("\\.");
+```
+
+注意：
+
+* `split()` 传入的是**正则表达式**
+* `"."` 在正则里有特殊含义，所以要写 `\\.`
+
+---
+
+### 4. 判空写法
+
+```java
+if (str != null && !str.isEmpty()) {
 }
 ```
+
+区别：
+
+* `null`：对象不存在
+* `isEmpty()`：长度是否为 0
+
+如果想判断去掉空格后是否为空：
+
+```java
+if (str != null && !str.trim().isEmpty()) {
+}
+```
+
+---
+
+## 四、BigDecimal
+
+### 1. 推荐写法
+
+```java
+BigDecimal a = new BigDecimal("0.1");
+```
+
+不推荐：
+
+```java
+new BigDecimal(0.1)
+```
+
+因为 `0.1` 本身作为 `double` 就不精确。
+
+---
+
+### 2. 常用操作
+
+```java
+BigDecimal a = new BigDecimal("10.5");
+BigDecimal b = new BigDecimal("2");
+
+a.add(b);        // 加
+a.subtract(b);   // 减
+a.multiply(b);   // 乘
+a.divide(b);     // 除
+```
+
+---
+
+### 3. 比较大小
+
+比较 `BigDecimal` 不建议直接用 `equals()` 判断数值大小，通常用 `compareTo()`
+
+```java
+BigDecimal a = new BigDecimal("2.0");
+BigDecimal b = new BigDecimal("2.00");
+
+System.out.println(a.equals(b));      // false
+System.out.println(a.compareTo(b));   // 0
+```
+
+---
+
+## 五、数组
+
+### 1. 数组的概念
+
+数组是：**存放同一种类型多个数据的容器**
+
+特点：
+
+* 元素类型相同
+* 长度固定
+* 可以通过下标访问
+* 下标从 `0` 开始
+
+---
+
+### 2. 数组定义
+
+#### 静态初始化
+
+```java
+int[] arr = {1, 2, 3};
+```
+
+#### 动态初始化
+
+```java
+int[] arr = new int[3];
+```
+
+---
+
+### 3. 数组默认值
+
+#### 基本类型数组
+
+* `int`：`0`
+* `double`：`0.0`
+* `char`：`\u0000`
+* `boolean`：`false`
+
+#### 引用类型数组
+
+* `null`
+
+```java
+int[] arr1 = new int[3];
+String[] arr2 = new String[3];
+```
+
+---
+
+### 4. 数组访问
+
+```java
+int[] arr = {10, 20, 30};
+
+System.out.println(arr[0]); // 10
+arr[1] = 99;
+System.out.println(arr[1]); // 99
+```
+
+---
+
+### 5. 数组长度
+
+```java
+System.out.println(arr.length);
+```
+
+注意：
+
+* 数组：`length`
+* 字符串：`length()`
+
+---
+
+### 6. 数组遍历
+
+#### 普通 for
+
+```java
+for (int i = 0; i < arr.length; i++) {
+    System.out.println(arr[i]);
+}
+```
+
+#### 增强 for
+
+```java
+for (int num : arr) {
+    System.out.println(num);
+}
+```
+
+区别：
+
+* 普通 `for`：可以拿到下标
+* 增强 `for`：适合只遍历
+
+---
+
+### 7. 二维数组
+
+#### 定义
+
+```java
+int[][] arr = {
+    {1, 2, 3},
+    {4, 5, 6}
+};
+```
+
+#### 访问
+
+```java
+System.out.println(arr[0][1]); // 2
+```
+
+#### 遍历
+
+```java
+for (int i = 0; i < arr.length; i++) {
+    for (int j = 0; j < arr[i].length; j++) {
+        System.out.print(arr[i][j] + " ");
+    }
+    System.out.println();
+}
+```
+
+---
+
+### 8. 数组常见异常
+
+#### 下标越界
+
+```java
+int[] arr = {1, 2, 3};
+// System.out.println(arr[3]); // ArrayIndexOutOfBoundsException
+```
+
+#### 空指针
+
+```java
+int[] arr = null;
+// System.out.println(arr.length); // NullPointerException
+```
+
+---
+
+## 六、Arrays 常用方法
+
+```java
+import java.util.Arrays;
+```
+
+### 1. 打印数组
+
+```java
+int[] arr = {1, 2, 3};
+System.out.println(Arrays.toString(arr));
+```
+
+二维数组：
+
+```java
+int[][] arr2 = {{1, 2}, {3, 4}};
+System.out.println(Arrays.deepToString(arr2));
+```
+
+---
+
+### 2. 排序
+
+```java
+int[] arr = {5, 2, 8, 1};
+Arrays.sort(arr);
+System.out.println(Arrays.toString(arr)); // [1, 2, 5, 8]
+```
+
+---
+
+### 3. 比较数组内容
+
+```java
+int[] a = {1, 2, 3};
+int[] b = {1, 2, 3};
+
+System.out.println(Arrays.equals(a, b)); // true
+```
+
+注意：
+
+* `==` 比地址
+* `Arrays.equals()` 比内容
+
+---
+
+### 4. 复制数组
+
+#### copyOf
+
+```java
+int[] arr = {1, 2, 3};
+int[] newArr = Arrays.copyOf(arr, 5);
+System.out.println(Arrays.toString(newArr)); // [1, 2, 3, 0, 0]
+```
+
+#### copyOfRange
+
+```java
+int[] arr = {1, 2, 3, 4, 5};
+int[] sub = Arrays.copyOfRange(arr, 1, 4);
+System.out.println(Arrays.toString(sub)); // [2, 3, 4]
+```
+
+---
+
+### 5. 填充数组
+
+```java
+int[] arr = new int[5];
+Arrays.fill(arr, 7);
+System.out.println(Arrays.toString(arr)); // [7, 7, 7, 7, 7]
+```
+
+---
+
+### 6. 二分查找
+
+前提：数组必须有序
+
+```java
+int[] arr = {1, 3, 5, 7, 9};
+int index = Arrays.binarySearch(arr, 5);
+System.out.println(index); // 2
+```
+
+没找到时返回负数。
+
+---
+
+## 七、数组常见基础操作
+
+### 1. 求最大值
+
+```java
+int[] arr = {3, 9, 2, 7};
+
+int max = arr[0];
+for (int i = 1; i < arr.length; i++) {
+    if (arr[i] > max) {
+        max = arr[i];
+    }
+}
+System.out.println(max);
+```
+
+---
+
+### 2. 求最小值
+
+```java
+int min = arr[0];
+for (int i = 1; i < arr.length; i++) {
+    if (arr[i] < min) {
+        min = arr[i];
+    }
+}
+System.out.println(min);
+```
+
+---
+
+### 3. 求和
+
+```java
+int sum = 0;
+for (int num : arr) {
+    sum += num;
+}
+System.out.println(sum);
+```
+
+---
+
+### 4. 查找某个元素
+
+```java
+int target = 7;
+int index = -1;
+
+for (int i = 0; i < arr.length; i++) {
+    if (arr[i] == target) {
+        index = i;
+        break;
+    }
+}
+System.out.println(index);
+```
+
+---
+
+### 5. 反转数组
+
+```java
+int[] arr = {1, 2, 3, 4, 5};
+
+for (int i = 0, j = arr.length - 1; i < j; i++, j--) {
+    int temp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = temp;
+}
+```
+
+---
+
+## 八、这一部分最该记住的点
+
+### 基础类型
+
+* `byte`、`short`、`char` 运算时先提升为 `int`
+* 整数字面量默认是 `int`
+* 小数字面量默认是 `double`
+* 金额计算不用 `float/double`，用 `BigDecimal`
+
+### 包装类
+
+* 自动拆箱可能空指针
+* 比较包装类内容用 `equals()`
+
+### String
+
+* `String` 不可变
+* `==` 比地址，`equals()` 比内容
+* `split()` 参数是正则
+
+### 数组
+
+* 数组长度固定
+* 下标从 `0` 开始
+* 常用工具类是 `Arrays`
