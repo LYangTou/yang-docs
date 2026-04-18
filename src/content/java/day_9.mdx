@@ -1,324 +1,641 @@
-## AbstractCollection
-AbstractCollection实现了Collection接口，提供了一个Collection的一个最小实现。
-如果要实现一个不可变的实现，只需要提供size和iterator。
-contains已经实现
+# Java 集合骨架实现：AbstractCollection / AbstractList / AbstractSet / AbstractQueue / AbstractMap 笔记
 
-### contains
-```java
-public boolean contains(Object o) {
-    Iterator<E> it = iterator();
-    if (o==null) {
-        while (it.hasNext())
-            if (it.next()==null)
-                return true;
-    } else {
-        while (it.hasNext())
-            if (o.equals(it.next()))
-                return true;
-    }
-    return false;
-}
-```
-
-### toArray
-toArray实现：
-```java
-public Object[] toArray() {
-    // 根据当前的 size() 预估数组大小
-    Object[] r = new Object[size()];
-    Iterator<E> it = iterator();
-    for (int i = 0; i < r.length; i++) {
-        if (! it.hasNext()) // 集合元素比预期的少
-            return Arrays.copyOf(r, i);
-        r[i] = it.next();
-    }
-    // 集合元素可能比预期的多，交给 finishToArray 处理
-    return it.hasNext() ? finishToArray(r, it) : r;
-}
-```
-
-- 该方法的核心逻辑是处理集合在迭代过程中可能发生的变化。
-
-- 初始化：根据 size() 的返回值创建一个长度相当的数组 r。
-
-- 主循环：遍历数组 r 的每个位置。循环中优先检查 it.hasNext()，如果为 false，说明集合实际元素变少，直接返回一个长度截断至 i 的新数组。
-
-- 循环结束：如果迭代器仍有元素，说明实际元素比预期多，调用 finishToArray(r, it) 来扩充数组并填充剩余元素。否则，直接返回 r。
-
-```java
-private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
-
-private static <T> T[] finishToArray(T[] r, Iterator<?> it) {
-    int i = r.length;
-    while (it.hasNext()) {
-        int cap = r.length;
-        if (i == cap) { // 数组已满，需要扩容
-            int newCap = cap + (cap >> 1) + 1; // 扩容约 1.5 倍
-            if (newCap - MAX_ARRAY_SIZE > 0)
-                newCap = hugeCapacity(cap + 1);
-            r = Arrays.copyOf(r, newCap);
-        }
-        r[i++] = (T)it.next();
-    }
-    // 如果数组有富余空间，截断至实际大小 i
-    return (i == r.length) ? r : Arrays.copyOf(r, i);
-}
-
-private static int hugeCapacity(int minCapacity) {
-    if (minCapacity < 0) // 溢出
-        throw new OutOfMemoryError("Required array size too large");
-    return (minCapacity > MAX_ARRAY_SIZE) ?
-        Integer.MAX_VALUE :
-        MAX_ARRAY_SIZE;
-}
-```
-
-- 初始化：变量 i 记录已填充的元素总数，等于传入数组 r 的长度。
-
-- 扩容循环：处理迭代器中所有剩余元素。
-
-    1. 触发扩容：当 i 等于当前数组容量 r.length 时，表示数组已满。
-    2. 计算容量：新容量按 cap + (cap >> 1) + 1 计算，即原容量的约 1.5 倍。
-    3. 边界检查：若新容量超过 MAX_ARRAY_SIZE，调用 hugeCapacity 方法处理：
-        minCapacity > MAX_ARRAY_SIZE：说明容量需求极大，返回 Integer.MAX_VALUE。
-        minCapacity < 0：发生整数溢出，抛出 OutOfMemoryError。
-    4. 执行扩容：使用 Arrays.copyOf 创建新数组。
-    5. 填充元素：将迭代器元素填入新数组，i 递增。
-- 收尾截断：循环结束返回最终数组，若 i 小于 r.length 则返回截断后的副本，以节省空间
-
-### add
-因为是可变或者不可变的Collection，所以不是abstract方法，而是抛出异常
-
-### remove
-```java
-public boolean remove(Object o) {
-    Iterator<E> it = iterator();
-    if (o==null) {
-        while (it.hasNext()) {
-            if (it.next()==null) {
-                it.remove();
-                return true;
-            }
-        }
-    } else {
-        while (it.hasNext()) {
-            if (o.equals(it.next())) {
-                it.remove();
-                return true;
-            }
-        }
-    }
-    return false;
-}
-```
 ---
+
+## 一、什么是“抽象骨架实现”
+
+Java 集合框架里有一组以 `Abstract` 开头的类，例如：
+
+* `AbstractCollection`
+* `AbstractList`
+* `AbstractSet`
+* `AbstractQueue`
+* `AbstractMap`
+
+它们的作用可以理解为：
+
+* 已经帮你实现了一部分通用逻辑
+* 子类只需要实现少量核心方法
+* 就能快速得到一个可用的集合实现
+
+所以它们本质上是：
+
+**集合接口的“骨架实现”**
+
+---
+
+# 二、AbstractCollection
+
+## 1. 作用
+
+`AbstractCollection`：
+
+* 实现了 `Collection` 接口
+* 提供了一个 `Collection` 的最小骨架实现
+
+如果你想自己实现一个集合，通常可以继承它，少写很多重复代码。
+
+---
+
+## 2. 最少需要实现什么
+
+如果想做一个**不可变集合**，通常只需要实现：
+
+* `iterator()`
+* `size()`
+
+因为很多通用方法它已经帮你写好了，比如：
+
+* `contains`
+* `toArray`
+* `remove`（依赖迭代器）
+* `isEmpty`
+
+---
+
+## 3. contains()
+
+### 核心逻辑
+
+`contains(Object o)` 的实现本质就是：
+
+* 通过迭代器遍历整个集合
+* 逐个比较元素是否相等
+* 找到就返回 `true`
+* 否则返回 `false`
+
+### 关键点
+
+* 如果传入的是 `null`，用 `== null` 判断
+* 否则用 `equals()` 判断
+
+所以可以记成：
+
+**AbstractCollection 的很多默认实现，本质就是“基于 iterator() 遍历整个集合”。**
+
+---
+
+## 4. toArray()
+
+### 核心作用
+
+把集合内容转换成数组。
+
+### 核心思路
+
+它的实现重点不是“简单拷贝”，而是要处理这种情况：
+
+* `size()` 预估的大小
+* 和真正迭代出来的元素个数
+* 可能不一致
+
+所以流程是：
+
+1. 先根据 `size()` 预估创建数组
+2. 一边遍历一边填充
+3. 如果元素比预期少，就截断
+4. 如果元素比预期多，就扩容再继续装
+
+### 你这里最该记住的点
+
+不是去背扩容细节，而是记住：
+
+**toArray() 会以 `size()` 为初始预估，但真正结果以迭代器遍历到的元素为准。**
+
+---
+
+## 5. add()
+
+`AbstractCollection` 里的 `add(E e)` 默认**不是抽象方法**，而是直接抛异常：
+
+```java
+UnsupportedOperationException
+```
+
+### 为什么这样设计
+
+因为：
+
+* 有的集合可变
+* 有的集合不可变
+
+所以默认不给出“可修改”的实现，而是让子类自己决定是否支持添加。
+
+---
+
+## 6. remove()
+
+`remove(Object o)` 的默认实现本质也是：
+
+* 通过 `iterator()` 遍历
+* 找到目标元素后
+* 调用迭代器的 `remove()`
+
+### 关键点
+
+它删除的是：
+
+**第一个匹配到的元素**
+
+### 重要前提
+
+这个实现能否正常工作，依赖：
+
+* 迭代器是否正确实现了 `remove()`
+
+如果迭代器不支持删除，那么这里也会失败。
+
+---
+
+# 三、AbstractList
+
+## 1. 作用
+
+`AbstractList`：
+
+* 继承 `AbstractCollection`
+* 实现 `List` 接口
+* 是 `List` 的骨架实现
+
+---
+
+## 2. 它是不是链表
+
+不是。
+
+`AbstractList` 不是链表，也不是数组，它只是一个：
+
+**面向 List 的抽象骨架类**
+
+---
+
+## 3. 为什么还有 AbstractSequentialList
+
+因为 `List` 有两类典型底层结构：
+
+* 数组型（如 `ArrayList`）
+* 链表型（如 `LinkedList`）
+
+如果链表也直接按 `AbstractList` 那种“偏索引访问”的思路来实现，性能会不好。
+所以 Java 又提供了：
+
+* `AbstractSequentialList`
+
+专门给顺序访问结构使用。
+
+---
+
+## 4. 实现一个 AbstractList 最少要做什么
+
+### 不可变 List
+
+通常只需要实现：
+
+* `get(int index)`
+* `size()`
+
+这样就已经能得到一个只读 List。
+
+---
+
+### 可变 List
+
+如果还想支持修改，一般要继续重写：
+
+* `set(int index, E element)`
+* `add(int index, E element)`
+* `remove(int index)`
+
+否则默认很多修改操作都会抛：
+
+```java
+UnsupportedOperationException
+```
+
+---
+
+## 5. indexOf()
+
+### 作用
+
+查找元素第一次出现的位置。
+
+### 核心思路
+
+它内部本质是：
+
+* 用 `ListIterator` 从前往后遍历
+* 找到第一个相等元素就返回索引
+* 找不到返回 `-1`
+
+---
+
+## 6. lastIndexOf()
+
+### 作用
+
+查找元素最后一次出现的位置。
+
+### 核心思路
+
+它内部本质是：
+
+* 从尾部开始向前遍历
+* 找到第一个匹配的就返回索引
+* 找不到返回 `-1`
+
+---
+
+## 7. clear()
+
+`clear()` 默认通过：
+
+```java
+removeRange(0, size())
+```
+
+来完成。
+
+### removeRange()
+
+默认实现本质上是：
+
+* 先拿到区间起点的迭代器
+* 再逐个删除指定范围元素
+
+### 注意
+
+很多高性能子类会重写 `removeRange()`，因为默认逐个删不一定高效。
+
+---
+
+## 8. addAll(int index, Collection<? extends E> c)
+
+### 核心逻辑
+
+本质就是：
+
+* 先做范围检查
+* 再把传入集合元素一个个插入进去
+
+所以默认实现偏通用，**不一定高效**。
+
+---
+
+## 9. 内部迭代器
+
+`AbstractList` 内部有两个重要迭代器实现：
+
+### Itr
+
+实现的是 `Iterator`
+
+内部常见字段有：
+
+* `cursor`
+* `lastRet`
+* `expectedModCount`
+
+---
+
+### ListItr
+
+继承自 `Itr`，实现 `ListIterator`
+
+比普通 `Iterator` 多了：
+
+* 向前遍历
+* 定位索引
+* 双向移动
+
+---
+
+## 10. expectedModCount 是什么
+
+这是用来做：
+
+**快速失败（Fail-Fast）检查**
+
+如果遍历过程中，集合结构被外部非法修改，就可能抛出：
+
+```java
+ConcurrentModificationException
+```
+
+这个字段你记住作用就行，不用死背细节。
+
+---
+
+## 11. subList()
+
+`subList(fromIndex, toIndex)` 返回的不是独立副本，而是：
+
+**原 List 的一个视图（view）**
+
+### 这点非常重要
+
+对 `subList` 的修改，通常会影响原列表；
+对原列表的结构性修改，也可能影响 `subList`。
+
+所以可以记成：
+
+**subList 返回的是“窗口”，不是“拷贝”。**
+
+---
+
+## 12. RandomAccess
+
+`subList()` 里会判断是否实现了 `RandomAccess`。
+
+### RandomAccess 是什么
+
+它是一个**标记接口**，表示这个 List 适合随机访问，也就是：
+
+* `get(index)` 很快
+
+典型例子：
+
+* `ArrayList` 实现了 `RandomAccess`
+* `LinkedList` 没有实现
+
+### 经验结论
+
+对实现 `RandomAccess` 的 List：
+
+* 普通 `for` 循环通常更合适
+
+对链表型 List：
+
+* 迭代器通常更合适
+
+---
+
+## 13. equals()
+
+`AbstractList` 的 `equals()` 比较的是：
+
+* 两个 List 是否元素个数相同
+* 且对应位置元素都相等
+
+所以 `List` 的相等性是：
+
+**顺序相关的**
+
+例如：
+
+```java
+[1, 2, 3]
+```
+
+和
+
+```java
+[3, 2, 1]
+```
+
+即使元素一样，也不相等。
+
+---
+
+## 14. hashCode()
+
+`AbstractList` 的 `hashCode()` 是按顺序一个个元素计算出来的。
+
+### 你这里有个容易混的点，纠正一下
+
+`hashCode()` **不是给 `equals()` 用的**。
+更准确地说：
+
+* `equals()` 是判断逻辑相等
+* `hashCode()` 是为了配合哈希容器使用
+
+例如：
+
+* `HashSet`
+* `HashMap`
+
+### 正确认识
+
+* `hashCode` 不相等，两个对象通常不相等
+* `hashCode` 相等，两个对象**不一定**相等，还要再看 `equals`
+
+所以 `hashCode()` 的主要用途不是“替代 equals”，而是：
+
+**先快速缩小范围，再配合 equals 精确判断**
+
+---
+
+# 四、AbstractSet
+
+## 1. 作用
+
+`AbstractSet`：
+
+* 继承 `AbstractCollection`
+* 实现 `Set` 接口
+* 是 `Set` 的骨架实现
+
+---
+
+## 2. 特点
+
+它主要重写了：
+
+* `equals()`
+* `hashCode()`
+* `removeAll()`
+
+---
+
+## 3. Set 的 equals 语义
+
+和 `List` 不同，`Set` 的相等性不看顺序，只看：
+
+* 元素是否相同
+
+例如：
+
+```java
+[1, 2, 3]
+```
+
+和
+
+```java
+[3, 2, 1]
+```
+
+如果是 `Set`，它们可以相等。
+
+---
+
+# 五、AbstractQueue
+
+## 1. 作用
+
+`AbstractQueue`：
+
+* 继承 `AbstractCollection`
+* 实现 `Queue` 接口
+* 是队列的骨架实现
+
+---
+
+## 2. 作用理解
+
+它主要帮你把一些通用的 Queue 行为先实现好，子类只需要关注核心队列操作。
+
+比如：
+
+* `offer`
+* `poll`
+* `peek`
+
+这些核心方法由子类决定具体实现。
+
+---
+
+# 六、AbstractMap
+
+## 1. 作用
+
+`AbstractMap`：
+
+* 实现 `Map` 接口
+* 是 `Map` 的骨架实现
+
+---
+
+## 2. 核心思想
+
+`AbstractMap` 很多逻辑都建立在：
+
+```java
+entrySet()
+```
+
+之上。
+
+也就是说：
+
+**只要子类能提供 entrySet()，很多 Map 通用行为就能工作。**
+
+---
+
+## 3. 常见依赖 entrySet() 的方法
+
+例如：
+
+* `size()`
+* `containsKey()`
+* `containsValue()`
+* `get()`
+* `remove()`
+* `clear()`
+* `keySet()`
+* `values()`
+
+很多默认实现，本质上都是遍历 `entrySet()`。
+
+---
+
+## 4. put()
+
+`put(K key, V value)` 在 `AbstractMap` 中默认没有真正实现，通常直接抛异常。
+
+因为：
+
+* 有的 Map 可修改
+* 有的 Map 不可修改
+
+所以让子类自己决定。
+
+---
+
+## 5. remove()
+
+默认思路也是：
+
+* 先遍历 `entrySet()`
+* 找到匹配 key 的 entry
+* 再删除
+
+---
+
+## 6. clear()
+
+默认实现本质就是：
+
+```java
+entrySet().clear()
+```
+
+---
+
+## 7. keySet() 和 values()
+
+`AbstractMap` 会基于 `entrySet()` 封装出两个视图：
+
+* `keySet()`：键的集合视图
+* `values()`：值的集合视图
+
+注意，它们通常也是：
+
+**视图，不是独立副本**
+
+---
+
+## 8. SimpleEntry
+
+`AbstractMap` 里有一个常见内部类：
+
+* `SimpleEntry`
+
+它表示一个**可变键值对**
+
+特点：
+
+* key / value 组成一个 Entry
+* value 可以通过 `setValue()` 修改
+
+---
+
+# 七、这一部分最该记住的点
+
+## AbstractCollection
+
+* `Collection` 的骨架实现
+* 最少常实现：`iterator()` 和 `size()`
+* 很多默认方法本质依赖迭代器遍历
+
 ## AbstractList
-- **继承链**：`AbstractCollection` → `AbstractList` → `AbstractSequentialList` → `LinkedList`
-- **`AbstractList` 是链表吗？**  
-  不是。`AbstractList` 是一个**骨架实现**，旨在简化**基于索引（随机访问）** 的 List 实现。
-- **设计分歧**：
-  - 如果子类底层是**数组**（如 `ArrayList`），继承 `AbstractList` 非常高效。
-  - 如果子类底层是**链表**（如 `LinkedList`），直接继承 `AbstractList` 会导致 `get(index)` 效率极低（O(n)）。因此 Java 提供了 `AbstractSequentialList`，通过**迭代器**实现操作，专门服务于顺序访问结构。
 
-### 实现不可变与可变列表的要求
-
-| 列表类型 | 必须实现的抽象方法 | 可选覆盖（如需修改功能） | 备注 |
-| :--- | :--- | :--- | :--- |
-| **不可变列表** | `get(int index)`  `size()` | 无 | `set`、`add`、`remove` 默认抛出 `UnsupportedOperationException` |
-| **可变列表** | 上述 + `set(int index, E e)` | `add(int index, E e)`  `remove(int index)` | 必须覆盖 `set`；若不覆盖 `add`/`remove`，则无法增删元素（仅能修改现有元素）。 |
-
-> **重要提示**：`AbstractList` 中的 `add` 和 `remove` 默认实现直接抛出异常，需要动态扩容时必须自行覆盖。
-
-### Search操作
-
-- indexOf
-   查找元素**第一次出现**的位置。
-
-    ```java
-    /**
-     * 返回指定元素在列表中第一次出现的索引。
-     * 如果列表不包含该元素，则返回 -1。
-     * 内部通过 ListIterator 从前往后遍历。
-     *
-     * @param o 要搜索的元素，可以为 null
-     * @return 元素首次出现的索引，未找到则返回 -1
-     */
-    public int indexOf(Object o) {
-        // 获取列表迭代器，从索引 0 开始
-        ListIterator<E> it = listIterator();
-        
-        // 特殊处理 null 值，因为 null 无法调用 equals 方法
-        if (o == null) {
-            while (it.hasNext()) {
-                // 使用 == 比较引用，查找 null 元素
-                if (it.next() == null) {
-                    // 因为调用了 next()，光标已移到元素之后，需返回前一个元素的索引
-                    return it.previousIndex();
-                }
-            }
-        } else {
-            while (it.hasNext()) {
-                // 非空对象，调用 equals 方法比较内容是否相等
-                if (o.equals(it.next())) {
-                    return it.previousIndex();
-                }
-            }
-        }
-        // 遍历结束未找到，返回 -1
-        return -1;
-    }
-    ```
-- lastIndexOf
-    查找元素最后一次出现的位置。优化点在于从末尾向前遍历。
-    ```java
-    /**
-    * 返回指定元素在列表中最后一次出现的索引。
-    * 如果列表不包含该元素，则返回 -1。
-    * 优化：直接从列表末尾开始向前遍历，避免无效的从头扫描。
-    *
-    * @param o 要搜索的元素，可以为 null
-    * @return 元素最后一次出现的索引，未找到则返回 -1
-    */
-    public int lastIndexOf(Object o) {
-        // 获取列表迭代器，初始位置设置在列表末尾（size() 处）
-        ListIterator<E> it = listIterator(size());
-        
-        if (o == null) {
-            while (it.hasPrevious()) {
-                // 向前移动并获取元素
-                if (it.previous() == null) {
-                    // 返回该元素之后的索引，即当前元素的索引
-                    return it.nextIndex();
-                }
-            }
-        } else {
-            while (it.hasPrevious()) {
-                if (o.equals(it.previous())) {
-                    return it.nextIndex();
-                }
-            }
-        }
-        return -1;
-    }
-    ```
-
-### Bulk Operations
-- clear
-    清空整个列表。
-    ```java
-    // 受保护的方法，用于批量删除。子类（如 ArrayList）通常覆盖它以利用数组拷贝优化性能。
-    protected void removeRange(int fromIndex, int toIndex) {
-        ListIterator<E> it = listIterator(fromIndex);
-        for (int i=0, n=toIndex-fromIndex; i<n; i++) {
-            it.next();
-            it.remove();
-        }
-    }
-
-    public void clear() {
-        removeRange(0, size());
-    }
-    ```
-
-- addAll
-    ```java
-    private void rangeCheckForAdd(int index) {
-        if (index < 0 || index > size())
-            throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
-    }
-
-    public boolean addAll(int index, Collection<? extends E> c) {
-        rangeCheckForAdd(index);
-        boolean modified = false;
-        for (E e : c) {
-            add(index++, e);
-            modified = true;
-        }
-        return modified;
-    }
-    ```
-
-### 内部的类迭代器
-#### Itr
-Itr 实现的Iterator
-- expectedModCount: 并发限制
-- lastRet
-- cursor
-
-#### ListItr
-继承Itr实现ListIterator，游标继承自Itr
-
-### subList方法
-```java
-public List<E> subList(int fromIndex, int toIndex) {
-    return (this instanceof RandomAccess ?
-            new RandomAccessSubList<>(this, fromIndex, toIndex) :
-            new SubList<>(this, fromIndex, toIndex));
-}
-```
-RandomAccess是用于处理随机访问的方式（也就是可以通过下标方法）的处理类
-对于实现RandomAccess的List实现类，用for loop比用迭代器循环性能更好。
-
-SubList类就是用传入sublist方法的参数截了一段进行的封装
-
-### equals
-```java
- public boolean equals(Object o) {
-      if (o == this)
-          return true;
-      if (!(o instanceof List))
-          return false;
-
-      ListIterator<E> e1 = listIterator();
-      ListIterator<?> e2 = ((List<?>) o).listIterator();
-      while (e1.hasNext() && e2.hasNext()) {
-          E o1 = e1.next();
-          Object o2 = e2.next();
-          if (!(o1==null ? o2==null : o1.equals(o2)))
-              return false;
-      }
-      return !(e1.hasNext() || e2.hasNext());
-  }
-```
-
-### hashCode
-哈希散列，提取元素的特征进行处理。关键点在于避免哈希冲突。
-就是为了快速判断元素相等，应用在equals里面？
-hashCode不相等一定不相等，相等也不一定相等。
-```java
-public int hashCode() {
-    int hashCode = 1;
-    for (E e : this)
-        hashCode = 31*hashCode + (e==null ? 0 : e.hashCode());
-    return hashCode;
-}
-```
+* `List` 的骨架实现
+* 不是链表
+* 不可变 List 通常只要 `get()` 和 `size()`
+* `subList()` 返回的是视图，不是副本
+* `List` 的 `equals()` 看顺序
 
 ## AbstractSet
-继承自AbstractCollection，实现Set接口。
-- equals
-- hashCode
-- removeAll
+
+* `Set` 的骨架实现
+* `Set` 的相等性不看顺序
 
 ## AbstractQueue
-继承自AbstractCollection，实现Queue接口
+
+* `Queue` 的骨架实现
+* 子类重点实现核心队列操作
 
 ## AbstractMap
-AbstractMap实现自Map接口，里面有一个entrySet，存的键值对，根据这个值来实现size的方法。
-- containsValue
-- containsKey
-- get
-上面三个方法都建立在iterator上，进行遍历比对。
 
-Modification Operations
-- put： 未实现
-- remove: 思路也是先迭代器遍历，遍历之后赋给currectEntry，找到之后remove
-- putAll
-- clear: entrySet().clear()
+* `Map` 的骨架实现
+* 很多默认实现都建立在 `entrySet()` 上
+* `keySet()`、`values()` 通常是视图
 
-Views
-- keySet
-- values
+## hashCode
 
-内部类
-- SimpleEntry： 可变键值对，value可以通过setValue改变
+* 不是“给 equals 用的”
+* 是为了哈希容器更高效地定位和比较
+* `hashCode` 相等，不代表对象一定相等
+* 真正判等仍然要看 `equals`
+

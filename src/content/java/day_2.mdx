@@ -1,225 +1,767 @@
+# Java 面向对象（Object Oriented）笔记
 
-## 面向对象 Object Oriented
+## 一、核心概念
 
-### 核心概念补充
-- **OOP (Object-Oriented Programming)**：使用类和对象进行编程的方法论。
-- **OOD (Object-Oriented Design)**：将需求转化为类与接口的抽象设计过程。
-- **OOT (Object-Oriented Technology)**：涵盖分析、设计、编程、测试的全链路技术栈。
+### 1. OOP
 
-### 对象的特征
-- **状态（State）**：存储在成员变量（字段）中的数据。
-- **行为（Behavior）**：通过方法定义的逻辑。
-- **补充：标识（Identity）**：每个对象在JVM堆内存中都有唯一的地址/哈希码，即使状态相同，两个对象也是独立的个体。
+* **OOP（Object-Oriented Programming）**：面向对象编程，是一种使用**类和对象**组织代码的编程思想。
+
+### 2. OOD
+
+* **OOD（Object-Oriented Design）**：面向对象设计，是把需求抽象成类、对象、接口之间关系的过程。
+
+### 3. OOT
+
+* **OOT（Object-Oriented Technology）**：面向对象技术，是一个更大的概念，包含分析、设计、编程、测试等内容。
 
 ---
 
-## 类与对象
+## 二、对象的特征
 
-### 类的定义规则
-- 一个 `.java` 文件中可以包含多个类。
-- **规则**：只能有一个 `public` 修饰的类，且类名必须与文件名**完全一致**。
-- **补充：内部类**：类中还可以定义内部类（Inner Class），不受此规则限制。
+一个对象通常有三个基本特征：
 
-### 构造器（Constructor）
-- **作用**：创建对象时初始化状态，**必须与类名同名，无返回值类型**。
-- **默认构造器**：若未定义任何构造器，编译器自动生成无参构造器；若定义了一个有参构造器，则默认无参构造器**失效**（需显式写出）。
+### 1. 状态（State）
+
+* 对象中保存的数据，一般体现在**成员变量**中。
+
+### 2. 行为（Behavior）
+
+* 对象能做什么，一般体现在**方法**中。
+
+### 3. 标识（Identity）
+
+* 每个对象都是独立的个体。
+* 即使两个对象属性值完全相同，它们仍然可能是两个不同对象。
+
+```java
+Person p1 = new Person();
+Person p2 = new Person();
+
+System.out.println(p1 == p2); // false
+```
+
+---
+
+## 三、类与对象
+
+### 1. 类
+
+类是对象的抽象描述，可以理解为“模板”。
+
+### 2. 对象
+
+对象是类创建出来的具体实例。
+
 ```java
 class Car {
-    int topSpeed;
-    int totalSeats;
+    String brand;
+    int speed;
+}
 
-    // 无参构造器
-    Car() {}
+Car c = new Car();
+```
 
-    // 有参构造器
-    Car(int speed) {
-        this.topSpeed = speed; // this指代当前对象
-    }
+---
 
-    // 构造器互相调用
-    Car(int speed, int seats) {
-        this(speed); // 必须放在第一行，调用本类另一个构造器
-        this.totalSeats = seats;
-    }
+## 四、类的定义规则
+
+* 一个 `.java` 文件中可以有多个类
+* 但最多只能有一个 `public` 类
+* 且这个 `public` 类的类名必须和文件名一致
+
+例如：
+
+```java
+public class Test {
+}
+
+class A {
+}
+
+class B {
 }
 ```
 
 ---
 
-## 三大特性深度扩充
+## 五、构造器（Constructor）
 
-### 1. 封装（Encapsulation）
-**定义**：隐藏内部实现细节，仅暴露有限的访问接口。
+### 1. 作用
 
-#### 权限修饰符（Access Modifiers）
-| 修饰符 | 本类 | 同包 | 子类 | 全局 |
-| :--- | :---: | :---: | :---: | :---: |
-| `private` | ✅ | ❌ | ❌ | ❌ |
-| **默认 (default)** | ✅ | ✅ | ❌ | ❌ |
-| `protected` | ✅ | ✅ | ✅ | ❌ |
-| `public` | ✅ | ✅ | ✅ | ✅ |
+* 创建对象时给对象初始化
 
-#### JavaBean 规范（Getter / Setter）
+### 2. 特点
+
+* 构造器名必须和类名相同
+* 没有返回值类型，连 `void` 都不能写
+
+```java
+class Car {
+    int topSpeed;
+    int totalSeats;
+
+    Car() {
+    }
+
+    Car(int speed) {
+        this.topSpeed = speed;
+    }
+
+    Car(int speed, int seats) {
+        this(speed); // 调用本类其他构造器，必须写在第一行
+        this.totalSeats = seats;
+    }
+}
+```
+
+### 3. 默认构造器
+
+* 如果一个类**没有写任何构造器**，编译器会自动生成一个无参构造器
+* 如果已经写了有参构造器，编译器就**不会再自动生成无参构造器**
+
+```java
+class Person {
+    Person(String name) {
+    }
+}
+
+// Person p = new Person(); // 报错，因为无参构造器不存在
+```
+
+---
+
+## 六、三大特性
+
+---
+
+## 1. 封装（Encapsulation）
+
+### 定义
+
+把对象内部实现隐藏起来，只对外暴露必要的方法。
+
+### 好处
+
+* 提高安全性
+* 降低耦合
+* 便于维护
+
+### 常见做法
+
+* 成员变量用 `private`
+* 提供 `public` 的 getter / setter 方法访问
+
 ```java
 public class Person {
-    private String name; // 字段私有
+    private String name;
 
     public String getName() {
         return name;
     }
 
     public void setName(String name) {
-        this.name = name; // 可以在此处加校验逻辑
+        this.name = name;
     }
 }
 ```
 
-### 2. 继承（Inheritance）
-**关键字**：`extends`。Java 是**单继承**（一个类只能有一个直接父类），但支持多重继承层次。
+---
+
+### 权限修饰符
+
+| 修饰符         | 本类 | 同包 | 子类 | 其他包 |
+| ----------- | -: | -: | -: | --: |
+| `private`   |  ✅ |  ❌ |  ❌ |   ❌ |
+| 默认（default） |  ✅ |  ✅ |  ❌ |   ❌ |
+| `protected` |  ✅ |  ✅ |  ✅ |   ❌ |
+| `public`    |  ✅ |  ✅ |  ✅ |   ✅ |
+
+#### 补充理解
+
+* `private`：只能本类访问
+* 默认不写：同包可访问
+* `protected`：同包可访问，不同包里子类也可访问
+* `public`：哪里都能访问
+
+---
+
+## 2. 继承（Inheritance）
+
+### 定义
+
+子类继承父类的属性和方法，达到代码复用的目的。
+
+### 关键字
+
+```java
+extends
+```
+
+### 示例
 
 ```java
 class Animal {
     String type;
-    public void eat() { System.out.println("eating..."); }
+
+    public void eat() {
+        System.out.println("eating...");
+    }
 }
 
 class Dog extends Animal {
     String breed;
+}
+```
 
-    // 方法重写 (Override)
-    @Override // 注解，帮助编译器检查是否正确重写
+### 特点
+
+* Java 是**单继承**
+* 一个类只能直接继承一个父类
+* 但可以一层一层继续继承
+
+---
+
+### 子类能继承什么
+
+子类可以继承父类的：
+
+* `public`
+* `protected`
+* 同包下的默认权限成员
+
+子类**不能直接继承**：
+
+* 构造器
+* `private` 成员
+
+注意：
+
+* 虽然构造器不能继承，但创建子类对象时一定会先调用父类构造器
+* `private` 成员虽然不能直接访问，但可以通过父类提供的方法间接访问
+
+---
+
+### 方法重写（Override）
+
+子类对父类已有方法进行重新实现。
+
+```java
+class Animal {
     public void eat() {
-        super.eat(); // 调用父类被覆盖的方法
-        System.out.println("Dog is eating bone");
+        System.out.println("Animal eating");
+    }
+}
+
+class Dog extends Animal {
+    @Override
+    public void eat() {
+        System.out.println("Dog eating bone");
     }
 }
 ```
 
-- **子类能继承什么？**
-    - 继承父类 `public` 和 `protected` 成员。
-    - 若同包，继承默认权限成员。
-    - **不继承**：构造器、`private` 成员（但可通过父类 public 方法间接访问）。
+### 重写规则
 
-- **对象创建顺序**：
-    > 父类静态代码块 -> 子类静态代码块 -> 父类构造代码块/构造器 -> 子类构造代码块/构造器。
+* 方法名相同
+* 参数列表相同
+* 返回值类型相同，或是其子类型
+* 子类方法权限不能比父类更严格
 
-### 3. 多态（Polymorphism）
-**定义**：同一个行为具有多个不同表现形式。Java 中多态分为两种：
+例如：
 
-#### 编译时多态（重载 - Overload）
-- 方法名相同，**参数列表不同**（个数、类型、顺序）。
-- 与返回值类型、访问修饰符无关。
+* 父类是 `public`，子类不能写成 `protected` 或 `private`
+
+---
+
+### 对象创建顺序
+
+创建子类对象时执行顺序：
+
+1. 父类静态代码块
+2. 子类静态代码块
+3. 父类成员变量初始化 / 构造代码块
+4. 父类构造器
+5. 子类成员变量初始化 / 构造代码块
+6. 子类构造器
+
+可以简单记成：
+
+**先父后子，先静态后实例**
+
+---
+
+## 3. 多态（Polymorphism）
+
+### 定义
+
+同一个方法调用，因为对象不同而表现不同。
+
+---
+
+### 3.1 编译时多态：重载（Overload）
+
+同一个方法名，参数列表不同。
+
 ```java
-void print(int a) { }
-void print(String s) { } // 重载
+void print(int a) {
+}
+
+void print(String s) {
+}
 ```
 
-#### 运行时多态（重写 - Override）
-- 父类引用指向子类对象。
-```java
-Animal a = new Dog(); // 向上转型
-a.eat(); // 输出 "Dog is eating bone" (调用的是子类重写的方法)
+### 重载看什么
 
-// 向下转型 (强制)
+只看：
+
+* 方法名相同
+* 参数列表不同（个数、类型、顺序）
+
+不看：
+
+* 返回值类型
+* 访问修饰符
+
+---
+
+### 3.2 运行时多态：重写（Override）
+
+父类引用指向子类对象。
+
+```java
+Animal a = new Dog();
+a.eat(); // 调用的是子类重写后的 eat()
+```
+
+### 多态的特点
+
+* **编译看左边**：看引用类型有没有这个方法
+* **运行看右边**：实际执行哪个方法，看对象实际类型
+
+---
+
+### 向上转型
+
+```java
+Animal a = new Dog();
+```
+
+* 子类对象赋值给父类引用
+* 自动完成
+* 常用于多态
+
+---
+
+### 向下转型
+
+```java
+Animal a = new Dog();
+
 if (a instanceof Dog) {
     Dog d = (Dog) a;
 }
 ```
 
----
-
-## 关键字与修饰符补充
-
-### `this` vs `super`
-- `this`：指代**当前对象**的引用。常用于区分成员变量和局部变量、调用本类构造器。
-- `super`：指代**父类对象**的引用。用于调用父类构造器（必须首行）、调用父类被覆盖的方法。
-
-### `static`（静态）
-- **静态变量**：属于类，所有对象共享一份。
-- **静态方法**：只能访问静态成员，**不能**使用 `this`/`super`。
-- **静态代码块**：类加载时执行一次，用于初始化静态资源。
-
-### `final`（最终）
-- **修饰变量**：基本类型值不可变；引用类型**引用地址不可变**，但对象内容可变。
-- **修饰方法**：该方法不能被子类重写。
-- **修饰类**：该类不能被继承（如 `String`、`Math`）。
+* 父类引用转回子类引用
+* 需要强制类型转换
+* 转之前最好用 `instanceof` 判断，避免类型转换异常
 
 ---
 
-## 抽象类与接口（核心扩充）
+## 七、this 和 super
 
-### 抽象类 (Abstract Class)
-- 包含抽象方法（无方法体）的类必须声明为抽象类。
-- **不能实例化**，必须由子类实现抽象方法。
-- 可以有构造器（供子类调用）、成员变量、具体方法。
+### 1. this
 
-```java
-abstract class Shape {
-    String color;
-    abstract double area(); // 抽象方法
-    public void printColor() { System.out.println(color); } // 具体方法
-}
-```
+表示当前对象。
 
-### 接口 (Interface)
-- JDK 8 前：只有**常量**（`public static final`）和**抽象方法**。
-- JDK 8+：支持 `default` 方法（带默认实现）和 `static` 方法。
-- JDK 9+：支持 `private` 方法（辅助 default 方法复用）。
-- 类可以**实现多个接口**，弥补单继承限制。
+常见用途：
+
+#### 区分成员变量和局部变量
 
 ```java
-interface Flyable {
-    void fly(); // 默认 public abstract
+class Person {
+    String name;
 
-    default void land() {
-        System.out.println("Landing...");
+    public void setName(String name) {
+        this.name = name;
     }
 }
 ```
 
-### 抽象类 vs 接口（面试重点）
-| 对比项 | 抽象类 | 接口 |
-| :--- | :--- | :--- |
-| 关键字 | `extends` | `implements` |
-| 多继承 | 单继承 | 可实现多个 |
-| 成员变量 | 任意类型 | 只能 `public static final` 常量 |
-| 构造器 | 有 | 无 |
-| 设计理念 | **是什么** (is-a) | **能做什么** (has-a / can-do) |
+#### 调用本类其他构造器
+
+```java
+class Person {
+    Person() {
+    }
+
+    Person(String name) {
+        this();
+    }
+}
+```
+
+注意：
+
+* `this()` 必须写在构造器第一行
 
 ---
 
-## 常用方法重写规则
+### 2. super
 
-### `equals()` 与 `hashCode()`
-- **约定**：若重写 `equals`，**必须**重写 `hashCode`。
-- **原因**：HashSet、HashMap 等容器先比较哈希值再比较 equals，若不一致会导致逻辑错误。
+表示父类部分。
+
+常见用途：
+
+#### 调用父类构造器
+
+```java
+class Animal {
+    Animal(String type) {
+    }
+}
+
+class Dog extends Animal {
+    Dog() {
+        super("dog");
+    }
+}
+```
+
+#### 调用父类被重写的方法
+
+```java
+class Animal {
+    public void eat() {
+        System.out.println("Animal eating");
+    }
+}
+
+class Dog extends Animal {
+    @Override
+    public void eat() {
+        super.eat();
+        System.out.println("Dog eating bone");
+    }
+}
+```
+
+注意：
+
+* `super()` 调父类构造器时，也必须写在第一行
+
+---
+
+## 八、static
+
+### 1. 静态变量
+
+* 属于类
+* 不属于某个具体对象
+* 所有对象共享同一份
+
+```java
+class Student {
+    static String school = "ABC";
+}
+```
+
+---
+
+### 2. 静态方法
+
+* 属于类
+* 可以通过类名直接调用
+
+```java
+class MathUtil {
+    public static int add(int a, int b) {
+        return a + b;
+    }
+}
+```
+
+调用：
+
+```java
+MathUtil.add(1, 2);
+```
+
+### 静态方法注意点
+
+* 只能直接访问静态成员
+* 不能直接访问非静态成员
+* 不能使用 `this`
+* 不能使用 `super`
+
+因为静态方法在对象创建前就可能已经存在了。
+
+---
+
+### 3. 静态代码块
+
+* 类加载时执行
+* 只执行一次
+* 常用于初始化静态资源
+
+```java
+class Demo {
+    static {
+        System.out.println("静态代码块执行");
+    }
+}
+```
+
+---
+
+## 九、final
+
+### 1. 修饰变量
+
+表示变量只能赋值一次。
+
+#### 基本类型
+
+值不能变
+
+```java
+final int a = 10;
+// a = 20; // 报错
+```
+
+#### 引用类型
+
+引用地址不能变，但对象内容可能还能变
+
+```java
+final StringBuilder sb = new StringBuilder("abc");
+sb.append("d"); // 可以
+// sb = new StringBuilder("x"); // 不可以
+```
+
+---
+
+### 2. 修饰方法
+
+表示方法不能被子类重写
+
+```java
+class A {
+    public final void test() {
+    }
+}
+```
+
+---
+
+### 3. 修饰类
+
+表示类不能被继承
+
+```java
+final class A {
+}
+```
+
+例如：
+
+* `String` 就是 `final` 类
+
+---
+
+## 十、抽象类
+
+### 定义
+
+用 `abstract` 修饰的类叫抽象类。
+
+### 特点
+
+* 不能直接创建对象
+* 可以有抽象方法
+* 也可以有普通方法、成员变量、构造器
+
+```java
+abstract class Shape {
+    String color;
+
+    abstract double area();
+
+    public void printColor() {
+        System.out.println(color);
+    }
+}
+```
+
+### 抽象方法
+
+* 只有方法声明，没有方法体
+
+```java
+abstract double area();
+```
+
+### 注意
+
+* 如果一个类有抽象方法，这个类必须是抽象类
+* 子类继承抽象类后，必须实现所有抽象方法，否则子类也要声明为抽象类
+
+---
+
+## 十一、接口（Interface）
+
+### 定义
+
+接口是一种规范，表示“能做什么”。
+
+```java
+interface Flyable {
+    void fly();
+}
+```
+
+### 特点
+
+* 类可以实现多个接口
+* 接口中的抽象方法默认是 `public abstract`
+* 接口中的成员变量默认是 `public static final`
+
+---
+
+### JDK 8 以后
+
+接口中还可以有：
+
+* `default` 方法
+* `static` 方法
+
+```java
+interface Flyable {
+    void fly();
+
+    default void land() {
+        System.out.println("landing...");
+    }
+
+    static void test() {
+        System.out.println("static method");
+    }
+}
+```
+
+---
+
+### 接口实现
+
+```java
+class Bird implements Flyable {
+    @Override
+    public void fly() {
+        System.out.println("bird can fly");
+    }
+}
+```
+
+---
+
+## 十二、抽象类和接口的区别
+
+| 对比项     | 抽象类          | 接口                   |
+| ------- | ------------ | -------------------- |
+| 关键字     | `extends`    | `implements`         |
+| 继承/实现数量 | 只能继承一个       | 可以实现多个               |
+| 成员变量    | 可以有普通变量      | 只能是常量                |
+| 构造器     | 有            | 没有                   |
+| 方法      | 可以有抽象方法和普通方法 | 主要定义规范，JDK 8+ 可有默认方法 |
+| 设计角度    | 表示“是什么”      | 表示“能做什么”             |
+
+---
+
+## 十三、Object 类常用方法
+
+Java 中所有类默认都继承 `Object`。
+
+---
+
+### 1. equals()
+
+默认比较的是地址。
+
+```java
+Object obj1 = new Object();
+Object obj2 = new Object();
+
+System.out.println(obj1.equals(obj2)); // false
+```
+
+如果想比较对象内容，通常需要重写 `equals()`。
+
 ```java
 @Override
 public boolean equals(Object obj) {
     if (this == obj) return true;
     if (!(obj instanceof Person)) return false;
     Person p = (Person) obj;
-    return Objects.equals(name, p.name);
+    return Objects.equals(this.name, p.name);
 }
+```
 
+---
+
+### 2. hashCode()
+
+如果重写了 `equals()`，通常也要重写 `hashCode()`。
+
+原因：
+
+* 在 `HashMap`、`HashSet` 这类基于哈希的集合中
+* 需要保证“相等的对象哈希值也相等”
+
+```java
 @Override
 public int hashCode() {
     return Objects.hash(name);
 }
 ```
 
-### `toString()`
-- 打印对象时默认调用，推荐重写以输出有意义的调试信息。
+---
+
+### 3. toString()
+
+打印对象时会默认调用 `toString()`。
+
+```java
+@Override
+public String toString() {
+    return "Person{name='" + name + "'}";
+}
+```
+
+重写后，打印对象更方便调试。
 
 ---
 
-## 内部类（Inner Class）概览
-- **成员内部类**：像成员变量一样，可访问外部类私有属性。
-- **静态内部类**：`static` 修饰，不依赖外部类实例。
-- **局部内部类**：定义在方法内。
-- **匿名内部类**：最常用，常用于简化接口实现（如事件监听、线程创建）。
+## 十四、内部类
+
+Java 中常见内部类有四种：
+
+### 1. 成员内部类
+
+定义在类中、方法外，和成员变量同级。
+
+### 2. 静态内部类
+
+用 `static` 修饰的内部类，不依赖外部类对象。
+
+### 3. 局部内部类
+
+定义在方法内部。
+
+### 4. 匿名内部类
+
+没有名字，通常用于简化一次性实现。
+
 ```java
-// 匿名内部类示例
 Runnable r = new Runnable() {
     @Override
     public void run() {
@@ -228,8 +770,81 @@ Runnable r = new Runnable() {
 };
 ```
 
+这部分知道概念即可，后面学集合、多线程时会更常见。
+
 ---
 
-## 对象初始化流程总结
-1. **加载类**：执行父类静态代码块 → 子类静态代码块。
-2. **创建对象**：分配内存 → 父类成员变量初始化/构造代码块 → 父类构造器执行 → 子类成员变量初始化/构造代码块 → 子类构造器执行。
+## 十五、对象初始化流程
+
+创建子类对象时的大致流程：
+
+### 1. 类加载阶段
+
+* 父类静态代码块
+* 子类静态代码块
+
+### 2. 创建对象阶段
+
+* 分配内存
+* 父类成员变量初始化 / 构造代码块
+* 父类构造器执行
+* 子类成员变量初始化 / 构造代码块
+* 子类构造器执行
+
+可以记忆为：
+
+**先父类，后子类；先静态，后对象**
+
+---
+
+## 十六、这一部分最该记住的点
+
+### 类与对象
+
+* 类是模板，对象是实例
+* 构造器名和类名相同，没有返回值类型
+* 写了有参构造器后，默认无参构造器不会自动生成
+
+### 封装
+
+* 成员变量尽量 `private`
+* 通过 getter / setter 访问
+
+### 继承
+
+* Java 是单继承
+* 子类不能继承构造器
+* 方法可以重写
+
+### 多态
+
+* 父类引用可以指向子类对象
+* 编译看左边，运行看右边
+
+### this / super
+
+* `this` 表示当前对象
+* `super` 表示父类部分
+
+### static
+
+* 属于类，不属于对象
+* 静态方法不能直接访问非静态成员
+
+### final
+
+* 修饰变量：只能赋值一次
+* 修饰方法：不能重写
+* 修饰类：不能继承
+
+### 抽象类与接口
+
+* 抽象类表示“是什么”
+* 接口表示“能做什么”
+
+### Object
+
+* `equals()` 比较内容时通常需要重写
+* 重写 `equals()` 通常也要重写 `hashCode()`
+* `toString()` 建议重写
+

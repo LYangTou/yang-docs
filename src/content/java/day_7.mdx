@@ -1,24 +1,539 @@
-### Java程序是如何编译和运行的
-1. 编译
-    Main.java -> javac -> Main.class
-    1. 写源代码 Main.java
-    2. 编译 Main.class 字节码文件
-2. 运行 在虚拟机上运行（JVM）,通过类加载器 加载Main.class 运行
+# Java 程序编译运行、变量分类与作用域、内部类 笔记
 
-### 变量的分类和作用域
+---
 
-#### 变量分类
-- Class Variables (Static Fileds) 类变量
-- Instance Variables (Non-static Fileds) 实例变量
-- Local Variables 局部变量
-- Parameters方法参数
+## 一、Java 程序是如何编译和运行的
 
-## 内部类
-- 目的：更加细力度的封装
-- 非静态内部类可以使用外部类的成员方法、属性 编译后的字节码内部类会绑一个 this$0指向外部类
-- 静态内部类无法直接使用外部类的成员方法、属性 编译后的字节码内部类没有这个this$0，可以通过那构造器注入的方式调
-- 分类：非静态内部类、静态内部类、匿名内部类
+### 1. 编译阶段
 
-## 匿名内部类
-- 没有名字的类，内部类的简化写法
-- 本职：继承该类或者实现接口的子类匿名对象
+Java 源代码文件先经过编译，生成字节码文件。
+
+```text
+Main.java -> javac -> Main.class
+```
+
+过程可以理解为：
+
+1. 编写源代码文件 `Main.java`
+2. 使用 `javac` 编译
+3. 生成 `Main.class` 字节码文件
+
+---
+
+### 2. 运行阶段
+
+Java 程序不是直接运行 `.java` 文件，而是运行 `.class` 字节码文件。
+
+过程可以理解为：
+
+1. JVM 启动
+2. 类加载器（ClassLoader）加载 `Main.class`
+3. JVM 执行字节码
+
+```text
+Main.class -> 类加载 -> JVM执行
+```
+
+---
+
+### 3. 为什么 Java 能跨平台
+
+因为：
+
+* 不同平台上只要有对应的 JVM
+* 同一份 `.class` 字节码就可以运行
+
+所以常说：
+
+**一次编译，到处运行**
+但前提是目标平台有对应的 JVM。
+
+---
+
+### 4. 更完整但好记的理解
+
+可以把 Java 程序运行过程简单记成：
+
+```text
+.java -> javac编译 -> .class -> JVM加载并执行
+```
+
+---
+
+## 二、变量的分类和作用域
+
+Java 中变量常见分为四类：
+
+* 类变量（Class Variables）
+* 实例变量（Instance Variables）
+* 局部变量（Local Variables）
+* 方法参数（Parameters）
+
+---
+
+## 三、类变量（Class Variables）
+
+### 1. 定义
+
+用 `static` 修饰的成员变量，叫类变量。
+
+```java id="1e71l3"
+class Student {
+    static String school = "ABC";
+}
+```
+
+---
+
+### 2. 特点
+
+* 属于类
+* 所有对象共享一份
+* 可以通过类名直接访问
+
+```java id="n7sq0s"
+System.out.println(Student.school);
+```
+
+---
+
+### 3. 生命周期
+
+* 随类加载而创建
+* 随类卸载而消失
+
+---
+
+### 4. 作用域
+
+类变量定义在类中、方法外，可以在类的静态方法和实例方法中使用（权限允许的前提下）。
+
+---
+
+## 四、实例变量（Instance Variables）
+
+### 1. 定义
+
+定义在类中、方法外，且**没有 `static`** 修饰的变量，叫实例变量。
+
+```java id="owx3g3"
+class Student {
+    String name;
+    int age;
+}
+```
+
+---
+
+### 2. 特点
+
+* 属于对象
+* 每个对象各自拥有一份
+* 创建对象后才存在
+
+```java id="y5zt8u"
+Student s1 = new Student();
+Student s2 = new Student();
+
+s1.name = "Tom";
+s2.name = "Jerry";
+```
+
+---
+
+### 3. 默认值
+
+实例变量有默认值，例如：
+
+* `int`：`0`
+* `double`：`0.0`
+* `boolean`：`false`
+* 引用类型：`null`
+
+---
+
+## 五、局部变量（Local Variables）
+
+### 1. 定义
+
+定义在方法内部、代码块内部的变量，叫局部变量。
+
+```java id="q2jlwm"
+public void test() {
+    int a = 10;
+}
+```
+
+---
+
+### 2. 特点
+
+* 只在所属方法或代码块中有效
+* 方法执行结束后就销毁
+* **没有默认值**
+* 使用前必须先赋值
+
+```java id="y3h8dn"
+public void test() {
+    int a;
+    // System.out.println(a); // 报错，局部变量未初始化
+}
+```
+
+---
+
+## 六、方法参数（Parameters）
+
+### 1. 定义
+
+定义在方法括号中的变量，叫参数。
+
+```java id="0u5cl6"
+public void printName(String name) {
+    System.out.println(name);
+}
+```
+
+---
+
+### 2. 特点
+
+* 参数本质上也是局部变量
+* 作用范围只在当前方法中
+
+---
+
+## 七、变量分类总结表
+
+| 变量类型 | 定义位置               | 是否有默认值 | 属于谁        |
+| ---- | ------------------ | ------ | ---------- |
+| 类变量  | 类中、方法外，`static` 修饰 | 有      | 类          |
+| 实例变量 | 类中、方法外，无 `static`  | 有      | 对象         |
+| 局部变量 | 方法内、代码块内           | 无      | 当前方法 / 代码块 |
+| 方法参数 | 方法参数列表中            | 调用时传入  | 当前方法       |
+
+---
+
+## 八、作用域
+
+### 1. 什么是作用域
+
+作用域就是变量可以被使用的范围。
+
+---
+
+### 2. 局部变量作用域最小
+
+局部变量通常只在定义它的方法或代码块里有效。
+
+```java id="nie66z"
+public void test() {
+    int a = 10;
+    System.out.println(a);
+}
+// 这里不能再用 a
+```
+
+---
+
+### 3. 成员变量作用域更大
+
+定义在类中的成员变量，可以在当前类的多个方法中使用。
+
+```java id="rkjc1f"
+class Person {
+    String name;
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void printName() {
+        System.out.println(name);
+    }
+}
+```
+
+---
+
+### 4. 同名变量时的访问规则
+
+如果局部变量和成员变量同名，方法里优先使用局部变量。
+
+```java id="gkqha1"
+class Person {
+    String name;
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+```
+
+这里：
+
+* `name` 是参数
+* `this.name` 是成员变量
+
+---
+
+## 九、内部类（Inner Class）
+
+### 1. 什么是内部类
+
+定义在一个类内部的类，叫内部类。
+
+```java id="f7s75o"
+class Outer {
+    class Inner {
+    }
+}
+```
+
+---
+
+### 2. 为什么使用内部类
+
+内部类主要作用是：
+
+* 实现更细粒度的封装
+* 让某个类只服务于外部类
+* 方便访问外部类成员
+
+---
+
+### 3. 常见分类
+
+内部类常见有：
+
+* 成员内部类（非静态内部类）
+* 静态内部类
+* 局部内部类
+* 匿名内部类
+
+你这里先记前三个重点里的前两个和匿名内部类就够了。
+
+---
+
+## 十、非静态内部类（成员内部类）
+
+### 1. 定义
+
+定义在类中、方法外，且没有 `static` 修饰。
+
+```java id="hghxlk"
+class Outer {
+    private String name = "outer";
+
+    class Inner {
+        public void show() {
+            System.out.println(name);
+        }
+    }
+}
+```
+
+---
+
+### 2. 特点
+
+* 依赖外部类对象存在
+* 可以直接访问外部类的成员，包括 `private` 成员
+
+---
+
+### 3. 原因怎么理解
+
+可以简单理解为：
+
+* 非静态内部类对象默认“绑定”着一个外部类对象
+* 所以它能访问外部类实例成员
+
+你笔记里提到的 `this$0`，知道即可，不用记太死。
+基础阶段记成：
+
+**非静态内部类默认持有外部类对象引用。**
+
+---
+
+### 4. 创建方式
+
+非静态内部类必须依赖外部类对象创建。
+
+```java id="7fqjlwm"
+Outer outer = new Outer();
+Outer.Inner inner = outer.new Inner();
+```
+
+---
+
+## 十一、静态内部类
+
+### 1. 定义
+
+用 `static` 修饰的内部类。
+
+```java id="vjlwm6"
+class Outer {
+    static class Inner {
+        public void test() {
+            System.out.println("静态内部类");
+        }
+    }
+}
+```
+
+---
+
+### 2. 特点
+
+* 不依赖外部类对象
+* 不能直接访问外部类的实例成员
+* 可以直接访问外部类的静态成员
+
+```java id="tpog7w"
+class Outer {
+    static String school = "ABC";
+    String name = "Tom";
+
+    static class Inner {
+        public void show() {
+            System.out.println(school);
+            // System.out.println(name); // 报错，不能直接访问实例成员
+        }
+    }
+}
+```
+
+---
+
+### 3. 创建方式
+
+静态内部类可以直接通过外部类名创建：
+
+```java id="pdh0c8"
+Outer.Inner inner = new Outer.Inner();
+```
+
+---
+
+## 十二、匿名内部类
+
+### 1. 定义
+
+匿名内部类就是**没有名字的内部类**，本质上是：
+
+* 继承某个类
+* 或实现某个接口
+* 同时直接创建该子类对象
+
+---
+
+### 2. 核心理解
+
+你原笔记这句是对的，可以整理成更顺的版本：
+
+**匿名内部类本质上是一个“没有名字的子类对象”或“没有名字的实现类对象”。**
+
+---
+
+### 3. 示例：实现接口
+
+```java id="pjp7jc"
+Runnable r = new Runnable() {
+    @Override
+    public void run() {
+        System.out.println("Running");
+    }
+};
+```
+
+这里相当于：
+
+* 创建了一个实现 `Runnable` 接口的匿名类
+* 同时创建了这个匿名类的对象
+
+---
+
+### 4. 示例：继承父类
+
+```java id="xh1aa0"
+Animal a = new Animal() {
+    @Override
+    public void eat() {
+        System.out.println("匿名子类在吃东西");
+    }
+};
+```
+
+---
+
+### 5. 使用场景
+
+匿名内部类常用于：
+
+* 只使用一次的简单实现
+* 事件监听
+* 线程任务
+* 回调写法
+
+---
+
+### 6. 特点
+
+* 没有类名
+* 只能使用一次，通常不适合复用
+* 代码简洁，但复杂逻辑不适合写太多
+
+---
+
+## 十三、内部类这一部分最该记住的点
+
+### 内部类
+
+* 内部类是定义在类内部的类
+* 作用：更细粒度封装
+
+### 非静态内部类
+
+* 依赖外部类对象
+* 可以直接访问外部类实例成员
+
+### 静态内部类
+
+* 不依赖外部类对象
+* 只能直接访问外部类静态成员
+
+### 匿名内部类
+
+* 没有名字
+* 本质是匿名子类对象或匿名实现类对象
+* 常用于一次性简化写法
+
+---
+
+## 十四、这一部分最该记住的点
+
+### Java 程序运行流程
+
+* `.java` -> `javac` 编译 -> `.class`
+* JVM 加载 `.class` 并执行
+
+### 变量分类
+
+* 类变量：`static`
+* 实例变量：对象拥有
+* 局部变量：方法里定义
+* 参数：方法参数列表中定义
+
+### 默认值
+
+* 类变量、实例变量有默认值
+* 局部变量没有默认值
+
+### 内部类
+
+* 非静态内部类依赖外部类对象
+* 静态内部类不依赖外部类对象
+* 匿名内部类是简化写法，本质仍然是子类/实现类对象
+

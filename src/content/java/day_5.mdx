@@ -1,56 +1,147 @@
-## 封装（Encapsulation）
-
-### 核心理解纠正与深化
-
-- **“高内聚、低耦合”的代码体现**：
-    - **高内聚**：一个类只做一件事。例如 `UserService` 只处理用户逻辑，不处理发短信逻辑。
-    - **低耦合**：修改 A 类时，尽量不影响 B 类。通过 `private` 隐藏细节，即使内部实现翻天覆地，调用方代码无需改动。
-
-### 访问权限控制的实战意义
-| 权限 | 典型应用场景 |
-| :--- | :--- |
-| `private` | 实体类的 `id`、`password`；工具类的核心算法逻辑。 |
-| `default` | 包内协作的 Helper 类，不想被外部 Jar 包引用。 |
-| `protected` | 专门设计给子类使用的钩子方法（如 `doGet`）。 |
-| `public` | API 接口方法，常量。 |
-
-### Java Bean 规范（补充强制要求）
-1. 类必须是 `public`。
-2. 必须有一个**无参构造器**（若未写其他构造器，默认自带；若写了有参构造器，**必须显式写出无参构造器**）。
-3. 属性私有化（`private`）。
-4. 提供符合命名规则的 `getter` 和 `setter`。
-    - `boolean` 类型的 getter 建议命名为 `isXxx()` 而非 `getXxx()`。
+# Java 封装、多态、对象转型 笔记
 
 ---
 
-## 多态（Polymorphism）
+## 一、封装（Encapsulation）
 
-### 定义升华
-> 编译时看左边，运行时看右边。
+### 1. 核心理解
 
-多态存在的**三个必要条件**（缺一不可）：
-1. **继承**（或接口实现）。
-2. **方法重写**。
-3. **父类引用指向子类对象**。
+封装就是：
 
-### 代码修正与运行解析
-您提供的示例代码存在**类定义缺失继承关系**的笔误，`Square` 和 `Circle` 必须 `extends Shape` 才能实现多态。
+* 隐藏对象内部实现细节
+* 只对外暴露必要的访问方式
 
-**修正后的标准代码：**
-```java
-// 父类（或接口更好）
+简单理解就是：
+
+**该藏起来的藏起来，该给外部用的再提供方法。**
+
+---
+
+### 2. 封装的作用
+
+封装主要解决两个问题：
+
+* **数据安全**
+* **降低耦合**
+
+---
+
+### 3. 高内聚、低耦合
+
+#### 高内聚
+
+一个类尽量只做一类事情。
+
+例如：
+
+* `UserService` 只处理用户相关逻辑
+* 不要同时又去写短信发送、文件上传等不相关逻辑
+
+#### 低耦合
+
+一个类内部实现怎么改，尽量不要影响其他类。
+
+例如：
+
+* 成员变量用 `private`
+* 外部只能通过方法访问
+* 以后内部实现改了，外部调用代码通常不用改
+
+---
+
+### 4. 权限控制的实际意义
+
+| 权限          | 常见场景        |
+| ----------- | ----------- |
+| `private`   | 成员变量、内部实现细节 |
+| 默认（default） | 同包内部协作类     |
+| `protected` | 给子类使用的方法或属性 |
+| `public`    | 对外公开的接口方法   |
+
+---
+
+### 5. JavaBean 规范
+
+JavaBean 一般要求：
+
+1. 类通常是 `public`
+2. 提供无参构造器
+3. 属性用 `private` 修饰
+4. 提供对应的 getter / setter 方法
+
+```java id="rnw1zb"
+public class Person {
+    private String name;
+    private int age;
+
+    public Person() {
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+```
+
+---
+
+### 6. boolean 属性的命名
+
+如果属性是 `boolean` 类型，getter 常写成：
+
+```java id="oanvp4"
+private boolean active;
+
+public boolean isActive() {
+    return active;
+}
+```
+
+通常用 `isXxx()`，而不是 `getXxx()`。
+
+---
+
+## 二、多态（Polymorphism）
+
+### 1. 核心理解
+
+多态可以总结成一句话：
+
+**编译时看左边，运行时看右边。**
+
+意思是：
+
+* 编译时，看引用类型中有没有这个方法
+* 运行时，真正执行哪个方法，看对象实际类型
+
+---
+
+### 2. 多态的三个前提
+
+多态成立必须同时满足三个条件：
+
+1. 有继承关系，或者实现接口
+2. 子类重写父类方法
+3. 父类引用指向子类对象
+
+---
+
+### 3. 标准示例
+
+```java id="xg5njy"
 class Shape {
     public double calc() {
-        System.out.println("父类计算");
         return 0;
     }
 }
 
-// 正方形：必须继承 Shape
 class Square extends Shape {
     private int width;
 
-    // 构造器写法修正（不能有 void）
     public Square(int width) {
         this.width = width;
     }
@@ -61,9 +152,8 @@ class Square extends Shape {
     }
 }
 
-// 圆形：必须继承 Shape
 class Circle extends Shape {
-    private int radius; // 变量名建议改为 radius 更贴切
+    private int radius;
 
     public Circle(int radius) {
         this.radius = radius;
@@ -74,70 +164,251 @@ class Circle extends Shape {
         return this.radius * this.radius * 3.14;
     }
 }
+```
 
-// 测试类
+测试：
+
+```java id="jbn44n"
 public class ShapeCalc {
     public static void main(String[] args) {
-        // 1. 父类引用指向子类对象（向上转型）
         Shape circle = new Circle(3);
         Shape square = new Square(3);
 
-        // 2. 调用方法
-        System.out.println(circle.calc()); // 输出 28.26 (圆形面积)
-        System.out.println(square.calc()); // 输出 9.0   (正方形面积)
-
-        // 3. 多态在数组/集合中的应用
-        Shape[] shapes = {new Circle(2), new Square(4)};
-        for (Shape s : shapes) {
-            // 根据实际对象类型，调用对应的重写方法
-            System.out.println(s.calc()); 
-        }
+        System.out.println(circle.calc()); // 28.26
+        System.out.println(square.calc()); // 9.0
     }
 }
 ```
 
-### 多态的底层原理：动态绑定
-- **静态绑定**：编译时确定调用哪个方法（如：`private`、`static`、`final`、构造器）。
-- **动态绑定**：运行时根据对象实际类型确定调用哪个方法。
-- **JVM 指令**：`invokevirtual` 指令会先去操作数栈顶的对象实际类型（`Circle`）的方法表中查找 `calc` 方法，而不是看引用类型（`Shape`）。
+---
+
+### 4. 为什么这叫多态
+
+因为：
+
+```java id="ppngm8"
+Shape s1 = new Circle(3);
+Shape s2 = new Square(3);
+```
+
+虽然引用类型都是 `Shape`，但调用 `calc()` 时：
+
+* `s1` 执行的是 `Circle` 的 `calc()`
+* `s2` 执行的是 `Square` 的 `calc()`
+
+同一个方法调用，因为对象不同，表现不同，这就是多态。
 
 ---
 
-## 对象转型（Type Casting）
+### 5. 多态的常见应用
 
-### 向上转型（Upcasting）—— 安全、自动
-- **特点**：**无需强转**，完全安全。
-- **代价**：子类**特有**的方法丢失（无法调用）。
-    ```java
-    Circle c = new Circle(3);
-    Shape s = c;          // 向上转型，OK
-    // s.xxx();           // 只能调用 Shape 中定义的方法，无法调用 Circle 特有的方法
-    ```
+多态很适合统一处理一组有共同父类的对象。
 
-### 向下转型（Downcasting）—— 危险、需强转
-- **前提**：该引用原本指向的对象**确实**是子类类型。
-- **报错原因分析**：您的笔记里 `Shape shape = new Shape(); Circle c = (Circle) shape;` 会报 `ClassCastException`。
-    - **内存真相**：`shape` 指向的堆内存里就是一个纯粹的 `Shape` 对象，里面根本没有 `Circle` 类的特有数据（`radius`）。强转相当于硬要把一只**普通的动物**当成**狗**来让他看门，它做不到。
+例如放进数组里：
 
-- **正确且安全的向下转型姿势**：
-    ```java
-    Shape s = new Circle(3); // 向上转型
+```java id="mjlwm0"
+Shape[] shapes = {new Circle(2), new Square(4)};
 
-    // 方式1：instanceof 守卫
-    if (s instanceof Circle) {
-        Circle c = (Circle) s; // 安全
-        System.out.println(c.calc());
-    }
+for (Shape s : shapes) {
+    System.out.println(s.calc());
+}
+```
 
-    // 方式2：JDK 16+ 模式匹配（语法糖）
-    if (s instanceof Circle c) {
-        // 直接使用变量 c
-        System.out.println(c.calc());
-    }
-    ```
+这样写的好处是：
 
-### 转型总结表
-| 转型方向 | 语法 | 安全性 | 典型场景 |
-| :--- | :--- | :--- | :--- |
-| 向上转型 | `Parent p = new Child();` | 100% 安全 | 方法参数传递、集合存储 |
-| 向下转型 | `Child c = (Child) p;` | **风险极高** | 调用子类特有方法前必须做 `instanceof` 检查 |
+* 调用方式统一
+* 扩展新子类时，原有代码往往不用大改
+
+---
+
+## 三、多态中的方法调用规则
+
+### 1. 成员方法
+
+对于被重写的方法：
+
+* 编译看左边
+* 运行看右边
+
+```java id="p6sjah"
+Shape s = new Circle(3);
+s.calc(); // 调用 Circle 中重写后的方法
+```
+
+---
+
+### 2. 成员变量
+
+成员变量**没有多态性**，看的是引用类型。
+
+这个点只需要知道，不用展开太深。
+
+---
+
+### 3. 哪些方法不是动态绑定
+
+下面这些方法一般不是多态调用：
+
+* `static`
+* `final`
+* `private`
+* 构造器
+
+因为它们在编译阶段就基本确定了。
+
+---
+
+## 四、对象转型（Type Casting）
+
+对象转型分两种：
+
+* 向上转型
+* 向下转型
+
+---
+
+## 五、向上转型（Upcasting）
+
+### 1. 定义
+
+子类对象赋值给父类引用。
+
+```java id="jpwa34"
+Circle c = new Circle(3);
+Shape s = c;
+```
+
+也可以直接写：
+
+```java id="kdjlwm"
+Shape s = new Circle(3);
+```
+
+---
+
+### 2. 特点
+
+* 自动完成，不需要强制转换
+* 安全
+* 是多态的基础
+
+---
+
+### 3. 代价
+
+向上转型后，只能通过父类引用访问父类中定义的方法和属性。
+
+也就是说：
+
+* 子类特有方法不能直接调用
+
+```java id="vviyrn"
+Shape s = new Circle(3);
+// s.someCircleMethod(); // 如果是 Circle 特有方法，就不能调用
+```
+
+---
+
+## 六、向下转型（Downcasting）
+
+### 1. 定义
+
+把父类引用再转回子类引用。
+
+```java id="fhv0vb"
+Shape s = new Circle(3);
+Circle c = (Circle) s;
+```
+
+---
+
+### 2. 特点
+
+* 必须强制转换
+* 有风险
+* 前提是这个父类引用本来就指向子类对象
+
+---
+
+### 3. 错误示例
+
+```java id="b0e0gb"
+Shape s = new Shape();
+Circle c = (Circle) s; // 报错
+```
+
+原因：
+
+* `s` 实际指向的是 `Shape` 对象
+* 它根本不是 `Circle`
+* 所以运行时会抛出 `ClassCastException`
+
+---
+
+### 4. 安全写法
+
+向下转型前一般先用 `instanceof` 判断：
+
+```java id="v4r9ga"
+Shape s = new Circle(3);
+
+if (s instanceof Circle) {
+    Circle c = (Circle) s;
+    System.out.println(c.calc());
+}
+```
+
+这样更安全。
+
+---
+
+### 5. JDK 16+ 的写法
+
+如果是较新的 Java 版本，也可以写成：
+
+```java id="vbl5xh"
+if (s instanceof Circle c) {
+    System.out.println(c.calc());
+}
+```
+
+这个知道即可。
+
+---
+
+## 七、转型总结
+
+| 转型方向 | 写法                        | 是否安全 | 说明                 |
+| ---- | ------------------------- | ---- | ------------------ |
+| 向上转型 | `Parent p = new Child();` | 安全   | 自动完成               |
+| 向下转型 | `Child c = (Child) p;`    | 有风险  | 先做 `instanceof` 判断 |
+
+---
+
+## 八、封装和多态这一部分最该记住的点
+
+### 封装
+
+* 隐藏细节，对外暴露方法
+* 成员变量一般用 `private`
+* 通过 getter / setter 控制访问
+* 封装的目的：安全、低耦合
+
+### JavaBean
+
+* 类通常是 `public`
+* 有无参构造器
+* 属性私有化
+* 提供 getter / setter
+
+### 多态
+
+* 前提：继承、重写、父类引用指向子类对象
+* 编译看左边，运行看右边
+* 多态提高扩展性
+
+### 转型
+
+* 向上转型安全，自动完成
+* 向下转型有风险，先用 `instanceof`
+

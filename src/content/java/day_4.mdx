@@ -1,129 +1,621 @@
-## 面向对象技术三大特征
-
-### 核心总结
-- **继承（Inheritance）**：解决代码复用和层级设计问题（子类拥有父类特征）。
-- **封装（Encapsulation）**：解决数据安全和控制问题（隐藏细节，暴露接口）。
-- **多态（Polymorphism）**：解决程序扩展性和灵活性问题（同一行为不同表现）。
+# Java 面向对象三大特征、继承 笔记
 
 ---
 
-## 继承（Inheritance）深度扩充
+## 一、面向对象技术三大特征
 
-### 1. 设计原则：IS-A vs HAS-A
-- **IS-A（继承）**：`Dog` **是一个** `Animal`。
-    - 不恰当继承：`Stack extends Vector`（栈应该是一个封装了向量的类，而不是一个向量本身，继承导致了栈拥有不合理的 `insert` 方法）。
-- **HAS-A（组合/聚合）**：`Car` **有一个** `Engine`。
-    - **最佳实践**：优先使用**组合**而非继承。组合比继承耦合度更低。
+### 1. 继承（Inheritance）
 
-### 2. 继承了什么？（底层细节纠正）
-您笔记中写“子类继承父类所有 non-private 属性和方法”。
-- **内存视角的真实情况**：子类对象在堆内存中，**确实包含了父类定义的私有属性**（占用了内存空间），只是子类没有**直接访问权限**。
-- 父类 `private` 成员必须通过父类提供的 `public/protected` 的 getter/setter 间接操作。
+* 解决**代码复用**和**层级设计**问题
+* 子类可以继承父类已有的属性和方法
 
-### 3. 继承相关语法细化
+### 2. 封装（Encapsulation）
 
-#### `super` 关键字（内存模型补充）
-- **构造器中的 `super()`**：
-    - 默认隐式存在。若父类**没有无参构造器**，子类构造器**必须显式调用** `super(参数)`，且必须在第一行。
-    - **创建子类对象时，父类构造器先执行**：先有父类的数据初始化，才有子类的扩展数据。
+* 解决**数据安全**和**访问控制**问题
+* 隐藏内部实现细节，只暴露必要接口
+
+### 3. 多态（Polymorphism）
+
+* 解决程序的**扩展性**和**灵活性**问题
+* 同一个方法调用，因为对象不同而表现不同
+
+---
+
+## 二、继承（Inheritance）
+
+### 1. 基本概念
+
+继承表示子类拥有父类的特征。
+
+```java
+class Animal {
+    public void eat() {
+        System.out.println("eating...");
+    }
+}
+
+class Dog extends Animal {
+}
+```
+
+这里：
+
+* `Animal` 是父类
+* `Dog` 是子类
+* `Dog` 可以使用 `Animal` 中可继承的方法
+
+---
+
+## 三、设计原则：IS-A 和 HAS-A
+
+### 1. IS-A
+
+表示“**是一个**”，适合继承。
+
+例如：
+
+* `Dog is an Animal`
+* `Cat is an Animal`
+
+说明 `Dog` 和 `Animal` 之间有明显的父子关系。
+
+---
+
+### 2. HAS-A
+
+表示“**有一个**”，适合组合。
+
+例如：
+
+* `Car has an Engine`
+
+```java
+class Engine {
+}
+
+class Car {
+    private Engine engine = new Engine();
+}
+```
+
+---
+
+### 3. 实际开发建议
+
+* 能用组合解决的问题，通常优先考虑组合
+* 继承耦合更强
+* 只有确实满足“is-a”关系时，再考虑继承
+
+---
+
+## 四、子类到底继承了什么
+
+你这部分原笔记可以整理成更好记的版本：
+
+### 子类可以继承父类的
+
+* `public` 成员
+* `protected` 成员
+* 同包下的默认权限成员
+
+### 子类不能直接访问的
+
+* `private` 成员
+
+### 注意
+
+* 父类的 `private` 成员并不是“完全不存在”
+* 它们仍然属于父类那部分对象数据的一部分
+* 只是子类**不能直接访问**
+
+例如：
+
+```java
+class Father {
+    private int age = 50;
+
+    public int getAge() {
+        return age;
+    }
+}
+
+class Son extends Father {
+    public void test() {
+        // System.out.println(age); // 报错
+        System.out.println(getAge()); // 可以间接访问
+    }
+}
+```
+
+---
+
+## 五、super 关键字
+
+`super` 表示父类部分。
+
+---
+
+### 1. 调用父类构造器
 
 ```java
 class Father {
     String name;
-    Father(String name) { this.name = name; } // 无无参构造
+
+    Father(String name) {
+        this.name = name;
+    }
 }
 
 class Son extends Father {
     Son(String name) {
-        super(name); // 必须显式调用，且首行
+        super(name);
     }
 }
 ```
 
-#### 方法重写（Override）补充规则
-- **返回值类型**：JDK 5+ 支持**协变返回类型**。即子类重写方法的返回值可以是父类返回值类型的子类。
-    ```java
-    class Animal { Animal getOne() { return null; } }
-    class Dog extends Animal {
-        @Override
-        Dog getOne() { return new Dog(); } // 返回子类类型合法
+### 规则
+
+* 子类构造器中如果要调用父类构造器，使用 `super(...)`
+* `super(...)` 必须写在构造器第一行
+
+---
+
+### 2. 为什么要先执行父类构造器
+
+因为：
+
+* 创建子类对象时，先要把父类部分初始化好
+* 再初始化子类新增的部分
+
+可以简单记：
+
+**先父类，后子类**
+
+---
+
+### 3. 默认会不会调用 `super()`
+
+会。
+
+如果子类构造器第一行没有写：
+
+```java
+super(...)
+```
+
+编译器会默认补一个无参的：
+
+```java
+super();
+```
+
+但是前提是：
+
+* 父类必须有无参构造器
+
+如果父类没有无参构造器，子类就必须手动写 `super(参数)`。
+
+---
+
+## 六、方法重写（Override）
+
+### 1. 定义
+
+子类对父类已有方法重新实现。
+
+```java
+class Animal {
+    public void eat() {
+        System.out.println("Animal eating");
     }
-    ```
-- **异常抛出**：重写方法抛出的受检异常范围不能比父类更大（可以更小或不抛）。
+}
 
-### 4. `instanceof` 深度辨析
-- **作用**：判断左侧对象是否为右侧类（或其子类）的实例。
-- **底层实现**：检查对象的 `_klass` 指针指向的元数据与目标类的继承链。
-- **避坑**：
-    ```java
-    // 关于 null
-    System.out.println(null instanceof String); // false，永远返回 false，不会抛空指针
-    ```
+class Dog extends Animal {
+    @Override
+    public void eat() {
+        System.out.println("Dog eating bone");
+    }
+}
+```
 
-### 5. `Object` 类——万类之源
+---
 
-| 方法 | 默认行为 | 何时重写 |
-| :--- | :--- | :--- |
-| `toString()` | `类名@十六进制哈希码` | 打印日志/调试时希望看到对象内容 |
-| `equals()` | `this == obj` （比较内存地址） | 需要比较**逻辑相等性**（如ID相同即为同一人） |
-| `hashCode()` | 返回对象地址转换的整数 | **必须与 equals 同时重写**，保证容器（HashSet）正确性 |
-| `finalize()` | 空方法 | **已过时（JDK 9+）**，资源清理请用 `try-with-resources` |
+### 2. 重写规则
 
-#### `equals` 重写标准模板（合约规范）
-必须满足：**自反性、对称性、传递性、一致性** 以及与 `null` 比较返回 false。
+重写时要满足：
+
+* 方法名相同
+* 参数列表相同
+* 返回值类型相同，或是其子类
+* 子类方法权限不能比父类更严格
+
+---
+
+### 3. 协变返回类型
+
+JDK 5 以后，子类重写方法时，返回值可以是父类返回值类型的子类。
+
+```java
+class Animal {
+    Animal getOne() {
+        return new Animal();
+    }
+}
+
+class Dog extends Animal {
+    @Override
+    Dog getOne() {
+        return new Dog();
+    }
+}
+```
+
+这是合法的。
+
+---
+
+### 4. 异常规则
+
+子类重写方法时，抛出的**受检异常**不能比父类更大。
+
+这个点知道即可，后面学异常时再细看。
+
+---
+
+## 七、instanceof
+
+### 1. 作用
+
+判断某个对象是不是某个类，或者其子类的对象。
+
+```java
+Animal a = new Dog();
+
+System.out.println(a instanceof Dog);    // true
+System.out.println(a instanceof Animal); // true
+System.out.println(a instanceof Object); // true
+```
+
+---
+
+### 2. 关于 null
+
+```java
+System.out.println(null instanceof String); // false
+```
+
+特点：
+
+* 不会报空指针
+* 结果永远是 `false`
+
+---
+
+### 3. 常见用途
+
+向下转型前先判断：
+
+```java
+Animal a = new Dog();
+
+if (a instanceof Dog) {
+    Dog d = (Dog) a;
+}
+```
+
+这样更安全，避免类型转换异常。
+
+---
+
+## 八、Object 类
+
+### 1. Object 是什么
+
+Java 中所有类默认都继承 `Object`，所以它是所有类的父类。
+
+---
+
+### 2. 常用方法
+
+| 方法           | 默认行为     | 什么时候重写                |
+| ------------ | -------- | --------------------- |
+| `toString()` | `类名@哈希码` | 希望打印对象内容时             |
+| `equals()`   | 比较地址     | 希望比较逻辑内容时             |
+| `hashCode()` | 返回哈希值    | 重写 `equals()` 时通常一起重写 |
+| `finalize()` | 已过时      | 一般不再使用                |
+
+---
+
+## 九、toString()
+
+默认打印对象时，输出内容一般像这样：
+
+```java
+类名@十六进制哈希值
+```
+
+例如重写后更有意义：
+
+```java
+@Override
+public String toString() {
+    return "Person{id=" + id + ", name='" + name + "'}";
+}
+```
+
+这样打印对象时更方便调试。
+
+---
+
+## 十、equals()
+
+### 1. 默认行为
+
+`Object` 中的 `equals()` 默认等价于 `==`，比较的是地址。
+
+```java
+Person p1 = new Person();
+Person p2 = new Person();
+
+System.out.println(p1.equals(p2)); // false
+```
+
+---
+
+### 2. 什么时候重写
+
+当我们希望比较的是“逻辑上是否相等”时，就要重写。
+
+例如：
+
+* 两个人 `id` 一样，就认为是同一个人
+
+---
+
+### 3. 常见重写模板
 
 ```java
 @Override
 public boolean equals(Object obj) {
-    // 1. 地址相同直接true
     if (this == obj) return true;
-    // 2. 类型检查（推荐用 instanceof，注意 null 情况）
     if (!(obj instanceof Person)) return false;
-    // 3. 强制转换
     Person p = (Person) obj;
-    // 4. 关键业务字段对比
-    return Objects.equals(this.id, p.id) && Objects.equals(this.name, p.name);
-}
-
-@Override
-public int hashCode() {
-    return Objects.hash(id, name); // 必须与 equals 用到的字段一致
+    return Objects.equals(this.id, p.id)
+            && Objects.equals(this.name, p.name);
 }
 ```
-
-### 6. `final` 关键字的深入理解
-
-| 修饰对象 | 效果 | 特殊说明 |
-| :--- | :--- | :--- |
-| **类** | 不可被继承 | 例如 `String`、`Integer`，保证了不可变性和安全性 |
-| **方法** | 不可被重写 | 常用于模板方法模式中锁定算法骨架 |
-| **基本变量** | 值不可变 | 编译时常量会被内联优化 |
-| **引用变量** | **引用地址**不可变 | 指向的对象内部属性依然可以修改 |
 
 ---
 
-## 继承的分类（扩展阅读）
+### 4. equals() 要满足的基本要求
 
-### Java 官方规范
-- **单继承**：一个类**只能有一个直接父类**（`extends` 后面只能写一个类）。
-- **多重继承**：A extends B, B extends C（多层，允许）。
-- **多接口实现**：`implements A, B, C`（Java 利用接口规避了多继承带来的**钻石问题/菱形缺陷**）。
+知道这几个词就行：
 
-### 钻石问题（Diamond Problem）
-假设 Java 支持多继承类：类 A 有方法 `run()`，类 B 和类 C 都继承了 A 并重写了 `run()`，类 D 同时继承了 B 和 C。
-- **困惑**：D 调用 `run()` 时不知道该走 B 的逻辑还是 C 的逻辑。
-- **Java 解决方案**：
-    - **类**：不允许，编译报错。
-    - **接口**：允许。若多个接口有同名 `default` 方法，子类**必须手动重写**该方法以消除歧义。
+* 自反性
+* 对称性
+* 传递性
+* 一致性
+* 和 `null` 比较返回 `false`
+
+基础阶段不用死背定义，先知道“重写时逻辑要稳定一致”即可。
+
+---
+
+## 十一、hashCode()
+
+### 1. 作用
+
+给对象生成哈希值。
+
+### 2. 为什么重写 equals() 时通常也要重写 hashCode()
+
+因为在 `HashMap`、`HashSet` 这种哈希容器中：
+
+* 先比较 `hashCode()`
+* 再比较 `equals()`
+
+如果只重写 `equals()`，不重写 `hashCode()`，可能会导致集合判断结果不正确。
+
+---
+
+### 3. 常见写法
 
 ```java
-interface A { default void run() { System.out.println("A"); } }
-interface B { default void run() { System.out.println("B"); } }
-class C implements A, B {
-    @Override
-    public void run() {
-        // 必须手动解决冲突，例如指定调用某一个
-        A.super.run(); 
+@Override
+public int hashCode() {
+    return Objects.hash(id, name);
+}
+```
+
+### 4. 注意
+
+`hashCode()` 使用的字段，要和 `equals()` 中参与比较的字段保持一致。
+
+---
+
+## 十二、final 关键字
+
+| 修饰对象 | 作用     |
+| ---- | ------ |
+| 类    | 不能被继承  |
+| 方法   | 不能被重写  |
+| 变量   | 只能赋值一次 |
+
+---
+
+### 1. 修饰类
+
+```java
+final class A {
+}
+```
+
+表示该类不能被继承。
+
+例如：
+
+* `String`
+* `Integer`
+
+都是 `final` 类。
+
+---
+
+### 2. 修饰方法
+
+```java
+class A {
+    public final void test() {
     }
 }
 ```
+
+表示该方法不能被子类重写。
+
+---
+
+### 3. 修饰变量
+
+#### 基本类型
+
+值不能变
+
+```java
+final int a = 10;
+```
+
+#### 引用类型
+
+引用不能变，但对象内容可能还能变
+
+```java
+final StringBuilder sb = new StringBuilder("abc");
+sb.append("d"); // 可以
+```
+
+---
+
+## 十三、继承的分类
+
+### 1. 单继承
+
+Java 中一个类只能有一个直接父类。
+
+```java
+class B extends A {
+}
+```
+
+---
+
+### 2. 多层继承
+
+Java 允许继承链一层一层往上。
+
+```java
+class A {
+}
+class B extends A {
+}
+class C extends B {
+}
+```
+
+---
+
+### 3. 多接口实现
+
+一个类可以实现多个接口。
+
+```java
+class C implements A, B {
+}
+```
+
+这是 Java 用来弥补类不能多继承的一种方式。
+
+---
+
+## 十四、钻石问题（了解即可）
+
+如果类支持多继承，就可能出现：
+
+* 两个父类都有同名方法
+* 子类不知道该继承哪个实现
+
+Java 的做法是：
+
+* **类不支持多继承**
+* **接口允许多实现**
+
+如果多个接口有同名 `default` 方法，子类必须自己重写来解决冲突。
+
+```java
+interface A {
+    default void run() {
+        System.out.println("A");
+    }
+}
+
+interface B {
+    default void run() {
+        System.out.println("B");
+    }
+}
+
+class C implements A, B {
+    @Override
+    public void run() {
+        A.super.run();
+    }
+}
+```
+
+---
+
+## 十五、这一部分最该记住的点
+
+### 三大特性
+
+* 继承：复用代码
+* 封装：隐藏细节
+* 多态：提高扩展性
+
+### 继承
+
+* Java 是单继承
+* 子类不能直接访问父类 `private` 成员
+* 创建子类对象时，先执行父类构造器
+
+### super
+
+* `super(...)` 调父类构造器
+* 必须写在第一行
+
+### 重写
+
+* 方法名和参数列表必须相同
+* 权限不能更严格
+* 返回值可以是父类返回值类型的子类
+
+### instanceof
+
+* 判断对象类型
+* `null instanceof Xxx` 一定是 `false`
+
+### Object
+
+* 所有类都继承 `Object`
+* 常用方法：`toString()`、`equals()`、`hashCode()`
+
+### equals 和 hashCode
+
+* 重写 `equals()` 时通常也要重写 `hashCode()`
+* 两者用到的字段要一致
+
+### final
+
+* 类：不能继承
+* 方法：不能重写
+* 变量：只能赋值一次
+
