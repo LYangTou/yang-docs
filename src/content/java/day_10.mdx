@@ -137,7 +137,6 @@ public static void main(String[] args) {
 ```
 
 ```java
-package arraylist;
 
 public class MyArrayList {
     private final int DEFAULT_CAPACITY = 10;
@@ -175,7 +174,7 @@ public class MyArrayList {
     }
 
     public boolean contains (int element) {
-        return indexOf(element) > 0;
+        return indexOf(element) >= 0;
     }
 
     public int indexOf (int element) {
@@ -189,35 +188,83 @@ public class MyArrayList {
     }
 
     public void add(int element) {
-        add(0, element);
+        add(size, element);
     }
 
     public void add(int index, int element) {
+        if (index<0 || index > size) {
+            throw new RuntimeException("index valid");
+        }
+        if (size == capacity) {
+            resize(capacity * 2);
+        }
+        for (int i = size;i>index;i--){
+            elementData[i] = elementData[i-1];
+        }
+        elementData[index] = element;
+        size++;
+    }
 
+    private void resize(int newCapacity) {
+        int[] newElementData = new int[newCapacity];
+
+        //等价于 System.arrayCopy
+        for (int i = 0;i < size;i++){
+            newElementData[i] = elementData[i];
+        }
+
+        elementData = newElementData;
+        this.capacity = newCapacity;
     }
 
     public int remove(int index) {
-        return -1;
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+        }
+        int removedValue = elementData[index];
+        // 将 index 之后的元素整体前移一位
+        for (int i = index; i < size - 1; i++) {
+            elementData[i] = elementData[i + 1];
+        }
+        // 可选：将最后一个位置置为默认值（如0），帮助GC（此处是int数组，无GC影响）
+        elementData[size - 1] = 0;
+        size--;
+        return removedValue;
     }
 
-    public void removeByValue (int element) {
+    public void removeByValue(int element) {
+        int index = indexOf(element);
+        if (index != -1) {
+            remove(index);
+        }
     }
 
     public void set(int index, int element) {
-
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+        }
+        elementData[index] = element;
     }
 
     public int get(int index) {
-        return -1;
+        if (index < 0 || index >= size) {
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+        }
+        return elementData[index];
     }
 
 
     public static void main(String[] args) {
         MyArrayList list1 = new MyArrayList();
+        for (int i = 0;i < 30;i++){
+            list1.add(i);
+        }
+//        for (int i = 0;i < list1.size;i++){
+//            System.out.println(list1.get(i));
+//        }
         MyArrayList list2 = new MyArrayList(2);
-        System.out.println(list2.capacity);
+//        System.out.println(list2.capacity);
     }
 
 }
-
 ```
