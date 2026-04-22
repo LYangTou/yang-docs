@@ -1,0 +1,223 @@
+# ArrayList
+- 基于数组实现的容量大小可动态变化的数据结构
+- 可以将很多数组操作的细节封装起来
+- 特点：查询效率高，增加删除效率低
+- ArrayList是List接口的可变数组实现，实现了List接口
+- ArrayList是线程不安全的
+- Vector类是上古时代的ArrayList，现在不用了
+
+
+- size 实际长度
+- capacity 数组容量
+
+```java
+public static void main(String[] args) {
+    // 如何构造ArrayList
+
+    // 1 不带类型的
+    ArrayList list = new ArrayList();
+
+    // 2带类型的 <>里面要填引用类型，也就是要包装类
+    ArrayList<Integer> integerArrayList = new ArrayList<Integer>();
+
+    // 推荐写法
+    List<Integer> integerList = new ArrayList<>();
+    List<User> userList = new ArrayList<>();
+
+    List<Integer> integerList1 = new ArrayList<>(100);
+
+    Collection<Integer> c = new ArrayList<>();
+    c.add(1);
+    c.add(2);
+    c.add(3);
+    c.add(1);
+
+    List<Integer> integerList2 = new ArrayList<>(c);
+    // 等价于
+    List<Integer> integerList3 = new ArrayList<>();
+    for (Integer integer : c) {
+        integerList3.add(integer);
+    }
+
+    // size/isEmpty/contains
+    System.out.println(integerList.size());
+    integerList.add(100);
+    System.out.println(integerList.size());
+    System.out.println(integerList.isEmpty());
+
+    System.out.println(integerList2.size());
+
+    System.out.println(integerList.contains(100));
+
+    // indexOf/lastIndexOf
+    System.out.println(integerList2.indexOf(1));
+    System.out.println(integerList2.indexOf(5));
+    System.out.println(integerList2.lastIndexOf(1));
+
+    // toArray 有参和无参
+    // 返回出来的就是Object
+    Object[] arrays = integerList2.toArray();
+    for (int i = 0;i < arrays.length;i++) {
+        int number = (int) arrays[i];
+        System.out.println(number);
+    }
+
+    // 当传入的数组小于arraylist数组，会直接拷贝；超过的话会以数组的长度为新数组长度
+    Integer[] ints = integerList2.toArray(new Integer[0]);
+    for (int i : ints) {
+        System.out.println(i);
+    }
+
+    // get/set/add/remove
+    integerList2.forEach(System.out::println);
+    System.out.println("==="+integerList2.get(1));
+
+    integerList2.set(1, 10);
+    System.out.println(integerList2.get(1));
+
+    integerList2.add(5);
+    System.out.println(integerList2.get(4));
+
+    integerList2.add(1, 100); // 加到index位置，其他元素后移
+    System.out.println(integerList2.get(1));
+    System.out.println(integerList2.get(2));
+
+    int re = integerList2.remove(1);
+    System.out.println(re);
+    boolean r = integerList2.remove(new Integer(10));// 删除第一个位置的对象
+    System.out.println(r);
+
+    // clear
+    System.out.println(integerList2.size());
+    integerList2.clear();
+    System.out.println(integerList2.size());
+
+    System.out.println("==============================");
+    List<String> stringList = new ArrayList<>();
+    stringList.add("a");
+    stringList.add("b");
+
+    List<String> stringList2 = new ArrayList<>();
+    stringList2.add("C");
+    stringList2.add("D");
+    // addAll/removeAll/retainAll/containsAll
+
+    // containsALL继承自AbstractCollection
+    System.out.println(stringList.containsAll(stringList2));
+
+    // 加到最后
+//        stringList.addAll(stringList2);
+//        stringList.forEach(System.out::println);
+    System.out.println("==============================");
+    stringList.addAll(0, stringList2);
+    stringList.addAll(0, stringList2);
+    stringList.forEach(System.out::println);
+
+    System.out.println("==============================");
+//        stringList.removeAll(stringList2); // 会删掉所有存在的元素
+
+    List<String> cd = new ArrayList<>();
+    cd.add("hhhh");
+//        stringList.removeAll(cd); // 会删掉所有存在的元素，不管顺序 只要包含了就删
+//        stringList.forEach(System.out::println);
+
+    // 求两个ArrayList的交集
+    System.out.println(stringList.retainAll(cd));
+    stringList.forEach(System.out::println);
+
+    List<Map> a = new ArrayList<>();
+    Map<String, Integer> d = new HashMap<>();
+    d.put("key" , 1 );
+    a.add(d);
+    Map<String, Integer> g = new HashMap<>();
+    g.put("key" , 2 );
+
+    System.out.println(a.contains(g));
+}
+```
+
+```java
+package arraylist;
+
+public class MyArrayList {
+    private final int DEFAULT_CAPACITY = 10;
+    // 属性 field
+
+    private int[] elementData;
+
+    private int size;
+
+    private int capacity;
+
+    public MyArrayList () {
+        this.elementData = new int[DEFAULT_CAPACITY];
+        this.capacity = DEFAULT_CAPACITY;
+        this.size = 0;
+    }
+
+    public MyArrayList(int capacity) {
+        if (capacity < 0) {
+            throw new RuntimeException("capacity wrong");
+        } else if (capacity < DEFAULT_CAPACITY) {
+            capacity = DEFAULT_CAPACITY;
+        }
+        this.capacity = capacity;
+        this.elementData = new int[capacity];
+        this.size = 0;
+    }
+
+    public int size() {
+        return size;
+    }
+
+    public boolean isEmpty () {
+        return size == 0;
+    }
+
+    public boolean contains (int element) {
+        return indexOf(element) > 0;
+    }
+
+    public int indexOf (int element) {
+        for (int i = 0;i < elementData.length;i++) {
+            if (element == elementData[i]) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    public void add(int element) {
+        add(0, element);
+    }
+
+    public void add(int index, int element) {
+
+    }
+
+    public int remove(int index) {
+        return -1;
+    }
+
+    public void removeByValue (int element) {
+    }
+
+    public void set(int index, int element) {
+
+    }
+
+    public int get(int index) {
+        return -1;
+    }
+
+
+    public static void main(String[] args) {
+        MyArrayList list1 = new MyArrayList();
+        MyArrayList list2 = new MyArrayList(2);
+        System.out.println(list2.capacity);
+    }
+
+}
+
+```
