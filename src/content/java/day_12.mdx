@@ -1,0 +1,33 @@
+### 无限定通配符
+
+`List<?>`: 表示list可以持有任意类型
+
+```java
+void process(List<?>);
+```
+
+通配符表示什么类型都行，甚至`T`都行
+但是因为类型不确定导致不能进行写操作`list.add()`。只能强制转成`Object`
+
+### 上界通配符
+表示list中可以持有Fruit和其子类对象
+但是类型也不完全确定，没法add，但是get的时候可以用父类去承接。
+```java
+public void process(List<? extends Fruit> list)
+```
+
+### 下界通配符
+表示list中可以持有Fruit和其父类对象
+写操作能放小于Fruit的对象，相当于`Fruit f = new Apple()`，当对的取的时候只能写Object
+```java
+public void process(List<? super Fruit> list) {
+  Fruit a = new Fruit()
+  Fruit b = new Apple()
+  list.add(a)
+  list.add(b)
+}
+```
+
+### PESC原则
+- Producer Extends: 从集合中读取类型T的数据（集合是生产者），使用通配符`? extends T`
+- Consumer Super: 往集合中添加T的数据（集合是消费者），使用`? super T`
