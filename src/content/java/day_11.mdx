@@ -1,0 +1,1216 @@
+# Java 泛型、类型擦除与通配符
+
+## 一、泛型的本质
+
+泛型的本质是：
+
+> 把数据类型参数化，让类型也可以像普通参数一样被传入类、接口或方法中。
+
+比如：
+
+```java
+List<String> list = new ArrayList<>();
+```
+
+这里的 `String` 就是传给 `List` 的类型参数。
+
+---
+
+## 二、泛型的好处
+
+泛型主要有两个好处：
+
+### 1. 提供编译期类型安全检查
+
+没有泛型时：
+
+```java
+List list = new ArrayList();
+list.add("hello");
+list.add(100);
+
+String s = (String) list.get(1); // 运行时报错
+```
+
+使用泛型后：
+
+```java
+List<String> list = new ArrayList<>();
+list.add("hello");
+// list.add(100); // 编译期直接报错
+```
+
+泛型可以让很多类型错误提前在**编译期**暴露，而不是等到运行时才报错。
+
+---
+
+### 2. 减少强制类型转换
+
+没有泛型：
+
+```java
+List list = new ArrayList();
+list.add("hello");
+
+String s = (String) list.get(0);
+```
+
+使用泛型：
+
+```java
+List<String> list = new ArrayList<>();
+list.add("hello");
+
+String s = list.get(0);
+```
+
+编译器知道 `list` 中存放的是 `String`，所以不需要手动强转。
+
+---
+
+## 三、Java 是类型擦除式泛型
+
+Java 的泛型是**类型擦除式泛型**，也可以理解为“伪泛型”。
+
+也就是说：
+
+> 泛型主要在编译期起作用，编译后泛型类型信息大多会被擦除。
+
+例如：
+
+```java
+List<String> list1 = new ArrayList<>();
+List<Integer> list2 = new ArrayList<>();
+```
+
+编译后，它们在运行时大致都会变成：
+
+```java
+List list1 = new ArrayList();
+List list2 = new ArrayList();
+```
+
+所以运行时 JVM 并不知道这个 `List` 原本是 `List<String>` 还是 `List<Integer>`。
+
+---
+
+## 四、为什么 Java 要用类型擦除？
+
+主要是为了兼容老版本 Java。
+
+Java 早期没有泛型，大量代码都是这样写的：
+
+```java
+List list = new ArrayList();
+```
+
+后来 Java 5 引入泛型时，为了不破坏旧代码，就采用了类型擦除方案。
+
+所以：
+
+```java
+ArrayList<String>
+ArrayList<Integer>
+ArrayList
+```
+
+在运行时都对应同一个 `ArrayList` 类型。
+
+---
+
+## 五、裸类型 Raw Type
+
+没有写泛型参数的类型，叫做**裸类型**，例如：
+
+```java
+List list = new ArrayList();
+ArrayList arrayList = new ArrayList();
+```
+
+这是为了兼容旧代码保留下来的写法。
+
+但是现在自己写代码时，不建议使用裸类型。
+
+错误示例：
+
+```java
+List list = new ArrayList();
+
+list.add("hello");
+list.add(100);
+list.add(new Object());
+```
+
+因为没有泛型约束，所以可以往里面放任意类型的数据。
+
+更推荐：
+
+```java
+List<String> list = new ArrayList<>();
+```
+
+这样编译器可以帮你检查类型。
+
+---
+
+## 六、类型擦除带来的限制
+
+### 1. 不能创建泛型数组
+
+例如：
+
+```java
+public class GenericDemo<T> {
+    private T[] data;
+
+    public void init() {
+        // this.data = new T[10]; // 不支持
+    }
+}
+```
+
+`new T[10]` 不支持。
+
+原因是：
+
+```java
+T
+```
+
+在运行时已经被擦除了，JVM 不知道 `T` 具体是什么类型。
+
+所以只能这样写：
+
+```java
+@SuppressWarnings("unchecked")
+public void init() {
+    this.data = (T[]) new Object[10];
+}
+```
+
+完整示例：
+
+```java
+public class GenericDemo<T> {
+    private T[] data;
+
+    @SuppressWarnings("unchecked")
+    public void init() {
+        this.data = (T[]) new Object[10];
+    }
+}
+```
+
+不过这是一种不太安全的写法，因为本质上底层数组还是 `Object[]`。
+
+实际开发中，很多时候可以优先使用：
+
+```java
+List<T>
+```
+
+而不是：
+
+```java
+T[]
+```
+
+例如：
+
+```java
+public class GenericDemo<T> {
+    private List<T> data = new ArrayList<>();
+}
+```
+
+---
+
+### 2. 不能使用 `instanceof T`
+
+错误示例：
+
+```java
+public boolean check(T o) {
+    // if (o instanceof T) {
+    //     return true;
+    // }
+
+    return false;
+}
+```
+
+原因同样是类型擦除。
+
+运行时已经不知道 `T` 是什么类型了，所以不能判断：
+
+```java
+o instanceof T
+```
+
+如果确实需要判断类型，可以手动传入 `Class<T>`：
+
+```java
+public class GenericDemo<T> {
+    private Class<T> type;
+
+    public GenericDemo(Class<T> type) {
+        this.type = type;
+    }
+
+    public boolean check(Object o) {
+        return type.isInstance(o);
+    }
+
+    public static void main(String[] args) {
+        GenericDemo<String> demo = new GenericDemo<>(String.class);
+
+        System.out.println(demo.check("hello")); // true
+        System.out.println(demo.check(123));     // false
+    }
+}
+```
+
+---
+
+### 3. 不能用擦除后相同的方法重载
+
+下面代码是不允许的：
+
+```java
+public void t(List<String> list) {}
+
+public void t(List<Integer> list) {}
+```
+
+原因是类型擦除后，它们都会变成：
+
+```java
+public void t(List list) {}
+public void t(List list) {}
+```
+
+所以编译器会认为这是两个重复的方法。
+
+这里要注意：
+这不是“不能视为重写”，而是**不能视为重载**。
+
+因为它们方法名一样，参数擦除后也一样，所以方法签名冲突。
+
+---
+
+## 七、泛型不具备协变关系
+
+先看一个继承关系：
+
+```java
+class Food {}
+class Fruit extends Food {}
+class Apple extends Fruit {}
+```
+
+普通对象是可以这样写的：
+
+```java
+Fruit fruit = new Apple();
+Food food = new Apple();
+```
+
+但是泛型容器不能这样写：
+
+```java
+Container<Fruit> c = new Container<Apple>(); // 不允许
+Container<Food> f = new Container<Apple>();  // 不允许
+```
+
+虽然：
+
+```java
+Apple extends Fruit
+Fruit extends Food
+```
+
+但是：
+
+```java
+Container<Apple>
+```
+
+并不是：
+
+```java
+Container<Fruit>
+```
+
+的子类型。
+
+---
+
+## 八、为什么 `Container<Fruit> c = new Container<Apple>()` 不允许？
+
+假设它允许：
+
+```java
+Container<Fruit> c = new Container<Apple>();
+```
+
+那么后面就可以这样写：
+
+```java
+c.setItem(new Fruit());
+```
+
+但是右边真实对象其实是：
+
+```java
+new Container<Apple>()
+```
+
+也就是说，这个容器本来应该只能放 `Apple`。
+
+现在你却往里面放了一个普通的 `Fruit`，这就破坏了类型安全。
+
+所以 Java 不允许：
+
+```java
+Container<Fruit> c = new Container<Apple>();
+```
+
+这就是泛型不支持协变的原因。
+
+---
+
+## 九、示例类：Container
+
+先修正一下你的示例代码：
+
+```java
+class Food {}
+
+class Fruit extends Food {}
+
+class Apple extends Fruit {}
+
+class Container<T> {
+    private T item;
+
+    public T getItem() {
+        return this.item;
+    }
+
+    public void setItem(T item) {
+        this.item = item;
+    }
+}
+```
+
+注意：
+
+```java
+public setItem(T item)
+```
+
+应该改成：
+
+```java
+public void setItem(T item)
+```
+
+---
+
+# 十、泛型中的通配符
+
+为了解决泛型不够灵活的问题，Java 提供了通配符：
+
+```java
+?
+```
+
+通配符表示：某种未知类型。
+
+常见的有三种：
+
+```java
+?
+? extends T
+? super T
+```
+
+---
+
+# 十一、无限定通配符 `?`
+
+## 1. 基本含义
+
+```java
+List<?>
+```
+
+表示：
+
+> 这是一个 List，但里面具体是什么类型，我不知道。
+
+例如：
+
+```java
+List<?> list;
+```
+
+它可以接收：
+
+```java
+List<String>
+List<Integer>
+List<Fruit>
+List<Apple>
+List<Object>
+```
+
+例如：
+
+```java
+public void process(List<?> list) {
+}
+```
+
+调用时：
+
+```java
+process(new ArrayList<String>());
+process(new ArrayList<Integer>());
+process(new ArrayList<Apple>());
+```
+
+都可以。
+
+---
+
+## 2. `List<?>` 为什么不能随便 add？
+
+例如：
+
+```java
+public void process(List<?> list) {
+    // list.add("hello"); // 不允许
+    // list.add(100);     // 不允许
+}
+```
+
+原因是：
+
+```java
+List<?>
+```
+
+表示里面的类型未知。
+
+它可能是：
+
+```java
+List<String>
+```
+
+也可能是：
+
+```java
+List<Integer>
+```
+
+也可能是：
+
+```java
+List<Apple>
+```
+
+如果编译器允许你这样写：
+
+```java
+list.add("hello");
+```
+
+但是实际传进来的可能是：
+
+```java
+List<Integer>
+```
+
+那就类型不安全了。
+
+所以对于 `List<?>` 来说，不能添加具体对象。
+
+但是有一个例外：
+
+```java
+list.add(null);
+```
+
+因为 `null` 可以属于任何引用类型。
+
+---
+
+## 3. `List<?>` 读取时是什么类型？
+
+可以读取，但只能用 `Object` 接收：
+
+```java
+public void process(List<?> list) {
+    Object obj = list.get(0);
+}
+```
+
+这里不是“只能强制转成 Object”，而是：
+
+> 读取出来的值，只能安全地看作 Object。
+
+因为 Java 不知道 `?` 到底是什么类型，所以只能用所有类的父类 `Object` 接收。
+
+---
+
+# 十二、上界通配符 `? extends T`
+
+## 1. 基本含义
+
+```java
+List<? extends Fruit>
+```
+
+表示：
+
+> 这是一个 List，里面的元素类型是 Fruit 或 Fruit 的某个子类。
+
+它可以接收：
+
+```java
+List<Fruit>
+List<Apple>
+```
+
+不能接收：
+
+```java
+List<Food>
+List<Object>
+```
+
+例如：
+
+```java
+public void process(List<? extends Fruit> list) {
+}
+```
+
+可以这样调用：
+
+```java
+List<Fruit> fruits = new ArrayList<>();
+List<Apple> apples = new ArrayList<>();
+
+process(fruits);
+process(apples);
+```
+
+---
+
+## 2. `? extends Fruit` 适合读取
+
+```java
+public void process(List<? extends Fruit> list) {
+    Fruit fruit = list.get(0);
+}
+```
+
+因为无论实际传进来的是：
+
+```java
+List<Fruit>
+```
+
+还是：
+
+```java
+List<Apple>
+```
+
+里面的元素都至少是一个 `Fruit`。
+
+所以可以用 `Fruit` 接收。
+
+也可以用 `Object` 接收：
+
+```java
+Object obj = list.get(0);
+```
+
+但是不能直接用 `Apple` 接收：
+
+```java
+// Apple apple = list.get(0); // 不一定安全
+```
+
+因为传进来的可能是：
+
+```java
+List<Fruit>
+```
+
+里面不一定都是 `Apple`。
+
+---
+
+## 3. `? extends Fruit` 为什么不能 add？
+
+```java
+public void process(List<? extends Fruit> list) {
+    // list.add(new Fruit()); // 不允许
+    // list.add(new Apple()); // 不允许
+}
+```
+
+原因是：
+
+```java
+List<? extends Fruit>
+```
+
+只表示这个集合的元素类型是 `Fruit` 的某个子类，但具体是哪一个子类不确定。
+
+它可能是：
+
+```java
+List<Fruit>
+```
+
+也可能是：
+
+```java
+List<Apple>
+```
+
+也可能是：
+
+```java
+List<Banana>
+```
+
+假设有：
+
+```java
+class Banana extends Fruit {}
+```
+
+如果实际上传进来的是：
+
+```java
+List<Apple>
+```
+
+那就不能往里面放：
+
+```java
+new Fruit()
+new Banana()
+```
+
+所以编译器为了安全，直接禁止添加具体对象。
+
+同样，除了：
+
+```java
+list.add(null);
+```
+
+其他具体对象都不能添加。
+
+---
+
+## 4. 结论
+
+`? extends T` 的特点：
+
+```java
+可以读，读出来至少是 T
+不能写，除了 null
+```
+
+所以它适合做**数据生产者**。
+
+---
+
+# 十三、下界通配符 `? super T`
+
+## 1. 基本含义
+
+```java
+List<? super Fruit>
+```
+
+表示：
+
+> 这是一个 List，里面的元素类型是 Fruit 或 Fruit 的某个父类。
+
+它可以接收：
+
+```java
+List<Fruit>
+List<Food>
+List<Object>
+```
+
+不能接收：
+
+```java
+List<Apple>
+```
+
+例如：
+
+```java
+public void process(List<? super Fruit> list) {
+}
+```
+
+可以这样调用：
+
+```java
+List<Fruit> fruits = new ArrayList<>();
+List<Food> foods = new ArrayList<>();
+List<Object> objects = new ArrayList<>();
+
+process(fruits);
+process(foods);
+process(objects);
+```
+
+---
+
+## 2. `? super Fruit` 可以 add 什么？
+
+```java
+public void process(List<? super Fruit> list) {
+    list.add(new Fruit());
+    list.add(new Apple());
+}
+```
+
+为什么可以？
+
+因为无论实际传入的是：
+
+```java
+List<Fruit>
+List<Food>
+List<Object>
+```
+
+都可以安全地放入：
+
+```java
+Fruit
+```
+
+或者：
+
+```java
+Fruit 的子类
+```
+
+例如：
+
+```java
+Apple extends Fruit
+```
+
+所以：
+
+```java
+list.add(new Apple());
+```
+
+是安全的。
+
+---
+
+## 3. `? super Fruit` 读取时为什么只能用 Object？
+
+```java
+public void process(List<? super Fruit> list) {
+    Object obj = list.get(0);
+}
+```
+
+因为实际传进来的可能是：
+
+```java
+List<Fruit>
+List<Food>
+List<Object>
+```
+
+编译器只知道它是 `Fruit` 的某个父类型容器，但不知道里面取出来的对象具体是什么类型。
+
+所以只能安全地用：
+
+```java
+Object
+```
+
+接收。
+
+不能这样写：
+
+```java
+// Fruit fruit = list.get(0); // 不允许
+```
+
+因为如果实际传入的是：
+
+```java
+List<Object>
+```
+
+里面可能本来就有字符串、数字等对象：
+
+```java
+List<Object> objects = new ArrayList<>();
+objects.add("hello");
+objects.add(123);
+
+process(objects);
+```
+
+所以读取时不能保证一定是 `Fruit`。
+
+---
+
+## 4. 结论
+
+`? super T` 的特点：
+
+```java
+可以写入 T 或 T 的子类
+读取时只能安全地当作 Object
+```
+
+所以它适合做**数据消费者**。
+
+---
+
+# 十四、PECS 原则
+
+你笔记里的 `PESC` 应该改成：
+
+```java
+PECS
+```
+
+全称是：
+
+> Producer Extends, Consumer Super
+
+也就是：
+
+```java
+如果主要是读取数据，用 ? extends T
+如果主要是写入数据，用 ? super T
+```
+
+---
+
+## 1. Producer Extends
+
+如果一个集合主要负责“生产”数据，也就是你主要从里面读取数据：
+
+```java
+List<? extends Fruit>
+```
+
+例如：
+
+```java
+public void printFruits(List<? extends Fruit> list) {
+    for (Fruit fruit : list) {
+        System.out.println(fruit);
+    }
+}
+```
+
+这个方法可以接收：
+
+```java
+List<Fruit>
+List<Apple>
+```
+
+因为无论里面是 `Fruit` 还是 `Apple`，读取出来都可以当作 `Fruit` 使用。
+
+---
+
+## 2. Consumer Super
+
+如果一个集合主要负责“消费”数据，也就是你主要往里面写入数据：
+
+```java
+List<? super Fruit>
+```
+
+例如：
+
+```java
+public void addFruits(List<? super Fruit> list) {
+    list.add(new Fruit());
+    list.add(new Apple());
+}
+```
+
+这个方法可以接收：
+
+```java
+List<Fruit>
+List<Food>
+List<Object>
+```
+
+因为这些集合都可以安全地接收 `Fruit` 或 `Fruit` 的子类。
+
+---
+
+# 十五、三个通配符对比
+
+| 写法                      | 含义           | 能接收什么                                          | 能不能 add                    | get 出来是什么 |
+| ----------------------- | ------------ | ---------------------------------------------- | -------------------------- | --------- |
+| `List<?>`               | 任意未知类型       | `List<String>`、`List<Integer>`、`List<Apple>` 等 | 不能添加具体对象，只能加 `null`        | `Object`  |
+| `List<? extends Fruit>` | `Fruit` 或其子类 | `List<Fruit>`、`List<Apple>`                    | 不能添加具体对象，只能加 `null`        | `Fruit`   |
+| `List<? super Fruit>`   | `Fruit` 或其父类 | `List<Fruit>`、`List<Food>`、`List<Object>`      | 可以添加 `Fruit` 或 `Fruit` 的子类 | `Object`  |
+
+---
+
+# 十六、结合 Container 再理解
+
+## 1. 不使用通配符
+
+```java
+Container<Fruit> c = new Container<Apple>(); // 不允许
+```
+
+因为泛型没有协变关系。
+
+---
+
+## 2. 使用上界通配符
+
+```java
+Container<? extends Fruit> c = new Container<Apple>();
+```
+
+这时可以读取：
+
+```java
+Fruit fruit = c.getItem();
+```
+
+但是不能写入：
+
+```java
+// c.setItem(new Fruit()); // 不允许
+// c.setItem(new Apple()); // 不允许
+```
+
+因为编译器不知道这个容器实际是：
+
+```java
+Container<Fruit>
+```
+
+还是：
+
+```java
+Container<Apple>
+```
+
+甚至可能是其他 `Fruit` 子类。
+
+所以它只适合读取。
+
+---
+
+## 3. 使用下界通配符
+
+```java
+Container<? super Fruit> c = new Container<Food>();
+```
+
+这时可以写入：
+
+```java
+c.setItem(new Fruit());
+c.setItem(new Apple());
+```
+
+但是读取时只能用 `Object`：
+
+```java
+Object obj = c.getItem();
+```
+
+因为这个容器实际可能是：
+
+```java
+Container<Fruit>
+Container<Food>
+Container<Object>
+```
+
+所以读取出来只能保证是 `Object`。
+
+---
+
+# 十七、记忆方式
+
+可以简单记成：
+
+```java
+extends：上限，适合读
+super：下限，适合写
+```
+
+更完整一点：
+
+```java
+? extends T：我只知道它最多到 T，所以读出来可以当 T，用来生产数据
+? super T：我只知道它至少能装 T，所以可以往里面放 T，用来消费数据
+```
+
+---
+
+# 十八、你原笔记中需要修正的点
+
+## 1. “数据类型被制定成为一个参数”
+
+建议改成：
+
+> 数据类型被指定为一个参数。
+
+---
+
+## 2. “`ArrayList<>` 转化成 `ArrayList`”
+
+更准确地说是：
+
+> 编译后泛型类型信息会被擦除，`ArrayList<String>`、`ArrayList<Integer>` 在运行时都会表现为原始类型 `ArrayList`。
+
+不是说源码里的：
+
+```java
+ArrayList<>
+```
+
+直接变成：
+
+```java
+ArrayList
+```
+
+而是编译后的字节码层面不再保留大部分泛型参数信息。
+
+---
+
+## 3. “所以不能视为重写”
+
+这里应该改成：
+
+> 所以不能形成有效的重载。
+
+因为：
+
+```java
+public void t(List<String> l);
+public void t(List<Integer> l);
+```
+
+这两个方法在同一个类里本来是想做**重载**，不是重写。
+
+---
+
+## 4. `List<?>` 不是“只能强制转成 Object”
+
+更准确地说是：
+
+> 读取时只能安全地用 `Object` 接收。
+
+例如：
+
+```java
+Object obj = list.get(0);
+```
+
+不是必须“强制转换”，而是编译器只允许你把它当成 `Object`。
+
+---
+
+## 5. 下界通配符的描述要更准确
+
+你写的是：
+
+> 表示 list 中可以持有 Fruit 和其父类对象
+
+更准确地说应该是：
+
+> `List<? super Fruit>` 表示这个变量可以引用 `List<Fruit>`、`List<Food>`、`List<Object>` 这类容器。
+
+它的重点不是“这个 list 里只能持有 Fruit 和父类对象”，而是：
+
+```java
+这个 list 的泛型类型是 Fruit 或 Fruit 的某个父类
+```
+
+因此你可以安全地往里面添加：
+
+```java
+Fruit
+Apple
+```
+
+但是读取时只能用：
+
+```java
+Object
+```
+
+接收。
+
+---
+
+# 十九、最终总结
+
+Java 泛型是编译期的类型安全机制，底层采用类型擦除来兼容旧版本代码。
+
+类型擦除带来的典型限制有：
+
+```java
+不能 new T[]
+不能 instanceof T
+不能重载擦除后签名相同的方法
+```
+
+通配符解决的是泛型不够灵活的问题：
+
+```java
+List<?>                  任意未知类型
+List<? extends Fruit>    Fruit 或 Fruit 的子类，适合读取
+List<? super Fruit>      Fruit 或 Fruit 的父类，适合写入
+```
+
+最重要的使用原则是：
+
+```java
+PECS
+Producer Extends
+Consumer Super
+```
+
+也就是：
+
+```java
+只读，用 extends
+只写，用 super
+既读又写，通常不要用通配符，直接用明确的泛型类型
+```
