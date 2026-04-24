@@ -9,6 +9,7 @@ export default {
     'day_8': '集合基础',
     'day_9': '集合体系抽象类',
     'day_10': 'ArrayList',
-    'day_11': '泛型'
+    'day_11': '泛型',
+    'day_12': 'ArrayList实现'
 }
   

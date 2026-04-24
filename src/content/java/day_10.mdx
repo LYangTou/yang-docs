@@ -1,167 +1,465 @@
 # ArrayList
-- 基于数组实现的容量大小可动态变化的数据结构
-- 可以将很多数组操作的细节封装起来
-- 特点：查询效率高，增加删除效率低
-- ArrayList是List接口的可变数组实现，实现了List接口
-- ArrayList是线程不安全的
-- Vector类是上古时代的ArrayList，现在不用了
 
+## 一、ArrayList 基本理解
 
-- size 实际长度
-- capacity 数组容量
+ArrayList 是 `List` 接口的常用实现类，本质上是一个**基于数组实现的动态顺序表**。
+
+它内部使用数组保存元素，数组容量可以随着元素数量增加而动态扩容。
+
+ArrayList 的特点：
+
+- 底层基于数组实现
+- 元素有序
+- 可以存储重复元素
+- 可以存储 `null`
+- 支持通过下标快速访问元素
+- 线程不安全
+- 查询快，增删是否快要看操作位置
+
+需要注意，ArrayList 的“查询快、增删慢”这句话不完全准确。
+
+更准确的说法是：
+
+- `get(index)`、`set(index, value)` 很快，时间复杂度是 `O(1)`
+- 尾部 `add(value)` 通常也很快，均摊时间复杂度是 `O(1)`
+- 中间或头部 `add(index, value)`、`remove(index)` 较慢，因为需要移动元素，时间复杂度是 `O(n)`
+- `contains()`、`indexOf()` 需要遍历查找，时间复杂度是 `O(n)`
+
+---
+
+## 二、size 和 capacity
+
+ArrayList 中有两个容易混淆的概念：
+
+| 概念 | 含义 |
+|---|---|
+| size | 当前实际存储的元素个数 |
+| capacity | 底层数组当前的容量 |
+
+例如：
 
 ```java
-public static void main(String[] args) {
-    // 如何构造ArrayList
+List<Integer> list = new ArrayList<>(100);
+System.out.println(list.size()); // 0
+```
 
-    // 1 不带类型的
-    ArrayList list = new ArrayList();
+这里的 `100` 表示初始容量是 100，不代表集合中已经有 100 个元素。
 
-    // 2带类型的 <>里面要填引用类型，也就是要包装类
-    ArrayList<Integer> integerArrayList = new ArrayList<Integer>();
+也就是说：
 
-    // 推荐写法
-    List<Integer> integerList = new ArrayList<>();
-    List<User> userList = new ArrayList<>();
+```java
+new ArrayList<>(100)
+```
 
-    List<Integer> integerList1 = new ArrayList<>(100);
+只是提前准备了可以存放 100 个元素的底层数组空间，`size` 仍然是 0。
 
-    Collection<Integer> c = new ArrayList<>();
-    c.add(1);
-    c.add(2);
-    c.add(3);
-    c.add(1);
+---
 
-    List<Integer> integerList2 = new ArrayList<>(c);
-    // 等价于
-    List<Integer> integerList3 = new ArrayList<>();
-    for (Integer integer : c) {
-        integerList3.add(integer);
-    }
+## 三、常见构造方式
 
-    // size/isEmpty/contains
-    System.out.println(integerList.size());
-    integerList.add(100);
-    System.out.println(integerList.size());
-    System.out.println(integerList.isEmpty());
+### 1. 裸类型写法，不推荐
 
-    System.out.println(integerList2.size());
+```java
+ArrayList list = new ArrayList();
+```
 
-    System.out.println(integerList.contains(100));
+这种写法没有泛型约束，什么类型都可以放进去，不推荐使用。
 
-    // indexOf/lastIndexOf
-    System.out.println(integerList2.indexOf(1));
-    System.out.println(integerList2.indexOf(5));
-    System.out.println(integerList2.lastIndexOf(1));
+### 2. 指定泛型
 
-    // toArray 有参和无参
-    // 返回出来的就是Object
-    Object[] arrays = integerList2.toArray();
-    for (int i = 0;i < arrays.length;i++) {
-        int number = (int) arrays[i];
-        System.out.println(number);
-    }
+```java
+ArrayList<Integer> integerArrayList = new ArrayList<Integer>();
+```
 
-    // 当传入的数组小于arraylist数组，会直接拷贝；超过的话会以数组的长度为新数组长度
-    Integer[] ints = integerList2.toArray(new Integer[0]);
-    for (int i : ints) {
-        System.out.println(i);
-    }
+泛型里必须写引用类型，不能写基本类型。
 
-    // get/set/add/remove
-    integerList2.forEach(System.out::println);
-    System.out.println("==="+integerList2.get(1));
+错误写法：
 
-    integerList2.set(1, 10);
-    System.out.println(integerList2.get(1));
+```java
+ArrayList<int> list = new ArrayList<>();
+```
 
-    integerList2.add(5);
-    System.out.println(integerList2.get(4));
+正确写法：
 
-    integerList2.add(1, 100); // 加到index位置，其他元素后移
-    System.out.println(integerList2.get(1));
-    System.out.println(integerList2.get(2));
+```java
+ArrayList<Integer> list = new ArrayList<>();
+```
 
-    int re = integerList2.remove(1);
-    System.out.println(re);
-    boolean r = integerList2.remove(new Integer(10));// 删除第一个位置的对象
-    System.out.println(r);
+### 3. 推荐写法
 
-    // clear
-    System.out.println(integerList2.size());
-    integerList2.clear();
-    System.out.println(integerList2.size());
+```java
+List<Integer> integerList = new ArrayList<>();
+List<User> userList = new ArrayList<>();
+```
 
-    System.out.println("==============================");
-    List<String> stringList = new ArrayList<>();
-    stringList.add("a");
-    stringList.add("b");
+推荐左边使用接口 `List`，右边使用实现类 `ArrayList`。
 
-    List<String> stringList2 = new ArrayList<>();
-    stringList2.add("C");
-    stringList2.add("D");
-    // addAll/removeAll/retainAll/containsAll
+### 4. 指定初始容量
 
-    // containsALL继承自AbstractCollection
-    System.out.println(stringList.containsAll(stringList2));
+```java
+List<Integer> list = new ArrayList<>(100);
+```
 
-    // 加到最后
-//        stringList.addAll(stringList2);
-//        stringList.forEach(System.out::println);
-    System.out.println("==============================");
-    stringList.addAll(0, stringList2);
-    stringList.addAll(0, stringList2);
-    stringList.forEach(System.out::println);
+这里的 `100` 是初始容量，不是初始元素个数。
 
-    System.out.println("==============================");
-//        stringList.removeAll(stringList2); // 会删掉所有存在的元素
+### 5. 通过 Collection 创建 ArrayList
 
-    List<String> cd = new ArrayList<>();
-    cd.add("hhhh");
-//        stringList.removeAll(cd); // 会删掉所有存在的元素，不管顺序 只要包含了就删
-//        stringList.forEach(System.out::println);
+```java
+Collection<Integer> c = new ArrayList<>();
+c.add(1);
+c.add(2);
+c.add(3);
+c.add(1);
 
-    // 求两个ArrayList的交集
-    System.out.println(stringList.retainAll(cd));
-    stringList.forEach(System.out::println);
+List<Integer> list = new ArrayList<>(c);
+```
 
-    List<Map> a = new ArrayList<>();
-    Map<String, Integer> d = new HashMap<>();
-    d.put("key" , 1 );
-    a.add(d);
-    Map<String, Integer> g = new HashMap<>();
-    g.put("key" , 2 );
+这种方式会根据已有集合创建一个新的 ArrayList。
 
-    System.out.println(a.contains(g));
+大致等价于：
+
+```java
+List<Integer> list = new ArrayList<>();
+
+for (Integer integer : c) {
+    list.add(integer);
 }
 ```
 
+需要注意：
+
 ```java
+new ArrayList<>(collection)
+```
 
-public class MyArrayList {
-    private final int DEFAULT_CAPACITY = 10;
-    // 属性 field
+是**浅拷贝**。
 
-    private int[] elementData;
+也就是说，新的 List 是新的，但是里面的元素对象仍然是原来的对象引用。
+
+---
+
+## 四、常用方法
+
+### size / isEmpty / contains
+
+```java
+List<Integer> list = new ArrayList<>();
+
+System.out.println(list.size());    // 0
+System.out.println(list.isEmpty()); // true
+
+list.add(100);
+
+System.out.println(list.size());        // 1
+System.out.println(list.isEmpty());     // false
+System.out.println(list.contains(100)); // true
+```
+
+说明：
+
+- `size()`：返回实际元素个数
+- `isEmpty()`：判断集合是否为空
+- `contains()`：判断集合是否包含某个元素
+
+`contains()` 底层会遍历集合，并通过 `equals()` 判断元素是否相等。
+
+---
+
+### indexOf / lastIndexOf
+
+```java
+List<Integer> list = new ArrayList<>();
+
+list.add(1);
+list.add(2);
+list.add(3);
+list.add(1);
+
+System.out.println(list.indexOf(1));     // 0
+System.out.println(list.indexOf(5));     // -1
+System.out.println(list.lastIndexOf(1)); // 3
+```
+
+说明：
+
+- `indexOf(value)`：返回元素第一次出现的位置
+- `lastIndexOf(value)`：返回元素最后一次出现的位置
+- 如果找不到，返回 `-1`
+
+---
+
+### toArray
+
+无参 `toArray()` 返回的是 `Object[]`：
+
+```java
+Object[] arrays = list.toArray();
+```
+
+如果需要得到具体类型的数组，推荐使用有参写法：
+
+```java
+Integer[] ints = list.toArray(new Integer[0]);
+```
+
+有参 `toArray()` 的规则：
+
+| 传入数组长度 | 行为 |
+|---|---|
+| 小于 list.size() | 创建一个新的数组返回 |
+| 等于 list.size() | 直接使用传入数组并返回 |
+| 大于 list.size() | 使用传入数组，并在 size 位置放一个 null |
+
+示例：
+
+```java
+List<Integer> list = new ArrayList<>();
+
+list.add(1);
+list.add(2);
+list.add(3);
+
+Integer[] ints = list.toArray(new Integer[0]);
+
+for (int i : ints) {
+    System.out.println(i);
+}
+```
+
+---
+
+### get / set / add / remove
+
+```java
+List<Integer> list = new ArrayList<>();
+
+list.add(1);
+list.add(2);
+list.add(3);
+
+System.out.println(list.get(1)); // 2
+```
+
+修改指定位置元素：
+
+```java
+list.set(1, 10);
+
+System.out.println(list.get(1)); // 10
+```
+
+尾部添加元素：
+
+```java
+list.add(5);
+```
+
+指定位置添加元素：
+
+```java
+list.add(1, 100);
+```
+
+表示把 `100` 添加到下标 `1` 的位置，原来从下标 `1` 开始的元素都会往后移动。
+
+删除元素时要特别注意重载问题：
+
+```java
+list.remove(1);
+```
+
+这表示删除下标为 `1` 的元素。
+
+如果想删除值为 `1` 的元素，应该写：
+
+```java
+list.remove(Integer.valueOf(1));
+```
+
+总结：
+
+```java
+list.remove(1);                  // 删除下标 1
+list.remove(Integer.valueOf(1)); // 删除值 1
+```
+
+这个在 `List<Integer>` 中很容易混淆。
+
+---
+
+### clear
+
+```java
+list.clear();
+System.out.println(list.size()); // 0
+```
+
+`clear()` 会清空集合中的所有元素。
+
+---
+
+## 五、批量操作方法
+
+### addAll
+
+```java
+List<String> list1 = new ArrayList<>();
+list1.add("a");
+list1.add("b");
+
+List<String> list2 = new ArrayList<>();
+list2.add("c");
+list2.add("d");
+
+list1.addAll(list2);
+
+System.out.println(list1); // [a, b, c, d]
+```
+
+`addAll()` 会把另一个集合中的所有元素添加到当前集合末尾。
+
+也可以指定位置添加：
+
+```java
+list1.addAll(0, list2);
+```
+
+表示把 `list2` 中的所有元素添加到 `list1` 的下标 `0` 位置。
+
+---
+
+### containsAll
+
+```java
+System.out.println(list1.containsAll(list2));
+```
+
+`containsAll()` 用来判断当前集合是否包含另一个集合中的所有元素。
+
+---
+
+### removeAll
+
+```java
+List<String> list1 = new ArrayList<>();
+list1.add("A");
+list1.add("B");
+list1.add("C");
+list1.add("D");
+
+List<String> list2 = new ArrayList<>();
+list2.add("C");
+list2.add("D");
+
+list1.removeAll(list2);
+
+System.out.println(list1); // [A, B]
+```
+
+`removeAll()` 会删除当前集合中所有也存在于参数集合里的元素。
+
+---
+
+### retainAll
+
+```java
+List<String> list1 = new ArrayList<>();
+list1.add("A");
+list1.add("B");
+list1.add("C");
+
+List<String> list2 = new ArrayList<>();
+list2.add("B");
+list2.add("C");
+list2.add("D");
+
+list1.retainAll(list2);
+
+System.out.println(list1); // [B, C]
+```
+
+`retainAll()` 可以理解为求交集。
+
+但是它会修改原集合，只保留两个集合共有的元素。
+
+它的返回值是 `boolean`，表示当前集合是否发生了变化，不是返回交集集合本身。
+
+---
+
+## 六、contains 的判断规则
+
+ArrayList 的 `contains()` 底层使用的是 `equals()` 判断。
+
+例如：
+
+```java
+List<Map<String, Integer>> list = new ArrayList<>();
+
+Map<String, Integer> map1 = new HashMap<>();
+map1.put("key", 1);
+
+list.add(map1);
+
+Map<String, Integer> map2 = new HashMap<>();
+map2.put("key", 1);
+
+System.out.println(list.contains(map2)); // true
+```
+
+虽然 `map1` 和 `map2` 不是同一个对象，但是它们内容相同。
+
+对于 `HashMap` 来说，`equals()` 比较的是键值对是否相同。
+
+如果内容不同：
+
+```java
+Map<String, Integer> map3 = new HashMap<>();
+map3.put("key", 2);
+
+System.out.println(list.contains(map3)); // false
+```
+
+如果是自定义对象，`contains()` 是否能正确判断，取决于这个对象有没有正确重写 `equals()` 方法。
+
+---
+
+## 七、自己实现一个简单版 ArrayList
+
+下面是一个简化版的 MyArrayList，用来理解 ArrayList 的核心原理。
+
+重点包括：
+
+- 使用数组保存元素
+- 使用 size 记录元素数量
+- 支持 add / get / set / remove
+- 支持 contains / indexOf
+- 容量不足时扩容
+
+```java
+public class MyArrayList<T> {
+
+    private static final int DEFAULT_CAPACITY = 10;
+
+    private Object[] elementData;
 
     private int size;
 
-    private int capacity;
-
-    public MyArrayList () {
-        this.elementData = new int[DEFAULT_CAPACITY];
-        this.capacity = DEFAULT_CAPACITY;
+    public MyArrayList() {
+        this.elementData = new Object[DEFAULT_CAPACITY];
         this.size = 0;
     }
 
-    public MyArrayList(int capacity) {
-        if (capacity < 0) {
-            throw new RuntimeException("capacity wrong");
-        } else if (capacity < DEFAULT_CAPACITY) {
-            capacity = DEFAULT_CAPACITY;
+    public MyArrayList(int initialCapacity) {
+        if (initialCapacity < 0) {
+            throw new IllegalArgumentException("Illegal Capacity: " + initialCapacity);
         }
-        this.capacity = capacity;
-        this.elementData = new int[capacity];
+
+        if (initialCapacity == 0) {
+            this.elementData = new Object[DEFAULT_CAPACITY];
+        } else {
+            this.elementData = new Object[initialCapacity];
+        }
+
         this.size = 0;
     }
 
@@ -169,102 +467,295 @@ public class MyArrayList {
         return size;
     }
 
-    public boolean isEmpty () {
+    public int capacity() {
+        return elementData.length;
+    }
+
+    public boolean isEmpty() {
         return size == 0;
     }
 
-    public boolean contains (int element) {
+    public boolean contains(T element) {
         return indexOf(element) >= 0;
     }
 
-    public int indexOf (int element) {
-        for (int i = 0;i < elementData.length;i++) {
-            if (element == elementData[i]) {
-                return i;
+    public int indexOf(T element) {
+        if (element == null) {
+            for (int i = 0; i < size; i++) {
+                if (elementData[i] == null) {
+                    return i;
+                }
+            }
+        } else {
+            for (int i = 0; i < size; i++) {
+                if (element.equals(elementData[i])) {
+                    return i;
+                }
             }
         }
 
         return -1;
     }
 
-    public void add(int element) {
+    public void add(T element) {
         add(size, element);
     }
 
-    public void add(int index, int element) {
-        if (index<0 || index > size) {
-            throw new RuntimeException("index valid");
+    public void add(int index, T element) {
+        rangeCheckForAdd(index);
+
+        ensureCapacity(size + 1);
+
+        for (int i = size; i > index; i--) {
+            elementData[i] = elementData[i - 1];
         }
-        if (size == capacity) {
-            resize(capacity * 2);
-        }
-        for (int i = size;i>index;i--){
-            elementData[i] = elementData[i-1];
-        }
+
         elementData[index] = element;
         size++;
     }
 
-    private void resize(int newCapacity) {
-        int[] newElementData = new int[newCapacity];
+    @SuppressWarnings("unchecked")
+    public T get(int index) {
+        rangeCheck(index);
 
-        //等价于 System.arrayCopy
-        for (int i = 0;i < size;i++){
+        return (T) elementData[index];
+    }
+
+    @SuppressWarnings("unchecked")
+    public T set(int index, T element) {
+        rangeCheck(index);
+
+        T oldValue = (T) elementData[index];
+        elementData[index] = element;
+
+        return oldValue;
+    }
+
+    @SuppressWarnings("unchecked")
+    public T remove(int index) {
+        rangeCheck(index);
+
+        T removedValue = (T) elementData[index];
+
+        for (int i = index; i < size - 1; i++) {
+            elementData[i] = elementData[i + 1];
+        }
+
+        elementData[size - 1] = null;
+        size--;
+
+        return removedValue;
+    }
+
+    public boolean removeByValue(T element) {
+        int index = indexOf(element);
+
+        if (index != -1) {
+            remove(index);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void ensureCapacity(int minCapacity) {
+        if (minCapacity > elementData.length) {
+            resize();
+        }
+    }
+
+    private void resize() {
+        int oldCapacity = elementData.length;
+        int newCapacity = oldCapacity + (oldCapacity >> 1);
+
+        if (newCapacity == 0) {
+            newCapacity = DEFAULT_CAPACITY;
+        }
+
+        Object[] newElementData = new Object[newCapacity];
+
+        for (int i = 0; i < size; i++) {
             newElementData[i] = elementData[i];
         }
 
         elementData = newElementData;
-        this.capacity = newCapacity;
     }
 
-    public int remove(int index) {
+    private void rangeCheck(int index) {
         if (index < 0 || index >= size) {
-            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
-        }
-        int removedValue = elementData[index];
-        // 将 index 之后的元素整体前移一位
-        for (int i = index; i < size - 1; i++) {
-            elementData[i] = elementData[i + 1];
-        }
-        // 可选：将最后一个位置置为默认值（如0），帮助GC（此处是int数组，无GC影响）
-        elementData[size - 1] = 0;
-        size--;
-        return removedValue;
-    }
-
-    public void removeByValue(int element) {
-        int index = indexOf(element);
-        if (index != -1) {
-            remove(index);
+            throw new IndexOutOfBoundsException(
+                    "Index: " + index + ", Size: " + size
+            );
         }
     }
 
-    public void set(int index, int element) {
-        if (index < 0 || index >= size) {
-            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+    private void rangeCheckForAdd(int index) {
+        if (index < 0 || index > size) {
+            throw new IndexOutOfBoundsException(
+                    "Index: " + index + ", Size: " + size
+            );
         }
-        elementData[index] = element;
     }
-
-    public int get(int index) {
-        if (index < 0 || index >= size) {
-            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
-        }
-        return elementData[index];
-    }
-
 
     public static void main(String[] args) {
-        MyArrayList list1 = new MyArrayList();
-        for (int i = 0;i < 30;i++){
-            list1.add(i);
-        }
-//        for (int i = 0;i < list1.size;i++){
-//            System.out.println(list1.get(i));
-//        }
-        MyArrayList list2 = new MyArrayList(2);
-//        System.out.println(list2.capacity);
-    }
+        MyArrayList<String> list = new MyArrayList<>();
 
+        list.add("Hello");
+        list.add("World");
+        list.add(1, "Java");
+
+        for (int i = 0; i < list.size(); i++) {
+            System.out.println(list.get(i));
+        }
+
+        String oldValue = list.set(1, "ArrayList");
+        System.out.println("oldValue = " + oldValue);
+
+        list.removeByValue("ArrayList");
+
+        System.out.println("After remove: " + list.size());
+    }
 }
 ```
+
+这个自实现版本和 JDK 原生 ArrayList 不完全一样，只是用来理解核心思想。
+
+主要思想是：
+
+1. 用数组保存元素。
+2. 用 `size` 记录实际元素个数。
+3. 添加元素时，如果容量不够就扩容。
+4. 中间插入时，元素整体后移。
+5. 删除元素时，元素整体前移。
+6. 删除后把最后一个位置置为 `null`，方便 GC 回收。
+
+---
+
+## 八、ArrayList 源码核心点
+
+ArrayList 大致结构如下：
+
+```java
+public class ArrayList<E>
+        extends AbstractList<E>
+        implements List<E>, RandomAccess, Cloneable, java.io.Serializable {
+}
+```
+
+说明：
+
+| 接口 / 类 | 作用 |
+|---|---|
+| AbstractList | List 的骨架实现，减少重复代码 |
+| List | 表示有序、可重复的集合 |
+| RandomAccess | 标记接口，表示支持快速随机访问 |
+| Cloneable | 支持克隆 |
+| Serializable | 支持序列化 |
+
+ArrayList 内部最核心的字段是：
+
+```java
+transient Object[] elementData;
+private int size;
+```
+
+其中：
+
+- `elementData`：底层数组
+- `size`：实际元素个数
+
+`transient` 表示这个字段不会被默认序列化。
+
+但是 ArrayList 的元素最终仍然可以被序列化。原因是 ArrayList 自己实现了特殊的序列化逻辑，只序列化真正存在的元素，而不是直接序列化整个底层数组。
+
+例如：
+
+```java
+ArrayList<Integer> list = new ArrayList<>(1000);
+
+list.add(1);
+list.add(2);
+```
+
+此时：
+
+```text
+capacity = 1000
+size = 2
+```
+
+如果直接序列化整个数组，会把大量空位置也序列化进去，浪费空间。
+
+所以 ArrayList 不直接序列化整个 `elementData`，而是只保存实际存在的元素。
+
+---
+
+## 九、ArrayList 的扩容机制
+
+ArrayList 的默认容量是 10。
+
+但是要注意：
+
+```java
+new ArrayList<>();
+```
+
+无参构造时不会立刻创建长度为 10 的数组，而是先使用一个空数组。
+
+当第一次添加元素时，才会扩容到默认容量 10。
+
+ArrayList 扩容时，新容量大致是旧容量的 1.5 倍。
+
+类似于：
+
+```java
+newCapacity = oldCapacity + (oldCapacity >> 1);
+```
+
+例如：
+
+```text
+10 -> 15 -> 22 -> 33
+```
+
+不需要死记源码，只需要理解：
+
+> ArrayList 底层是数组，容量不够时会创建一个更大的新数组，然后把旧数组中的元素复制过去。
+
+---
+
+## 十、ArrayList 和 LinkedList 简单对比
+
+| 对比项 | ArrayList | LinkedList |
+|---|---|---|
+| 底层结构 | 数组 | 双向链表 |
+| 随机访问 | 快，O(1) | 慢，O(n) |
+| 尾部添加 | 通常快，均摊 O(1) | 快，O(1) |
+| 头部插入删除 | 慢，O(n) | 快，O(1) |
+| 中间插入删除 | 需要移动元素 | 需要先查找节点 |
+| 内存占用 | 相对较少 | 相对较多，因为要存前后指针 |
+
+日常开发中，ArrayList 使用更多。
+
+LinkedList 并不是在所有增删场景下都比 ArrayList 快，因为如果是按下标操作，LinkedList 需要先遍历查找节点。
+
+---
+
+## 十一、重点总结
+
+ArrayList 重点记住这些：
+
+1. ArrayList 底层是 `Object[]` 数组。
+2. `size` 是实际元素个数，`capacity` 是底层数组容量。
+3. `get/set` 按下标访问是 `O(1)`。
+4. `contains/indexOf` 是 `O(n)`。
+5. 尾部 `add` 通常很快，均摊 `O(1)`。
+6. 中间或头部 `add/remove` 是 `O(n)`，因为要移动元素。
+7. ArrayList 线程不安全。
+8. 无参构造时不会立刻创建长度为 10 的数组，而是第一次 add 时才扩容。
+9. `new ArrayList<>(100)` 表示初始容量是 100，不是 size 是 100。
+10. `remove(1)` 删除的是下标 1，`remove(Integer.valueOf(1))` 删除的是值 1。
+11. `toArray(new T[0])` 是常见推荐写法。
+12. `contains()` 底层使用 `equals()` 判断。
+13. `elementData` 是 `transient`，但 ArrayList 自己处理了序列化，只保存实际元素。
+14. ArrayList 扩容大约是原来的 1.5 倍。
