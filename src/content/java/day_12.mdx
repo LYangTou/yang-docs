@@ -1,0 +1,518 @@
+# Java 排序：Arrays.sort、Collections.sort、Comparable、Comparator
+
+## 一、Arrays.sort
+
+`Arrays.sort` 用于对数组进行排序，默认是**升序排序**。
+
+它会直接修改原数组，例如：
+
+```java
+int[] arr = {5, 2, 4, 1, 3};
+Arrays.sort(arr);
+
+System.out.println(Arrays.toString(arr));
+// [1, 2, 3, 4, 5]
+```
+
+需要注意：
+
+- `Arrays.sort` 会改变原数组顺序
+- 对基本类型数组和引用类型数组都支持排序
+- 对基本类型数组，Java 提供了整个数组排序和区间排序两种常见方式
+
+### 1. 对整个数组排序
+
+```java
+int[] arr = {5, 2, 4, 1, 3};
+Arrays.sort(arr);
+```
+
+### 2. 对数组的一段区间排序
+
+```java
+Arrays.sort(arr, fromIndex, toIndex);
+```
+
+这个区间是：
+
+```java
+[fromIndex, toIndex)
+```
+
+也就是：
+
+- 包含 `fromIndex`
+- 不包含 `toIndex`
+
+示例：
+
+```java
+int[] arr = {5, 4, 3, 2, 1};
+
+Arrays.sort(arr, 1, 4);
+
+System.out.println(Arrays.toString(arr));
+// [5, 2, 3, 4, 1]
+```
+
+这里只排序下标 `1` 到 `3` 的元素。
+
+---
+
+## 二、Collections.sort
+
+`Collections.sort` 用于对 `List` 集合进行排序。
+
+源码大致如下：
+
+```java
+public static <T extends Comparable<? super T>> void sort(List<T> list) {
+    list.sort(null);
+}
+```
+
+可以看到，`Collections.sort(list)` 底层调用的是：
+
+```java
+list.sort(null);
+```
+
+这里的 `null` 表示使用元素自身的**自然排序规则**。
+
+也就是说，如果直接使用：
+
+```java
+Collections.sort(list);
+```
+
+那么集合中的元素通常需要实现 `Comparable` 接口。
+
+---
+
+## 三、List 中的 sort
+
+`List` 接口中提供了默认的 `sort` 方法：
+
+```java
+default void sort(Comparator<? super E> c) {
+    Object[] a = this.toArray();
+    Arrays.sort(a, (Comparator) c);
+    ListIterator<E> i = this.listIterator();
+    for (Object e : a) {
+        i.next();
+        i.set((E) e);
+    }
+}
+```
+
+它的大致流程是：
+
+1. 先把 `List` 转成数组
+2. 调用 `Arrays.sort` 对数组排序
+3. 再把排序后的元素写回原来的 `List`
+
+所以 `List.sort` 也会修改原集合的顺序。
+
+---
+
+## 四、ArrayList 中的 sort
+
+`ArrayList` 自己重写了 `sort` 方法。
+
+大致逻辑是：
+
+```java
+@Override
+@SuppressWarnings("unchecked")
+public void sort(Comparator<? super E> c) {
+    final int expectedModCount = modCount;
+    Arrays.sort((E[]) elementData, 0, size, c);
+    if (modCount != expectedModCount)
+        throw new ConcurrentModificationException();
+    modCount++;
+}
+```
+
+可以看到，`ArrayList` 会直接对内部数组 `elementData` 的有效部分进行排序：
+
+```java
+Arrays.sort((E[]) elementData, 0, size, c);
+```
+
+所以：
+
+- `List.sort` 默认实现：转成数组，排序后再写回
+- `ArrayList.sort`：直接对内部数组排序
+
+---
+
+## 五、引用类型为什么需要排序规则
+
+对于基本类型，比如 `int[]`，Java 知道数字之间怎么比较大小。
+
+但是对于引用类型，比如：
+
+```java
+Student
+User
+Order
+Product
+```
+
+Java 不知道你想按照什么规则排序。
+
+例如 `Student` 可以有很多种排序方式：
+
+- 按 `id` 排序
+- 按 `score` 排序
+- 按 `name` 排序
+- 先按 `score`，再按 `name` 排序
+
+所以引用类型排序时，需要提供排序规则。
+
+常见方式有两种：
+
+1. `Comparable`
+2. `Comparator`
+
+---
+
+## 六、Comparable 接口
+
+`Comparable` 位于：
+
+```java
+java.lang
+```
+
+所以不需要额外导包。
+
+它的作用是：让对象自己具备比较能力。
+
+也可以理解为：定义这个类的**自然排序规则**。
+
+核心方法是：
+
+```java
+int compareTo(T o);
+```
+
+返回值规则：
+
+- 返回负数：当前对象小于传入对象 `o`
+- 返回正数：当前对象大于传入对象 `o`
+- 返回 `0`：两个对象相等
+
+### 示例：Student 实现 Comparable
+
+```java
+public class Student implements Comparable<Student> {
+    private int id;
+    private String name;
+    private int score;
+
+    public Student(String name, int id, int score) {
+        this.name = name;
+        this.id = id;
+        this.score = score;
+    }
+
+    public int getScore() {
+        return score;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public int compareTo(Student o) {
+        if (this.score == o.score) {
+            return this.name.compareTo(o.name);
+        }
+
+        return Integer.compare(this.score, o.score);
+    }
+
+    @Override
+    public String toString() {
+        return "Student{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", score=" + score +
+                '}';
+    }
+}
+```
+
+这里的排序规则是：
+
+1. 先按照 `score` 升序排序
+2. 如果 `score` 相同，再按照 `name` 升序排序
+
+使用：
+
+```java
+Student[] students = {
+    new Student("Tom", 1, 90),
+    new Student("Jack", 2, 80),
+    new Student("Alice", 3, 90)
+};
+
+Arrays.sort(students);
+
+System.out.println(Arrays.toString(students));
+```
+
+因为 `Student` 实现了 `Comparable<Student>`，所以可以直接使用：
+
+```java
+Arrays.sort(students);
+```
+
+也可以用于：
+
+```java
+Collections.sort(studentList);
+```
+
+或者：
+
+```java
+studentList.sort(null);
+```
+
+---
+
+## 七、compareTo 中不要直接用减法
+
+有时候会写成：
+
+```java
+return this.score - o.score;
+```
+
+这种写法虽然简单，但不推荐。
+
+原因是：如果两个整数非常大，直接相减可能会发生整数溢出。
+
+更推荐写法：
+
+```java
+return Integer.compare(this.score, o.score);
+```
+
+如果要降序：
+
+```java
+return Integer.compare(o.score, this.score);
+```
+
+---
+
+## 八、Comparator 接口
+
+`Comparator` 位于：
+
+```java
+java.util
+```
+
+它是一个函数式接口：
+
+```java
+@FunctionalInterface
+public interface Comparator<T> {
+    int compare(T o1, T o2);
+}
+```
+
+核心方法是：
+
+```java
+int compare(T o1, T o2);
+```
+
+返回值规则：
+
+- 返回负数：`o1` 小于 `o2`
+- 返回正数：`o1` 大于 `o2`
+- 返回 `0`：`o1` 和 `o2` 相等
+
+---
+
+## 九、为什么有了 Comparable 还需要 Comparator
+
+`Comparable` 是写在类里面的排序规则，通常表示这个类的默认排序方式。
+
+但是它不一定满足所有场景。
+
+比如：
+
+```java
+Student
+```
+
+默认可能按照分数升序排序。
+
+但是某些场景下，你可能想：
+
+- 按分数降序
+- 按姓名升序
+- 按 id 升序
+- 先按分数，再按姓名
+
+这时就可以使用 `Comparator` 在外部临时指定排序规则。
+
+所以：
+
+```java
+Comparable：对象自己定义怎么排序
+Comparator：外部临时指定怎么排序
+```
+
+---
+
+## 十、Comparator 的使用方式
+
+### 1. 匿名内部类
+
+```java
+Arrays.sort(students, new Comparator<Student>() {
+    @Override
+    public int compare(Student o1, Student o2) {
+        return Integer.compare(o1.getScore(), o2.getScore());
+    }
+});
+```
+
+表示按照 `score` 升序排序。
+
+---
+
+### 2. 单独定义 Comparator 变量
+
+```java
+Comparator<Student> comparator = new Comparator<Student>() {
+    @Override
+    public int compare(Student o1, Student o2) {
+        return Integer.compare(o1.getScore(), o2.getScore());
+    }
+};
+
+studentList.sort(comparator);
+```
+
+---
+
+### 3. Lambda 表达式
+
+```java
+studentList.sort((o1, o2) -> Integer.compare(o1.getScore(), o2.getScore()));
+```
+
+降序：
+
+```java
+studentList.sort((o1, o2) -> Integer.compare(o2.getScore(), o1.getScore()));
+```
+
+---
+
+### 4. Comparator.comparingInt
+
+```java
+studentList.sort(Comparator.comparingInt(Student::getScore));
+```
+
+表示按照 `score` 升序排序。
+
+降序：
+
+```java
+studentList.sort(
+    Comparator.comparingInt(Student::getScore).reversed()
+);
+```
+
+---
+
+## 十一、多条件排序
+
+如果想先按照分数排序，分数相同再按照姓名排序：
+
+```java
+studentList.sort(
+    Comparator.comparingInt(Student::getScore)
+              .thenComparing(Student::getName)
+);
+```
+
+含义是：
+
+1. 先按照 `score` 升序排序
+2. 如果 `score` 相同，再按照 `name` 升序排序
+
+如果分数降序，姓名升序：
+
+```java
+studentList.sort(
+    Comparator.comparingInt(Student::getScore)
+              .reversed()
+              .thenComparing(Student::getName)
+);
+```
+
+---
+
+## 十二、Comparable 和 Comparator 的区别
+
+| 对比项 | Comparable | Comparator |
+| --- | --- | --- |
+| 所在包 | `java.lang` | `java.util` |
+| 核心方法 | `compareTo(T o)` | `compare(T o1, T o2)` |
+| 排序规则位置 | 类的内部 | 类的外部 |
+| 作用 | 定义自然排序规则 | 临时指定排序规则 |
+| 是否需要修改类 | 需要修改类 | 不需要修改类 |
+| 常见场景 | 类有明确默认排序规则 | 类有多种排序方式 |
+
+简单理解：
+
+```java
+Comparable：我自己会怎么排
+Comparator：别人告诉我怎么排
+```
+
+---
+
+## 十三、总结
+
+`Arrays.sort` 用于数组排序。
+
+`Collections.sort` 用于 `List` 集合排序，底层调用的是：
+
+```java
+list.sort(null);
+```
+
+`List.sort` 可以接收一个 `Comparator`：
+
+```java
+list.sort(comparator);
+```
+
+`Comparable` 适合定义类自己的默认排序规则。
+
+`Comparator` 适合在外部临时指定排序规则。
+
+实际开发中，临时排序更常用：
+
+```java
+studentList.sort(Comparator.comparingInt(Student::getScore));
+```
+
+如果一个类本身就有明确的默认排序规则，可以实现：
+
+```java
+Comparable<T>
+```
