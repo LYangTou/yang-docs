@@ -10,6 +10,7 @@ export default {
     'day_9': '集合体系抽象类',
     'day_10': 'ArrayList',
     'day_11': '泛型',
-    'day_12': 'sort'
+    'day_12': 'sort',
+    'day_13': 'HashMap'
 }
   

@@ -1,0 +1,52 @@
+# HashMap
+Hash table based implementation of the Map interface.
+HashMap就是基于哈希表的Map接口实现。
+
+## 哈希表
+
+什么是哈希表？
+- 设计精妙，用途广泛的数据结构之一
+- 拥有键值对元素的无序集合
+- 键的值是唯一的，键对应ing的值可以通过键来获取/更新/一处
+- 无论这个哈希表多大，这些操作（Insert/Search/Delete）基本上通过常量时间O(1)的键比较就可以完成。
+
+### 为什么设计哈希表？
+
+数据结构可以分为两大类
+- 连续型（比如array），在内存中是连续的，访问很快，但是删除或中间插入就比较慢。
+- 离散型（单链表）,查询慢，增加删除快
+
+哈希表就是兼顾两种的优点。
+
+```java
+    Map<String, Double> map = new HashMap<>();
+
+    // size/isEmpty
+    System.out.println(map.size());
+    System.out.println(map.isEmpty());
+
+    // put/putALL/putIfAbsent
+    // 1. put 把键值对放入hashmap (包含增和改)
+    map.put("abc", 2.3);
+    map.put("ab0", 2.56);
+    // 覆盖原来的键值对，除非明确知道要更新键值对的时候用重复key调用put方法
+    // 返回值会返回之前的key的value，如果没有返回null，可以根据这个判断是增加还是更新
+    map.put("abc", 2.5);
+
+    Double value = map.put("c", null);
+    System.out.println(value);
+    value = map.put("c", null);
+    System.out.println(value);
+    // 2. putIfAbsent
+    // 如果原来的key有值，则直接返回原来的值不更新Key，原来没有返回null并更新key
+    value = map.putIfAbsent("abc", 5.5);
+    System.out.println(map.get("abc"));
+
+    // 3. putAll 一般不建议用
+    Map<String, Double> newMap = new HashMap<>();
+    // 有相同的键会覆盖之前的
+    newMap.put("abc", 10.2);
+    newMap.put("dd", 10.2);
+    map.putAll(newMap);
+    System.out.println(map.get("abc"));
+```

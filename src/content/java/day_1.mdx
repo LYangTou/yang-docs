@@ -1,5 +1,32 @@
 # Java 基础类型、包装类、String、数组 笔记
 
+## 总结
+
+### 基础类型
+
+* `byte`、`short`、`char` 运算时先提升为 `int`，因为内存值不同，char是2，int是4，再执行`char c = char a + char b`所以可能导致精度丢失。
+* 整数字面量默认是 `int`
+* 小数字面量默认是 `double`
+* 金额计算不用 `float/double`，用 `BigDecimal`
+
+### 包装类
+
+* 自动拆箱可能空指针
+* 比较包装类内容用 `equals()`
+
+### String
+
+* `String` 不可变
+* `==` 比地址，`equals()` 比内容
+* `split()` 参数是正则
+
+### 数组
+* 空字符串数组会默认赋值`null`，因为String实际上是字符串常量池
+* 数组长度固定
+* 下标从 `0` 开始
+* 常用工具类是 `Arrays`
+
+
 ## 一、基础类型
 
 ### 1. byte
@@ -691,28 +718,3 @@ for (int i = 0, j = arr.length - 1; i < j; i++, j--) {
 
 ---
 
-## 八、这一部分最该记住的点
-
-### 基础类型
-
-* `byte`、`short`、`char` 运算时先提升为 `int`
-* 整数字面量默认是 `int`
-* 小数字面量默认是 `double`
-* 金额计算不用 `float/double`，用 `BigDecimal`
-
-### 包装类
-
-* 自动拆箱可能空指针
-* 比较包装类内容用 `equals()`
-
-### String
-
-* `String` 不可变
-* `==` 比地址，`equals()` 比内容
-* `split()` 参数是正则
-
-### 数组
-
-* 数组长度固定
-* 下标从 `0` 开始
-* 常用工具类是 `Arrays`
