@@ -18,6 +18,7 @@ HashMap就是基于哈希表的Map接口实现。
 
 哈希表就是兼顾两种的优点。
 
+## HashMap使用
 ```java
     Map<String, Double> map = new HashMap<>();
 
@@ -47,6 +48,68 @@ HashMap就是基于哈希表的Map接口实现。
     // 有相同的键会覆盖之前的
     newMap.put("abc", 10.2);
     newMap.put("dd", 10.2);
+    newMap.put("cd", 10.2);
     map.putAll(newMap);
     System.out.println(map.get("abc"));
+
+    // get/getOrDefault
+
+    // 1. get方法：对应key有值返回值，没有返回null
+    map.get("dd");
+    // 2. getOrDefault
+    Double value1 = map.getOrDefault("ddd", .2);
+    System.out.println(value1);
+    System.out.println(map.get("ddd"));
+
+    // containsKey/containsValue
+    System.out.println(map.containsKey("ddd"));
+    System.out.println(map.containsValue(10.2));
+
+    // remove 有值返回值，没值返回null
+    Double r = map.remove("dd");
+    System.out.println(r);
+    // 需要key 和 value都对应才能删除
+    boolean s = map.remove("abc", 10.2);
+    System.out.println(s);
+
+    // replace 代替put做更新，如果key不存在直接返回null
+    map.replace("cd", 123.5);
+    System.out.println(map.get("cd"));
+
+    // keySet/values/entrySet
+    Set<String> keys = map.keySet();
+
+    Collection<Double> values = map.values();
+
+    Set<Map.Entry<String, Double>> entrys = map.entrySet();
+    for (Map.Entry<String, Double> entry : entrys) {
+        String key = entry.getKey();
+        Double v = entry.getValue();
+        System.out.println(key+ ":" + v);
+    }
+
+    // 遍历map
+    // 1. 遍历entry
+    for (Map.Entry<String, Double> entry : map.entrySet()) {
+        System.out.println(entry);
+    }
+    // 2. 通过keySet遍历key
+    for (String key: map.keySet()) {
+        System.out.println(map.get(key));
+    }
+    // 3.利用set的迭代器 一般用不上
+    // 1) entrySet迭代器
+    Iterator<Map.Entry<String, Double>> it = map.entrySet().iterator();
+    while (it.hasNext()) {
+        Map.Entry<String, Double> entry = it.next();
+        System.out.println(entry);
+    }
+    // 2)利用keySet迭代器
+    Iterator<String> it2 = map.keySet().iterator();
+    while (it2.hasNext()) {
+        String key = it2.next();
+        System.out.println(map.get(key));
+    }
+    // 4. lambda
+    map.forEach((k, v) -> System.out.println(k+ ':' + v));
 ```
