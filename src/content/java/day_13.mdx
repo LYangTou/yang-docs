@@ -1,115 +1,609 @@
+这次重新整理：**不加外层代码块、不加代码块 id、不拆太碎**。下面可以直接复制到 Markdown。
+
+---
+
 # HashMap
-Hash table based implementation of the Map interface.
-HashMap就是基于哈希表的Map接口实现。
 
-## 哈希表
+`HashMap` 是 `Map` 接口基于哈希表的实现，用来存储 `key-value` 形式的数据。
 
-什么是哈希表？
-- 设计精妙，用途广泛的数据结构之一
-- 拥有键值对元素的无序集合
-- 键的值是唯一的，键对应ing的值可以通过键来获取/更新/一处
-- 无论这个哈希表多大，这些操作（Insert/Search/Delete）基本上通过常量时间O(1)的键比较就可以完成。
-
-### 为什么设计哈希表？
-
-数据结构可以分为两大类
-- 连续型（比如array），在内存中是连续的，访问很快，但是删除或中间插入就比较慢。
-- 离散型（单链表）,查询慢，增加删除快
-
-哈希表就是兼顾两种的优点。
-
-## HashMap使用
 ```java
-    Map<String, Double> map = new HashMap<>();
-
-    // size/isEmpty
-    System.out.println(map.size());
-    System.out.println(map.isEmpty());
-
-    // put/putALL/putIfAbsent
-    // 1. put 把键值对放入hashmap (包含增和改)
-    map.put("abc", 2.3);
-    map.put("ab0", 2.56);
-    // 覆盖原来的键值对，除非明确知道要更新键值对的时候用重复key调用put方法
-    // 返回值会返回之前的key的value，如果没有返回null，可以根据这个判断是增加还是更新
-    map.put("abc", 2.5);
-
-    Double value = map.put("c", null);
-    System.out.println(value);
-    value = map.put("c", null);
-    System.out.println(value);
-    // 2. putIfAbsent
-    // 如果原来的key有值，则直接返回原来的值不更新Key，原来没有返回null并更新key
-    value = map.putIfAbsent("abc", 5.5);
-    System.out.println(map.get("abc"));
-
-    // 3. putAll 一般不建议用
-    Map<String, Double> newMap = new HashMap<>();
-    // 有相同的键会覆盖之前的
-    newMap.put("abc", 10.2);
-    newMap.put("dd", 10.2);
-    newMap.put("cd", 10.2);
-    map.putAll(newMap);
-    System.out.println(map.get("abc"));
-
-    // get/getOrDefault
-
-    // 1. get方法：对应key有值返回值，没有返回null
-    map.get("dd");
-    // 2. getOrDefault
-    Double value1 = map.getOrDefault("ddd", .2);
-    System.out.println(value1);
-    System.out.println(map.get("ddd"));
-
-    // containsKey/containsValue
-    System.out.println(map.containsKey("ddd"));
-    System.out.println(map.containsValue(10.2));
-
-    // remove 有值返回值，没值返回null
-    Double r = map.remove("dd");
-    System.out.println(r);
-    // 需要key 和 value都对应才能删除
-    boolean s = map.remove("abc", 10.2);
-    System.out.println(s);
-
-    // replace 代替put做更新，如果key不存在直接返回null
-    map.replace("cd", 123.5);
-    System.out.println(map.get("cd"));
-
-    // keySet/values/entrySet
-    Set<String> keys = map.keySet();
-
-    Collection<Double> values = map.values();
-
-    Set<Map.Entry<String, Double>> entrys = map.entrySet();
-    for (Map.Entry<String, Double> entry : entrys) {
-        String key = entry.getKey();
-        Double v = entry.getValue();
-        System.out.println(key+ ":" + v);
-    }
-
-    // 遍历map
-    // 1. 遍历entry
-    for (Map.Entry<String, Double> entry : map.entrySet()) {
-        System.out.println(entry);
-    }
-    // 2. 通过keySet遍历key
-    for (String key: map.keySet()) {
-        System.out.println(map.get(key));
-    }
-    // 3.利用set的迭代器 一般用不上
-    // 1) entrySet迭代器
-    Iterator<Map.Entry<String, Double>> it = map.entrySet().iterator();
-    while (it.hasNext()) {
-        Map.Entry<String, Double> entry = it.next();
-        System.out.println(entry);
-    }
-    // 2)利用keySet迭代器
-    Iterator<String> it2 = map.keySet().iterator();
-    while (it2.hasNext()) {
-        String key = it2.next();
-        System.out.println(map.get(key));
-    }
-    // 4. lambda
-    map.forEach((k, v) -> System.out.println(k+ ':' + v));
+Map<String, Double> map = new HashMap<>();
 ```
+
+HashMap 的核心特点：
+
+* `key` 不能重复，`value` 可以重复
+* 允许一个 `null` key，允许多个 `null` value
+* 不保证元素的遍历顺序
+* 线程不安全
+* 查询、插入、删除在平均情况下接近 `O(1)`
+
+---
+
+## 一、哈希表是什么
+
+哈希表是一种通过 `key` 快速定位数据的数据结构。
+
+简单理解：
+
+> key → hashCode → 数组下标 → 找到对应位置的数据
+
+例如：
+
+```java
+map.put("abc", 2.3);
+map.get("abc");
+```
+
+当执行 `get("abc")` 时，HashMap 会根据 `"abc"` 的 `hashCode()` 计算出它在数组中的位置，然后去对应位置查找 value。
+
+所以 HashMap 最核心的能力就是：
+
+> 根据 key 快速找到 value。
+
+---
+
+## 二、为什么需要哈希表
+
+数组和链表各有优缺点。
+
+数组在内存中是连续的，根据下标访问很快，但是中间插入或删除元素比较慢，因为可能需要移动大量元素。
+
+链表在内存中是离散的，插入和删除比较方便，但是查询比较慢，因为需要从头节点开始一个个查找。
+
+哈希表就是为了兼顾两者的优点：
+
+* 像数组一样，可以快速定位元素
+* 像链表一样，可以比较灵活地处理冲突
+
+所以 HashMap 的底层可以简单理解为：
+
+> 数组 + 链表 + 红黑树
+
+Java 8 之后，如果同一个位置上的链表过长，并且数组容量达到一定条件，链表会转成红黑树，用来提高查询效率。
+
+---
+
+## 三、HashMap 的底层结构
+
+HashMap 底层维护了一个数组，数组中的每个位置通常叫做桶，也就是 bucket。
+
+每一个键值对可以理解为一个节点：
+
+```java
+static class Node<K, V> {
+    final int hash;
+    final K key;
+    V value;
+    Node<K, V> next;
+}
+```
+
+节点中主要保存：
+
+* `hash`：key 计算后的 hash 值
+* `key`：键
+* `value`：值
+* `next`：指向下一个节点，用来处理哈希冲突
+
+当多个 key 计算出来的数组下标相同时，就会产生哈希冲突。
+
+例如：
+
+> key1 计算后落到下标 3
+> key2 计算后也落到下标 3
+
+这时 HashMap 会把这些元素放在同一个桶中，形成链表。链表过长时，可能会转成红黑树。
+
+因此 HashMap 的查询效率不是绝对 `O(1)`，而是平均情况下接近 `O(1)`。
+
+---
+
+## 四、HashMap 的扩容
+
+HashMap 中有几个重要概念：
+
+| 概念         | 说明                            |
+| ---------- | ----------------------------- |
+| capacity   | 底层数组容量，默认初始容量是 16             |
+| loadFactor | 负载因子，默认是 0.75                 |
+| threshold  | 扩容阈值，等于 capacity * loadFactor |
+| resize     | 扩容操作                          |
+
+默认情况下：
+
+```java
+capacity = 16
+loadFactor = 0.75
+threshold = 16 * 0.75 = 12
+```
+
+也就是说，当 HashMap 中的元素数量超过 12 左右时，就会触发扩容。
+
+扩容时，数组容量通常会变成原来的 2 倍：
+
+> 16 → 32 → 64 → 128
+
+扩容之后，原来的元素需要重新分布到新的数组中，所以扩容本身是有成本的。
+
+如果一开始就知道要存很多数据，可以指定一个合适的初始容量：
+
+```java
+Map<String, Integer> map = new HashMap<>(64);
+```
+
+---
+
+## 五、HashMap 常用方法
+
+### 1. size 和 isEmpty
+
+```java
+System.out.println(map.size());
+System.out.println(map.isEmpty());
+```
+
+`size()` 用来获取键值对数量。
+
+`isEmpty()` 用来判断 Map 是否为空。
+
+---
+
+### 2. put
+
+`put` 用来新增或修改键值对。
+
+```java
+map.put("abc", 2.3);
+map.put("ab0", 2.56);
+```
+
+如果 key 不存在，就是新增。
+
+如果 key 已经存在，就是覆盖旧 value。
+
+```java
+Double oldValue = map.put("abc", 2.5);
+System.out.println(oldValue); // 2.3
+```
+
+`put` 会返回旧 value。
+
+但是要注意：`put` 返回 `null` 不一定表示 key 不存在，因为旧 value 本身也可能是 `null`。
+
+```java
+Double value = map.put("c", null);
+System.out.println(value); // null
+
+value = map.put("c", null);
+System.out.println(value); // null
+```
+
+如果要判断 key 是否存在，应该使用：
+
+```java
+map.containsKey("c");
+```
+
+---
+
+### 3. putIfAbsent
+
+`putIfAbsent` 的含义是：
+
+> 如果 key 不存在，或者 key 对应的 value 是 null，才放入新值。
+
+```java
+map.put("abc", 2.5);
+
+Double value = map.putIfAbsent("abc", 5.5);
+
+System.out.println(value);          // 2.5
+System.out.println(map.get("abc")); // 2.5
+```
+
+因为 `"abc"` 已经有值了，所以不会更新。
+
+但是如果原来的 value 是 `null`，会更新：
+
+```java
+map.put("c", null);
+
+map.putIfAbsent("c", 1.0);
+
+System.out.println(map.get("c")); // 1.0
+```
+
+---
+
+### 4. putAll
+
+`putAll` 用来把另一个 Map 中的数据全部放入当前 Map。
+
+```java
+Map<String, Double> newMap = new HashMap<>();
+
+newMap.put("abc", 10.2);
+newMap.put("dd", 10.2);
+newMap.put("cd", 10.2);
+
+map.putAll(newMap);
+```
+
+如果两个 Map 中有相同的 key，后放入的 value 会覆盖原来的 value。
+
+```java
+System.out.println(map.get("abc")); // 10.2
+```
+
+`putAll` 不是不能用，而是要注意重复 key 会被覆盖。
+
+---
+
+### 5. get 和 getOrDefault
+
+`get` 根据 key 获取 value。
+
+```java
+Double value = map.get("abc");
+```
+
+如果 key 不存在，会返回 `null`。
+
+但是要注意：`get` 返回 `null` 不一定表示 key 不存在，因为 value 本身也可能是 `null`。
+
+```java
+map.put("a", null);
+
+System.out.println(map.get("a")); // null
+System.out.println(map.get("b")); // null
+```
+
+上面两个结果都是 `null`，但含义不同：
+
+* `"a"` 存在，只是 value 是 `null`
+* `"b"` 不存在
+
+如果要判断 key 是否存在，应该使用：
+
+```java
+map.containsKey("a");
+```
+
+`getOrDefault` 用来在 key 不存在时返回默认值。
+
+```java
+Double value = map.getOrDefault("ddd", 0.2);
+
+System.out.println(value);          // 0.2
+System.out.println(map.get("ddd")); // null
+```
+
+注意：`getOrDefault` 不会把默认值放入 Map。
+
+---
+
+### 6. containsKey 和 containsValue
+
+```java
+System.out.println(map.containsKey("abc"));
+System.out.println(map.containsValue(10.2));
+```
+
+`containsKey` 判断是否包含某个 key。
+
+`containsValue` 判断是否包含某个 value。
+
+一般来说，`containsKey` 比 `containsValue` 更快，因为 `containsKey` 可以根据 hash 快速定位，而 `containsValue` 通常需要遍历所有 value。
+
+---
+
+### 7. remove
+
+根据 key 删除：
+
+```java
+Double removedValue = map.remove("dd");
+System.out.println(removedValue);
+```
+
+如果 key 存在，删除并返回对应 value。
+
+如果 key 不存在，返回 `null`。
+
+根据 key 和 value 删除：
+
+```java
+boolean result = map.remove("abc", 10.2);
+System.out.println(result);
+```
+
+只有 key 和 value 都匹配时，才会删除成功。
+
+---
+
+### 8. replace
+
+`replace` 用来更新已有 key 的 value。
+
+```java
+map.replace("cd", 123.5);
+System.out.println(map.get("cd"));
+```
+
+和 `put` 不同的是：
+
+* `put`：key 不存在时会新增
+* `replace`：key 不存在时不会新增
+
+也可以指定旧 value，只有旧 value 匹配时才更新：
+
+```java
+boolean result = map.replace("cd", 123.5, 456.7);
+System.out.println(result);
+```
+
+---
+
+## 六、HashMap 的遍历
+
+HashMap 常见的遍历方式有四种。
+
+### 1. entrySet 遍历，推荐
+
+如果 key 和 value 都要用，推荐使用 `entrySet`。
+
+```java
+for (Map.Entry<String, Double> entry : map.entrySet()) {
+    String key = entry.getKey();
+    Double value = entry.getValue();
+
+    System.out.println(key + ":" + value);
+}
+```
+
+这种方式可以直接拿到 key 和 value，不需要再通过 key 调用 `get`。
+
+---
+
+### 2. keySet 遍历
+
+```java
+for (String key : map.keySet()) {
+    System.out.println(key + ":" + map.get(key));
+}
+```
+
+这种方式适合只关心 key，或者数据量不大的场景。
+
+如果 key 和 value 都要用，还是更推荐 `entrySet`。
+
+---
+
+### 3. values 遍历
+
+如果只关心 value，可以使用 `values()`。
+
+```java
+for (Double value : map.values()) {
+    System.out.println(value);
+}
+```
+
+---
+
+### 4. forEach 遍历
+
+```java
+map.forEach((key, value) -> {
+    System.out.println(key + ":" + value);
+});
+```
+
+这种写法比较简洁，适合简单遍历。
+
+---
+
+## 七、完整示例
+
+```java
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
+public class HashMapDemo {
+    public static void main(String[] args) {
+        Map<String, Double> map = new HashMap<>();
+
+        // size / isEmpty
+        System.out.println(map.size());
+        System.out.println(map.isEmpty());
+
+        // put：新增或修改
+        map.put("abc", 2.3);
+        map.put("ab0", 2.56);
+
+        // 重复 key 会覆盖旧 value，并返回旧 value
+        Double oldValue = map.put("abc", 2.5);
+        System.out.println(oldValue); // 2.3
+
+        // value 可以为 null
+        Double value = map.put("c", null);
+        System.out.println(value); // null
+
+        value = map.put("c", null);
+        System.out.println(value); // null
+
+        // 判断 key 是否存在
+        System.out.println(map.containsKey("c")); // true
+
+        // putIfAbsent
+        value = map.putIfAbsent("abc", 5.5);
+        System.out.println(value);          // 2.5
+        System.out.println(map.get("abc")); // 2.5
+
+        map.putIfAbsent("c", 1.0);
+        System.out.println(map.get("c"));   // 1.0
+
+        // putAll
+        Map<String, Double> newMap = new HashMap<>();
+        newMap.put("abc", 10.2);
+        newMap.put("dd", 10.2);
+        newMap.put("cd", 10.2);
+
+        map.putAll(newMap);
+        System.out.println(map.get("abc")); // 10.2
+
+        // get
+        System.out.println(map.get("dd"));
+
+        // getOrDefault
+        Double value1 = map.getOrDefault("ddd", 0.2);
+        System.out.println(value1);          // 0.2
+        System.out.println(map.get("ddd"));  // null
+
+        // containsKey / containsValue
+        System.out.println(map.containsKey("ddd"));
+        System.out.println(map.containsValue(10.2));
+
+        // remove
+        Double removedValue = map.remove("dd");
+        System.out.println(removedValue);
+
+        boolean removed = map.remove("abc", 10.2);
+        System.out.println(removed);
+
+        // replace
+        map.replace("cd", 123.5);
+        System.out.println(map.get("cd"));
+
+        // keySet / values / entrySet
+        Set<String> keys = map.keySet();
+        Collection<Double> values = map.values();
+        Set<Map.Entry<String, Double>> entries = map.entrySet();
+
+        // entrySet 遍历，推荐
+        for (Map.Entry<String, Double> entry : entries) {
+            String key = entry.getKey();
+            Double v = entry.getValue();
+            System.out.println(key + ":" + v);
+        }
+
+        // keySet 遍历
+        for (String key : keys) {
+            System.out.println(key + ":" + map.get(key));
+        }
+
+        // values 遍历
+        for (Double v : values) {
+            System.out.println(v);
+        }
+
+        // Iterator 遍历
+        Iterator<Map.Entry<String, Double>> it = map.entrySet().iterator();
+
+        while (it.hasNext()) {
+            Map.Entry<String, Double> entry = it.next();
+            System.out.println(entry.getKey() + ":" + entry.getValue());
+        }
+
+        // forEach 遍历
+        map.forEach((k, v) -> System.out.println(k + ":" + v));
+    }
+}
+```
+
+---
+
+## 八、使用 HashMap 的注意事项
+
+1. HashMap 不保证遍历顺序。如果需要按照插入顺序遍历，可以使用 `LinkedHashMap`；如果需要按照 key 排序，可以使用 `TreeMap`。
+
+```java
+Map<String, Integer> linkedMap = new LinkedHashMap<>();
+Map<String, Integer> treeMap = new TreeMap<>();
+```
+
+2. HashMap 线程不安全。多线程同时修改同一个 HashMap 时，可能会出现数据不一致问题。多线程场景可以考虑使用 `ConcurrentHashMap`。
+
+```java
+Map<String, Integer> map = new ConcurrentHashMap<>();
+```
+
+3. 不要只用 `get` 的返回值判断 key 是否存在，因为 value 本身可能就是 `null`。判断 key 是否存在，应该使用 `containsKey`。
+
+```java
+if (map.containsKey("abc")) {
+    System.out.println(map.get("abc"));
+}
+```
+
+4. 自定义对象作为 key 时，要重写 `equals` 和 `hashCode`。
+
+HashMap 判断两个 key 是否相同，主要依赖：
+
+* `hashCode()`
+* `equals()`
+
+基本原则：
+
+* `equals` 相等的两个对象，`hashCode` 必须相等
+* `hashCode` 相等的两个对象，`equals` 不一定相等
+
+另外，作为 key 的对象最好不要在放入 HashMap 后再修改参与 `hashCode` 计算的字段，否则可能导致后续找不到这个 key。
+
+---
+
+## 九、常用方法总结
+
+| 方法                                | 作用                           |
+| --------------------------------- | ---------------------------- |
+| `put(key, value)`                 | 新增或修改键值对                     |
+| `putIfAbsent(key, value)`         | key 不存在，或者 value 为 null 时才放入 |
+| `putAll(map)`                     | 批量放入另一个 Map 中的数据             |
+| `get(key)`                        | 根据 key 获取 value              |
+| `getOrDefault(key, defaultValue)` | key 不存在时返回默认值                |
+| `containsKey(key)`                | 判断 key 是否存在                  |
+| `containsValue(value)`            | 判断 value 是否存在                |
+| `remove(key)`                     | 根据 key 删除                    |
+| `remove(key, value)`              | key 和 value 都匹配时才删除          |
+| `replace(key, value)`             | 只更新已存在的 key                  |
+| `keySet()`                        | 获取所有 key                     |
+| `values()`                        | 获取所有 value                   |
+| `entrySet()`                      | 获取所有键值对                      |
+| `forEach()`                       | Lambda 遍历                    |
+
+---
+
+## 十、总结
+
+HashMap 是 Java 中最常用的 Map 实现，本质作用是通过 key 快速查找 value。
+
+重点掌握：
+
+* HashMap 存储的是 `key-value`
+* key 不能重复，value 可以重复
+* 允许一个 null key，允许多个 null value
+* 不保证遍历顺序
+* 线程不安全
+* 底层结构是数组 + 链表 + 红黑树
+* 平均情况下查询、插入、删除接近 `O(1)`
+* 判断 key 是否存在要用 `containsKey`
+* 自定义对象作为 key 时，要重写 `equals` 和 `hashCode`
+* 遍历时如果同时需要 key 和 value，推荐使用 `entrySet`
+
+最常见的使用场景：
+
+```java
+Map<Long, User> userMap = new HashMap<>();
+
+userMap.put(1L, new User());
+
+User user = userMap.get(1L);
+```
+
+本质就是：
+
+> 通过一个 key，快速找到对应的 value。
