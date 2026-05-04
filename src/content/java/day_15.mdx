@@ -1,0 +1,1109 @@
+# HashMap 1.7 和 1.8 源码笔记
+
+## 一、HashMap 基础
+
+`HashMap` 是基于哈希表实现的 `Map`，用于存储 `key-value` 键值对。
+
+`HashMap` 的特点：
+
+* 允许 `key` 为 `null`
+* 允许 `value` 为 `null`
+* 不是线程安全的
+* 默认初始容量是 `16`
+* 默认负载因子是 `0.75`
+* 底层数组长度始终尽量保持为 `2` 的整数次幂
+
+`Hashtable` 和 `HashMap` 不同：
+
+* `Hashtable` 不允许 `key` 和 `value` 为 `null`
+* `Hashtable` 的方法大多使用 `synchronized` 修饰，是线程安全的
+* 但 `Hashtable` 性能较差，现在并发场景一般使用 `ConcurrentHashMap`
+
+---
+
+## 二、HashMap 的重要参数
+
+HashMap 中有两个比较重要的参数：
+
+```java
+initialCapacity // 初始容量
+loadFactor      // 负载因子
+```
+
+`initialCapacity` 表示底层数组的初始容量，HashMap 默认是 `16`。
+
+`loadFactor` 表示负载因子，用来衡量什么时候扩容，默认是 `0.75`。
+
+扩容阈值大致为：
+
+```java
+threshold = capacity * loadFactor
+```
+
+比如默认容量是 `16`，负载因子是 `0.75`，那么：
+
+```java
+threshold = 16 * 0.75 = 12
+```
+
+也就是说，当元素数量超过 `12` 时，就可能触发扩容。
+
+`0.75` 是时间和空间之间的折中：
+
+* 负载因子太小：冲突少，但是浪费空间
+* 负载因子太大：空间利用率高，但是冲突变多，查询性能下降
+
+需要注意的是，`0.75` 本身不是简单地“来自泊松分布”。更准确地说，`0.75` 是一个经验上的折中值，而 JDK 1.8 中链表树化阈值 `8` 的设计，才会结合泊松分布来说明在随机 hash 情况下链表长度达到 8 的概率很低。
+
+---
+
+## 三、为什么 HashMap 容量是 2 的整数次幂
+
+HashMap 计算数组下标时，不是直接使用 `%` 取模，而是使用位运算。
+
+JDK 1.7 中：
+
+```java
+static int indexFor(int h, int length) {
+    return h & (length - 1);
+}
+```
+
+JDK 1.8 中也是类似思想：
+
+```java
+(n - 1) & hash
+```
+
+只有当 `length` 是 `2` 的整数次幂时：
+
+```java
+hash & (length - 1)
+```
+
+才等价于：
+
+```java
+hash % length
+```
+
+比如数组长度是 `16`：
+
+```java
+length = 16
+length - 1 = 15
+15 的二进制是：0000 1111
+```
+
+此时：
+
+```java
+hash & 15
+```
+
+结果一定在 `0 ~ 15` 之间。
+
+这样设计有两个好处：
+
+1. 位运算比取模运算效率更高
+2. 只要 hash 分布均匀，元素就可以比较均匀地分布到数组中
+
+所以 HashMap 会通过一些方法，例如 JDK 1.8 的 `tableSizeFor`，把容量调整成大于等于指定值的最小 `2` 的整数次幂。
+
+---
+
+# 四、JDK 1.7 HashMap
+
+## 1. 底层结构
+
+JDK 1.7 的 HashMap 底层结构是：
+
+```text
+数组 + 链表
+```
+
+数组中的每个位置可以称为一个桶，也叫哈希桶。
+
+JDK 1.7 中每个键值对节点叫 `Entry`：
+
+```java
+transient Entry<K,V>[] table;
+```
+
+`Entry` 结构大致如下：
+
+```java
+static class Entry<K,V> implements Map.Entry<K,V> {
+    final K key;
+    V value;
+    Entry<K,V> next;
+    int hash;
+}
+```
+
+其中：
+
+* `key`：键
+* `value`：值
+* `hash`：key 计算出来的 hash 值
+* `next`：指向链表中的下一个节点
+
+当多个 key 计算出的数组下标相同时，就会发生哈希冲突。JDK 1.7 使用链表来解决冲突。
+
+---
+
+## 2. hash 方法
+
+JDK 1.7 会先获取 key 的 `hashCode()`，然后再进行扰动处理。
+
+简化代码如下：
+
+```java
+final int hash(Object k) {
+    int h = hashSeed;
+    h ^= k.hashCode();
+
+    h ^= (h >>> 20) ^ (h >>> 12);
+
+    return h ^ (h >>> 7) ^ (h >>> 4);
+}
+```
+
+扰动处理的目的，是让 hashCode 的高位也参与到低位计算中，减少哈希冲突。
+
+因为 HashMap 计算数组下标时主要依赖 hash 的低位：
+
+```java
+hash & (length - 1)
+```
+
+如果 key 的 hashCode 低位分布不好，就容易集中落到少数几个桶中，所以需要扰动函数让 hash 更均匀。
+
+---
+
+## 3. put 方法流程
+
+JDK 1.7 的 `put` 流程大致如下：
+
+```text
+put(key, value)
+
+1. 如果 table 还没有初始化，先调用 inflateTable 初始化数组
+2. 如果 key == null，调用 putForNullKey，null key 固定放在 table[0]
+3. 如果 key != null，先计算 key 的 hash
+4. 根据 hash 和数组长度计算桶下标
+5. 遍历该桶上的链表
+6. 如果找到相同 key，更新 value，并返回旧值
+7. 如果没有找到相同 key，调用 addEntry 新增节点
+```
+
+简化代码：
+
+```java
+public V put(K key, V value) {
+    if (table == EMPTY_TABLE) {
+        inflateTable(threshold);
+    }
+
+    if (key == null) {
+        return putForNullKey(value);
+    }
+
+    int hash = hash(key);
+    int i = indexFor(hash, table.length);
+
+    for (Entry<K,V> e = table[i]; e != null; e = e.next) {
+        Object k;
+
+        if (e.hash == hash && ((k = e.key) == key || key.equals(k))) {
+            V oldValue = e.value;
+            e.value = value;
+            return oldValue;
+        }
+    }
+
+    addEntry(hash, key, value, i);
+    return null;
+}
+```
+
+判断两个 key 是否相同，不只是判断 hash 是否相同，而是：
+
+```java
+e.hash == hash && ((k = e.key) == key || key.equals(k))
+```
+
+也就是说：
+
+1. hash 值相同
+2. key 地址相同，或者 `equals` 判断相同
+
+---
+
+## 4. addEntry 和头插法
+
+JDK 1.7 中新增节点时，会调用 `addEntry`。
+
+```java
+void addEntry(int hash, K key, V value, int bucketIndex) {
+    if ((size >= threshold) && (null != table[bucketIndex])) {
+        resize(2 * table.length);
+
+        hash = (null != key) ? hash(key) : 0;
+        bucketIndex = indexFor(hash, table.length);
+    }
+
+    createEntry(hash, key, value, bucketIndex);
+}
+```
+
+需要注意，JDK 1.7 是在 `addEntry` 中判断是否需要扩容。
+
+满足下面条件时，会先扩容，再插入新节点：
+
+```java
+size >= threshold && table[bucketIndex] != null
+```
+
+真正创建节点的方法是 `createEntry`：
+
+```java
+void createEntry(int hash, K key, V value, int bucketIndex) {
+    Entry<K,V> e = table[bucketIndex];
+
+    table[bucketIndex] = new Entry<>(hash, key, value, e);
+
+    size++;
+}
+```
+
+JDK 1.7 使用的是**头插法**。
+
+假设原链表是：
+
+```text
+A -> B -> C
+```
+
+新增节点 `X` 后，会变成：
+
+```text
+X -> A -> B -> C
+```
+
+也就是说，新节点会插入到链表头部。
+
+---
+
+## 5. JDK 1.7 resize 流程
+
+JDK 1.7 扩容主要做两件事：
+
+```text
+1. 创建一个容量更大的新数组
+2. 把旧数组中的 Entry 重新迁移到新数组中
+```
+
+流程大致如下：
+
+```text
+resize(newCapacity)
+
+1. 保存旧数组 oldTable
+2. 创建新数组 newTable
+3. 调用 transfer，把旧数组中的节点迁移到新数组
+4. table = newTable
+5. 重新计算 threshold
+```
+
+简化代码：
+
+```java
+void resize(int newCapacity) {
+    Entry[] oldTable = table;
+    Entry[] newTable = new Entry[newCapacity];
+
+    transfer(newTable);
+
+    table = newTable;
+
+    threshold = (int)Math.min(
+        newCapacity * loadFactor,
+        MAXIMUM_CAPACITY + 1
+    );
+}
+```
+
+迁移数据时，会遍历旧数组中的每个桶，然后把每个节点重新放入新数组。
+
+```java
+void transfer(Entry[] newTable) {
+    int newCapacity = newTable.length;
+
+    for (Entry<K,V> e : table) {
+        while (e != null) {
+            Entry<K,V> next = e.next;
+
+            int i = indexFor(e.hash, newCapacity);
+
+            e.next = newTable[i];
+            newTable[i] = e;
+
+            e = next;
+        }
+    }
+}
+```
+
+这里仍然使用头插法迁移。
+
+假设旧链表是：
+
+```text
+A -> B -> C
+```
+
+迁移到新数组的同一个桶后，可能变成：
+
+```text
+C -> B -> A
+```
+
+所以 JDK 1.7 扩容迁移时会导致链表顺序反转。
+
+---
+
+## 6. JDK 1.7 get 方法流程
+
+JDK 1.7 的 `get` 流程比较简单：
+
+```text
+get(key)
+
+1. 如果 key == null，调用 getForNullKey，从 table[0] 中查找
+2. 如果 key != null，计算 key 的 hash
+3. 根据 hash 计算桶下标
+4. 遍历该桶上的链表
+5. 如果找到 hash 相同并且 key 相同的节点，返回 value
+6. 如果没找到，返回 null
+```
+
+简化代码：
+
+```java
+public V get(Object key) {
+    if (key == null) {
+        return getForNullKey();
+    }
+
+    Entry<K,V> entry = getEntry(key);
+
+    return null == entry ? null : entry.getValue();
+}
+```
+
+核心查找逻辑：
+
+```java
+final Entry<K,V> getEntry(Object key) {
+    int hash = (key == null) ? 0 : hash(key);
+
+    for (Entry<K,V> e = table[indexFor(hash, table.length)];
+         e != null;
+         e = e.next) {
+
+        Object k;
+
+        if (e.hash == hash &&
+            ((k = e.key) == key || key.equals(k))) {
+            return e;
+        }
+    }
+
+    return null;
+}
+```
+
+正常情况下，HashMap 查询接近 `O(1)`。
+
+但是如果哈希冲突严重，一个桶中的链表很长，查询就会退化成 `O(n)`。
+
+---
+
+## 7. JDK 1.7 remove 方法流程
+
+JDK 1.7 的 `remove` 流程如下：
+
+```text
+remove(key)
+
+1. 根据 key 计算 hash
+2. 根据 hash 找到桶下标
+3. 遍历桶中的链表
+4. 找到目标节点后删除
+5. 如果删除的是头节点，让 table[i] 指向下一个节点
+6. 如果删除的是中间节点，让 prev.next 指向当前节点的 next
+7. size--
+8. 返回被删除节点的 value
+```
+
+简化代码：
+
+```java
+final Entry<K,V> removeEntryForKey(Object key) {
+    int hash = (key == null) ? 0 : hash(key);
+    int i = indexFor(hash, table.length);
+
+    Entry<K,V> prev = table[i];
+    Entry<K,V> e = prev;
+
+    while (e != null) {
+        Entry<K,V> next = e.next;
+        Object k;
+
+        if (e.hash == hash &&
+            ((k = e.key) == key || (key != null && key.equals(k)))) {
+
+            modCount++;
+            size--;
+
+            if (prev == e) {
+                table[i] = next;
+            } else {
+                prev.next = next;
+            }
+
+            return e;
+        }
+
+        prev = e;
+        e = next;
+    }
+
+    return e;
+}
+```
+
+---
+
+## 8. JDK 1.7 的问题
+
+JDK 1.7 的 HashMap 主要有两个问题。
+
+第一个问题是链表过长导致性能下降。
+
+JDK 1.7 只有数组和链表，如果大量 key 发生哈希冲突，都落到同一个桶中，那么这个桶里的链表会很长。此时 `put`、`get`、`remove` 都需要遍历链表，性能会从接近 `O(1)` 退化成 `O(n)`。
+
+第二个问题是并发扩容可能导致链表死循环。
+
+HashMap 本身不是线程安全的。JDK 1.7 在扩容迁移节点时使用头插法，会反转链表顺序。如果多个线程同时触发扩容，同时修改节点的 `next` 指针，就可能形成环形链表。
+
+例如链表原来是：
+
+```text
+A -> B
+```
+
+并发扩容后，可能变成：
+
+```text
+A -> B -> A
+```
+
+一旦链表成环，后续执行 `get` 或 `put` 时，就可能在链表中一直循环，导致 CPU 占用很高。
+
+所以并发场景不能使用普通 `HashMap`，应该使用 `ConcurrentHashMap`。
+
+---
+
+# 五、JDK 1.8 HashMap
+
+## 1. 底层结构
+
+JDK 1.8 的 HashMap 底层结构变成了：
+
+```text
+数组 + 链表 + 红黑树
+```
+
+JDK 1.8 中普通节点叫 `Node`：
+
+```java
+static class Node<K,V> implements Map.Entry<K,V> {
+    final int hash;
+    final K key;
+    V value;
+    Node<K,V> next;
+}
+```
+
+红黑树节点叫 `TreeNode`，它是 `Node` 的子类。
+
+当一个桶中的元素较少时，仍然使用链表。
+
+当一个桶中的链表过长，并且数组容量达到一定条件时，会把链表转换成红黑树，从而提升查询效率。
+
+---
+
+## 2. 树化相关阈值
+
+JDK 1.8 中有三个重要常量：
+
+```java
+static final int TREEIFY_THRESHOLD = 8;
+static final int UNTREEIFY_THRESHOLD = 6;
+static final int MIN_TREEIFY_CAPACITY = 64;
+```
+
+含义如下：
+
+```java
+TREEIFY_THRESHOLD = 8
+```
+
+表示链表长度达到 8 时，会尝试树化。
+
+```java
+UNTREEIFY_THRESHOLD = 6
+```
+
+表示红黑树中节点数量减少到 6 左右时，可能退化回链表。
+
+```java
+MIN_TREEIFY_CAPACITY = 64
+```
+
+表示只有当底层数组容量至少为 64 时，才会真正树化。
+
+如果链表长度达到了 8，但是数组容量还小于 64，HashMap 会优先扩容，而不是树化。
+
+因为此时链表过长可能是数组容量太小导致的，扩容后元素可能会分散到更多桶中，链表长度自然下降。
+
+---
+
+## 3. hash 方法
+
+JDK 1.8 的 hash 方法比 JDK 1.7 简化了很多：
+
+```java
+static final int hash(Object key) {
+    int h;
+
+    return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+}
+```
+
+这段代码的作用是把 hashCode 的高 16 位和低 16 位进行异或，让高位信息也参与到低位计算中。
+
+因为 HashMap 计算数组下标时使用的是：
+
+```java
+(n - 1) & hash
+```
+
+如果数组容量较小，真正参与下标计算的主要是低位。通过高低位异或，可以减少因为低位分布不好造成的哈希冲突。
+
+如果 key 是 `null`，hash 值为 `0`，所以 `null key` 仍然会放在第一个桶，也就是 `table[0]`。
+
+---
+
+## 4. tableSizeFor 方法
+
+JDK 1.8 中的 `tableSizeFor` 方法，用来把传入容量转换成大于等于它的最小 `2` 的整数次幂。
+
+例如：
+
+```text
+tableSizeFor(10) -> 16
+tableSizeFor(16) -> 16
+tableSizeFor(17) -> 32
+tableSizeFor(33) -> 64
+```
+
+源码大致如下：
+
+```java
+static final int tableSizeFor(int cap) {
+    int n = cap - 1;
+
+    n |= n >>> 1;
+    n |= n >>> 2;
+    n |= n >>> 4;
+    n |= n >>> 8;
+    n |= n >>> 16;
+
+    return (n < 0) ? 1 :
+           (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY :
+           n + 1;
+}
+```
+
+它的目的就是保证底层数组容量是 `2` 的整数次幂，方便后续使用：
+
+```java
+(n - 1) & hash
+```
+
+快速计算数组下标。
+
+---
+
+## 5. JDK 1.8 put 方法流程
+
+JDK 1.8 的 `put` 最终会调用 `putVal`。
+
+整体流程如下：
+
+```text
+put(key, value)
+
+1. 计算 key 的 hash
+2. 如果 table 为空，先调用 resize 初始化数组
+3. 根据 hash 计算桶下标
+4. 如果当前桶为空，直接创建新 Node 放进去
+5. 如果当前桶不为空，先判断头节点是不是目标 key
+6. 如果头节点就是目标 key，直接更新 value
+7. 如果头节点不是目标 key，判断当前桶是否是红黑树
+8. 如果是红黑树，调用红黑树的插入逻辑
+9. 如果是链表，就遍历链表
+10. 如果链表中找到相同 key，更新 value
+11. 如果没有找到相同 key，使用尾插法插入新节点
+12. 插入后判断是否需要树化
+13. 最后判断 size 是否超过 threshold，如果超过则扩容
+```
+
+简化代码：
+
+```java
+final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
+    Node<K,V>[] tab;
+    Node<K,V> p;
+    int n, i;
+
+    if ((tab = table) == null || (n = tab.length) == 0) {
+        n = (tab = resize()).length;
+    }
+
+    i = (n - 1) & hash;
+
+    if ((p = tab[i]) == null) {
+        tab[i] = newNode(hash, key, value, null);
+    } else {
+        Node<K,V> e;
+        K k;
+
+        if (p.hash == hash &&
+            ((k = p.key) == key || (key != null && key.equals(k)))) {
+            e = p;
+        } else if (p instanceof TreeNode) {
+            e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+        } else {
+            for (int binCount = 0; ; ++binCount) {
+                if ((e = p.next) == null) {
+                    p.next = newNode(hash, key, value, null);
+
+                    if (binCount >= TREEIFY_THRESHOLD - 1) {
+                        treeifyBin(tab, hash);
+                    }
+
+                    break;
+                }
+
+                if (e.hash == hash &&
+                    ((k = e.key) == key || (key != null && key.equals(k)))) {
+                    break;
+                }
+
+                p = e;
+            }
+        }
+
+        if (e != null) {
+            V oldValue = e.value;
+
+            if (!onlyIfAbsent || oldValue == null) {
+                e.value = value;
+            }
+
+            return oldValue;
+        }
+    }
+
+    ++modCount;
+
+    if (++size > threshold) {
+        resize();
+    }
+
+    return null;
+}
+```
+
+JDK 1.8 中链表插入使用的是尾插法。
+
+假设原链表是：
+
+```text
+A -> B -> C
+```
+
+新增节点 `X` 后变成：
+
+```text
+A -> B -> C -> X
+```
+
+这和 JDK 1.7 的头插法不同。
+
+---
+
+## 6. JDK 1.8 resize 流程
+
+JDK 1.8 的 `resize` 比 JDK 1.7 做了优化。
+
+它既负责初始化，也负责扩容。
+
+触发时机主要有两个：
+
+```text
+1. 第一次 put 时，table 为空，需要初始化
+2. 插入新节点后，size > threshold，需要扩容
+```
+
+`resize` 的核心流程：
+
+```text
+resize()
+
+1. 获取旧数组 oldTab
+2. 获取旧容量 oldCap 和旧扩容阈值 oldThr
+3. 计算新容量 newCap 和新阈值 newThr
+4. 创建新数组 newTab
+5. 如果旧数组不为空，把旧数据迁移到新数组
+6. 返回新数组
+```
+
+默认情况下，第一次初始化容量是 `16`，阈值是：
+
+```java
+16 * 0.75 = 12
+```
+
+当插入第 13 个元素时，会触发扩容，容量从 `16` 扩容到 `32`。
+
+JDK 1.8 扩容时，不需要像 JDK 1.7 那样重新完整计算每个节点的下标。
+
+因为容量每次都是 2 倍扩容，所以元素的新位置只有两种可能：
+
+```text
+1. 仍然在原下标
+2. 移动到 原下标 + oldCap
+```
+
+判断依据是：
+
+```java
+(e.hash & oldCap) == 0
+```
+
+如果结果为 `0`，节点留在原位置。
+
+如果结果不为 `0`，节点移动到：
+
+```java
+原下标 + oldCap
+```
+
+例如旧容量是 `16`，某个节点原来在下标 `5`。
+
+扩容到 `32` 后，它的新位置只可能是：
+
+```text
+5
+```
+
+或者：
+
+```text
+5 + 16 = 21
+```
+
+JDK 1.8 在迁移链表时，会把原链表拆成两条链表：
+
+```java
+loHead / loTail // 低位链表
+hiHead / hiTail // 高位链表
+```
+
+简化代码如下：
+
+```java
+Node<K,V> loHead = null;
+Node<K,V> loTail = null;
+Node<K,V> hiHead = null;
+Node<K,V> hiTail = null;
+
+Node<K,V> next;
+
+do {
+    next = e.next;
+
+    if ((e.hash & oldCap) == 0) {
+        if (loTail == null) {
+            loHead = e;
+        } else {
+            loTail.next = e;
+        }
+
+        loTail = e;
+    } else {
+        if (hiTail == null) {
+            hiHead = e;
+        } else {
+            hiTail.next = e;
+        }
+
+        hiTail = e;
+    }
+
+} while ((e = next) != null);
+
+if (loTail != null) {
+    loTail.next = null;
+    newTab[j] = loHead;
+}
+
+if (hiTail != null) {
+    hiTail.next = null;
+    newTab[j + oldCap] = hiHead;
+}
+```
+
+迁移完成后：
+
+```java
+newTab[j] = loHead;
+newTab[j + oldCap] = hiHead;
+```
+
+其中：
+
+* `j` 是旧数组下标
+* `j + oldCap` 是扩容后的新下标
+
+JDK 1.8 的 resize 有几个特点：
+
+```text
+1. 不需要重新完整计算 hash
+2. 只需要通过 hash & oldCap 判断新位置
+3. 使用尾插方式拆分链表
+4. 保持原链表顺序，不会像 JDK 1.7 一样反转链表
+```
+
+---
+
+## 7. JDK 1.8 get 方法流程
+
+JDK 1.8 的 `get` 最终调用 `getNode`。
+
+流程如下：
+
+```text
+get(key)
+
+1. 计算 key 的 hash
+2. 根据 hash 找到桶下标
+3. 如果桶为空，返回 null
+4. 判断桶中第一个节点是否匹配
+5. 如果第一个节点匹配，直接返回
+6. 如果第一个节点是 TreeNode，按红黑树方式查找
+7. 如果是普通链表，就遍历链表查找
+8. 找到返回 value，找不到返回 null
+```
+
+简化代码：
+
+```java
+public V get(Object key) {
+    Node<K,V> e;
+
+    return (e = getNode(hash(key), key)) == null ? null : e.value;
+}
+```
+
+核心查找逻辑：
+
+```java
+final Node<K,V> getNode(int hash, Object key) {
+    Node<K,V>[] tab;
+    Node<K,V> first, e;
+    int n;
+    K k;
+
+    if ((tab = table) != null &&
+        (n = tab.length) > 0 &&
+        (first = tab[(n - 1) & hash]) != null) {
+
+        if (first.hash == hash &&
+            ((k = first.key) == key || (key != null && key.equals(k)))) {
+            return first;
+        }
+
+        if ((e = first.next) != null) {
+            if (first instanceof TreeNode) {
+                return ((TreeNode<K,V>)first).getTreeNode(hash, key);
+            }
+
+            do {
+                if (e.hash == hash &&
+                    ((k = e.key) == key || (key != null && key.equals(k)))) {
+                    return e;
+                }
+            } while ((e = e.next) != null);
+        }
+    }
+
+    return null;
+}
+```
+
+JDK 1.8 的查询复杂度：
+
+```text
+正常情况下：O(1)
+链表较长时：O(n)
+红黑树情况下：O(log n)
+```
+
+---
+
+## 8. JDK 1.8 remove 方法流程
+
+JDK 1.8 的 `remove` 最终调用 `removeNode`。
+
+流程如下：
+
+```text
+remove(key)
+
+1. 计算 key 的 hash
+2. 根据 hash 找到桶下标
+3. 如果桶为空，返回 null
+4. 判断头节点是否是要删除的节点
+5. 如果头节点匹配，记录该节点
+6. 如果头节点不匹配，判断当前桶是否是红黑树
+7. 如果是红黑树，按红黑树方式查找目标节点
+8. 如果是链表，遍历链表查找目标节点
+9. 找到节点后执行删除
+10. 如果删除的是红黑树节点，调用 removeTreeNode
+11. 如果删除的是链表头节点，table[index] = node.next
+12. 如果删除的是链表中间节点，prev.next = node.next
+13. size--
+14. 返回被删除节点的 value
+```
+
+简化代码：
+
+```java
+public V remove(Object key) {
+    Node<K,V> e;
+
+    return (e = removeNode(hash(key), key, null, false, true)) == null
+            ? null
+            : e.value;
+}
+```
+
+核心逻辑简化如下：
+
+```java
+final Node<K,V> removeNode(int hash, Object key, Object value,
+                           boolean matchValue, boolean movable) {
+    Node<K,V>[] tab;
+    Node<K,V> p;
+    int n, index;
+
+    if ((tab = table) == null ||
+        (n = tab.length) == 0 ||
+        (p = tab[index = (n - 1) & hash]) == null) {
+        return null;
+    }
+
+    Node<K,V> node = null;
+    Node<K,V> e;
+    K k;
+    V v;
+
+    if (p.hash == hash &&
+        ((k = p.key) == key || (key != null && key.equals(k)))) {
+        node = p;
+    } else if ((e = p.next) != null) {
+        if (p instanceof TreeNode) {
+            node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
+        } else {
+            do {
+                if (e.hash == hash &&
+                    ((k = e.key) == key || (key != null && key.equals(k)))) {
+                    node = e;
+                    break;
+                }
+
+                p = e;
+            } while ((e = e.next) != null);
+        }
+    }
+
+    if (node == null) {
+        return null;
+    }
+
+    if (node instanceof TreeNode) {
+        ((TreeNode<K,V>)node).removeTreeNode(this, tab, movable);
+    } else if (node == p) {
+        tab[index] = node.next;
+    } else {
+        p.next = node.next;
+    }
+
+    ++modCount;
+    --size;
+
+    return node;
+}
+```
+
+删除红黑树节点时，会走红黑树的删除逻辑。删除后，如果红黑树节点数量变少，可能会退化回链表。
+
+---
+
+# 六、JDK 1.7 和 JDK 1.8 的区别
+
+| 对比项     | JDK 1.7      | JDK 1.8                   |
+| ------- | ------------ | ------------------------- |
+| 底层结构    | 数组 + 链表      | 数组 + 链表 + 红黑树             |
+| 节点类型    | Entry        | Node / TreeNode           |
+| 插入方式    | 头插法          | 尾插法                       |
+| hash 算法 | 多次扰动         | 高 16 位异或低 16 位            |
+| 扩容迁移    | 重新计算下标，头插法迁移 | 通过 `hash & oldCap` 拆成高低链表 |
+| 链表过长    | 查询退化为 O(n)   | 达到条件后树化，查询优化为 O(log n)    |
+| 并发扩容    | 可能形成环形链表     | 改善了头插法问题，但仍然不是线程安全        |
+| 线程安全    | 不安全          | 不安全                       |
+
+---
+
+# 七、总结
+
+HashMap 的核心思想是：通过 hash 计算数组下标，把键值对放入对应桶中。如果多个 key 落到同一个桶，就通过链表或者红黑树来解决哈希冲突。
+
+JDK 1.7 的 HashMap 使用的是数组加链表。新增节点和扩容迁移时都使用头插法，因此在并发扩容的情况下，可能因为链表反转和 `next` 指针错乱导致环形链表，从而出现死循环。
+
+JDK 1.8 对 HashMap 做了几个重要优化：
+
+1. 底层结构从数组加链表，变成数组加链表加红黑树
+2. hash 算法简化为高 16 位和低 16 位异或
+3. 插入链表时从头插法改为尾插法
+4. 扩容时通过 `hash & oldCap` 判断节点新位置
+5. 扩容迁移时把链表拆成低位链表和高位链表，避免重新完整 rehash
+6. 当链表长度达到阈值，并且数组容量达到 64 时，链表会转成红黑树
+
+但是需要注意，JDK 1.8 的 HashMap 仍然不是线程安全的。并发写入场景下，不能使用普通 HashMap，应该使用 ConcurrentHashMap。

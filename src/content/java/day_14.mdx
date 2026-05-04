@@ -60,3 +60,249 @@ java 7底层数据结构式数组+链表  8 是数组+链表+红黑树。
 ### 扩容：重哈希rehashing
 - 哈希表容量的大小在一开始是不确定的，在需要的时候，可以对底层数组进行扩容
 - 一种简单策略：如果哈希表存储元素太多，将哈希表容量扩大一倍，并将所有的key的哈希值重新计算映射到新的bucket上。
+
+```java
+public class MyHashMap<K,V> {
+    // JAVA底层默认数组长度都是2的整数次幂
+    private static final int DEFAULT_INIT_CAPACITY = 16;
+
+    private static final float DEFAULT_INIT_FACTORY = 0.75f;
+    // Fields
+    static class Node<K,V> {
+        K key;
+        V value;
+        Node<K, V> next;
+
+        public Node(K key, V value, Node<K, V> next) {
+            this.key = key;
+            this.value = value;
+            this.next = next;
+        }
+
+        public K getKey() {
+            return key;
+        }
+
+        public void setKey(K key) {
+            this.key = key;
+        }
+
+        public V getValue() {
+            return value;
+        }
+
+        public void setValue(V value) {
+            this.value = value;
+        }
+
+        public Node<K, V> getNext() {
+            return next;
+        }
+
+        public void setNext(Node<K, V> next) {
+            this.next = next;
+        }
+
+        @Override
+        public String toString() {
+            return "Node{" +
+                    "key=" + key +
+                    ", value=" + value +
+                    ", next=" + next +
+                    '}';
+        }
+    }
+    private int intCapacity;
+
+    // 装填因子LF
+    private float loadFactory;
+
+    private int size;
+
+    // 采用数组+链表作为底层存储结构
+
+    private Node<K, V>[] table;
+
+    // Constructors
+
+    public MyHashMap() {
+        this(DEFAULT_INIT_CAPACITY, DEFAULT_INIT_FACTORY);
+    }
+
+    public MyHashMap(int intCapacity, float loadFactory) {
+        this.intCapacity = intCapacity;
+        this.loadFactory = loadFactory;
+        this.table = new Node[intCapacity];
+    }
+
+    // Methods
+
+    public int size() {
+        return this.size;
+    }
+
+    public V put(K key, V value) {
+        if (size() >= intCapacity * loadFactory) {
+            resize(intCapacity * 2);
+        }
+        int index = hash(key);
+        Node<K, V> node = table[index];
+        if (node == null) {
+            // 哈希桶为空，插入新节点
+            this.table[index] = new Node<>(key ,value, null);
+            size++;
+            return null;
+        }
+        // 哈希桶不为空 两种情况：
+
+        while (node != null) {
+            // 1. key存在，更新value。
+            if (node.key == key) {
+                V oldValue = node.getValue();
+                node.setValue(value);
+                return oldValue;
+            }
+            // 2. key不存在 新增
+            if (node.getNext() == null) {
+                // key 不存在。新增key-value
+                // 尾插法
+                node.setNext(new Node<>(key ,value, null));
+                size++;
+            }
+            node = node.getNext();
+        }
+        return null;
+    }
+
+    private void resize(int newCapacity) {
+        System.out.println("resize" + newCapacity);
+        Node<K, V>[] newTable = new Node[newCapacity];
+        this.intCapacity = newCapacity;
+        // rehashing: 遍历老的哈希表
+
+        for (Node<K, V> node: table) {
+            // 遍历链表
+            while (node != null) {
+                // 在新hash表的位置
+                int index = hash(node.key);
+                if (newTable[index] != null) {
+                    // 找到合适位置
+                    Node<K, V> head = newTable[index];
+                    while (head.getNext() != null) {
+                        head = head.getNext();
+                    }
+                    Node<K, V> newNode = new Node<>(node.getKey(), node.getValue(), null);
+                    head.setNext(newNode);
+                } else {
+                    // 直接插入到头节点
+                    Node<K, V> newNode = new Node<>(node.getKey(), node.getValue(), null);
+                    newTable[index] = newNode;
+                }
+                node = node.getNext();
+            }
+        }
+
+        this.table = newTable;
+    }
+
+    private int hash(K key) {
+        return Math.max(key.hashCode() % intCapacity, 0);
+    }
+
+    public V get(K key) {
+        // 确定哈希桶
+        int index = hash(key);
+
+        Node<K, V> node = table[index];
+
+        while (node != null) {
+            if (node.getKey() == key) {
+                return node.getValue();
+            }
+            node = node.getNext();
+        }
+
+        return null;
+    }
+
+    public V remove(K key) {
+        int index = hash(key);
+        Node<K, V> node = table[index];
+        // 针对于头节点逻辑
+        if (node == null) {
+            return null;
+        }
+
+        if (node.getKey() == key) {
+            // 保存被删除掉的next
+            Node<K, V> temp = node.getNext();
+            V value = node.getValue();
+            node.setNext(null);
+            table[index] = temp;
+            size--;
+            return value;
+        }
+
+        Node<K, V> prevNode = node;
+        Node<K, V> curNode = node.next;
+        while (curNode != null) {
+            // 找到对应的k v
+            if (curNode.getKey() == key) {
+                prevNode.setNext(curNode.getNext());
+                curNode.setNext(null);
+                size--;
+                return curNode.getValue();
+            }
+
+            prevNode = curNode;
+            curNode = curNode.getNext();
+        }
+        return null;
+    }
+
+    public static void main(String[] args) {
+        MyHashMap<Integer, String> hashMap = new MyHashMap<>();
+        hashMap.put(10, "a");
+        hashMap.put(22, "b");
+        hashMap.put(6, "c");
+        hashMap.put(54, "d");
+        System.out.println(hashMap.size());
+        for (Node<Integer, String> node : hashMap.table) {
+            System.out.println(node);
+        }
+
+        System.out.println(hashMap.get(10));
+        System.out.println(hashMap.get(22));
+        System.out.println(hashMap.get(6));
+        System.out.println(hashMap.get(54));
+        System.out.println("===================");
+        System.out.println(hashMap.remove(6));
+        System.out.println(hashMap.get(6));
+        System.out.println(hashMap.remove(10));
+        System.out.println(hashMap.get(10));
+        System.out.println(hashMap.remove(166));
+        for (Node<Integer, String> node : hashMap.table) {
+            System.out.println(node);
+        }
+        System.out.println(hashMap.size());
+
+        MyHashMap<String, String> stringMap = new MyHashMap<>(5, 0.5f);
+        MyHashMap<Integer, Integer> intHm = new MyHashMap<>(5, 0.75f);
+        intHm.put(10, 3);
+        intHm.put(3, 3);
+        intHm.put(5, 3);
+        intHm.put(4, 3);
+        intHm.put(9, 3);
+        intHm.put(2, 3);
+        intHm.put(8, 3);
+        intHm.put(7, 3);
+        intHm.put(11, 3);
+        intHm.put(12, 3);
+
+        for (Node<Integer, Integer> node : intHm.table) {
+            System.out.println(node);
+        }
+    }
+
+}
+```
