@@ -11,8 +11,10 @@ export default {
     'day_10': 'ArrayList',
     'day_11': '泛型',
     'day_12': 'sort',
-    'day_13': 'HashMap',
+    'day_13': 'HashMap使用',
     'day_14': '实现一个HashMap',
-    'day_15': 'HashMap 1.7'
+    'day_15': 'HashMap源码',
+    'day_16': 'HashSet',
+    'day_17': '异常处理机制'
 }
   

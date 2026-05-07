@@ -1,0 +1,1066 @@
+# Java 异常机制和分类
+
+## 一、异常机制的作用
+
+异常机制用于处理程序运行过程中出现的错误或意外情况。
+
+它的核心作用是：把**正常业务流程**和**异常处理流程**分开，让代码更清晰，也让错误更容易被定位和处理。
+
+一个异常通常包含三类信息：
+
+| 信息   | 说明                   |
+| ---- | -------------------- |
+| 异常类型 | 说明“抛出了什么异常”          |
+| 异常信息 | 说明“为什么抛出异常”          |
+| 异常堆栈 | 说明“异常在哪里抛出，经过了哪些调用链” |
+
+例如：
+
+```java
+throw new IllegalArgumentException("年龄不能小于0");
+```
+
+其中：
+
+* `IllegalArgumentException` 是异常类型
+* `"年龄不能小于0"` 是异常信息
+* 如果异常没有被捕获，控制台会打印异常堆栈，用来定位具体代码位置
+
+异常机制不是为了隐藏错误，而是为了让错误以一种更清晰、可控、可追踪的方式暴露出来。
+
+---
+
+## 二、Java 异常体系
+
+Java 中所有异常和错误的根类都是 `Throwable`。
+
+整体结构如下：
+
+```text
+Throwable
+├── Error
+│   ├── OutOfMemoryError
+│   ├── StackOverflowError
+│   └── ...
+│
+└── Exception
+    ├── IOException
+    ├── SQLException
+    ├── ClassNotFoundException
+    └── RuntimeException
+        ├── NullPointerException
+        ├── IllegalArgumentException
+        ├── ArrayIndexOutOfBoundsException
+        ├── ClassCastException
+        └── ...
+```
+
+### 1. Throwable
+
+`Throwable` 是 Java 异常体系的根类。
+
+只有 `Throwable` 及其子类对象，才可以被 `throw` 抛出，也可以被 `catch` 捕获。
+
+实际开发中一般不会直接继承 `Throwable`，通常是继承：
+
+```java
+Exception
+```
+
+或者：
+
+```java
+RuntimeException
+```
+
+---
+
+### 2. Error
+
+`Error` 表示程序通常无法处理的严重错误。
+
+常见的 `Error` 有：
+
+```java
+OutOfMemoryError
+StackOverflowError
+NoClassDefFoundError
+```
+
+例如无限递归会导致：
+
+```java
+StackOverflowError
+```
+
+内存不足可能会导致：
+
+```java
+OutOfMemoryError
+```
+
+`Error` 通常表示 JVM 层面、系统资源层面或者严重环境问题，业务代码中一般不应该捕获它。
+
+不推荐：
+
+```java
+try {
+    // some code
+} catch (Error e) {
+    // 不推荐
+}
+```
+
+因为这类问题即使捕获了，程序也往往无法恢复正常。
+
+---
+
+### 3. Exception
+
+`Exception` 表示程序可以捕获并处理的异常。
+
+但是需要注意：
+
+`Exception` 不完全等于受检异常。
+
+因为 `RuntimeException` 也是 `Exception` 的子类，但它属于非受检异常。
+
+更准确的分类是：
+
+```text
+Checked Exception：
+Exception 中除了 RuntimeException 及其子类以外的异常
+
+Unchecked Exception：
+RuntimeException 及其子类 + Error 及其子类
+```
+
+---
+
+## 三、受检异常和非受检异常
+
+Java 异常可以按照编译器是否强制处理，分为两类：
+
+```text
+受检异常 Checked Exception
+非受检异常 Unchecked Exception
+```
+
+### 1. 受检异常 Checked Exception
+
+受检异常是编译器会强制检查的异常。
+
+如果一个方法可能抛出受检异常，那么调用者必须：
+
+1. 使用 `try-catch` 捕获
+2. 或者使用 `throws` 继续向上抛出
+
+常见受检异常：
+
+```java
+IOException
+SQLException
+ClassNotFoundException
+FileNotFoundException
+InterruptedException
+```
+
+例如：
+
+```java
+public static void readFile() throws IOException {
+    FileInputStream fis = new FileInputStream("a.txt");
+}
+```
+
+调用这个方法时，必须处理异常：
+
+```java
+try {
+    readFile();
+} catch (IOException e) {
+    System.out.println("文件读取失败：" + e.getMessage());
+}
+```
+
+或者继续向上抛出：
+
+```java
+public static void main(String[] args) throws IOException {
+    readFile();
+}
+```
+
+受检异常通常表示外部环境导致的问题，比如：
+
+* 文件不存在
+* 网络连接失败
+* 数据库连接失败
+* 线程被中断
+
+这类问题不是代码逻辑本身一定写错了，而是程序运行时依赖的外部资源出现了问题。
+
+---
+
+### 2. 非受检异常 Unchecked Exception
+
+非受检异常不会被编译器强制处理。
+
+常见非受检异常：
+
+```java
+NullPointerException
+ArrayIndexOutOfBoundsException
+IllegalArgumentException
+ClassCastException
+ArithmeticException
+NumberFormatException
+```
+
+例如：
+
+```java
+String name = null;
+System.out.println(name.length());
+```
+
+这段代码会抛出：
+
+```java
+NullPointerException
+```
+
+但是编译器不会要求你必须写 `try-catch`。
+
+非受检异常通常表示程序逻辑错误，比如：
+
+* 空指针
+* 数组越界
+* 类型转换错误
+* 参数不合法
+* 数字格式错误
+
+这类异常一般应该通过修改代码逻辑来避免，而不是到处使用 `try-catch` 捕获。
+
+---
+
+### 3. 受检异常和非受检异常对比
+
+| 对比项                     | 受检异常                            | 非受检异常                                         |
+| ----------------------- | ------------------------------- | --------------------------------------------- |
+| 编译器是否强制处理               | 是                               | 否                                             |
+| 代表问题                    | 外部环境或可预期异常                      | 程序逻辑错误                                        |
+| 常见父类                    | Exception，但不包括 RuntimeException | RuntimeException 或 Error                      |
+| 是否必须 try-catch / throws | 必须                              | 不必须                                           |
+| 常见例子                    | IOException、SQLException        | NullPointerException、IllegalArgumentException |
+| 处理方式                    | 捕获处理或继续抛出                       | 优先修复代码逻辑                                      |
+
+---
+
+## 四、异常处理方式
+
+Java 中常见的异常处理方式有：
+
+```text
+try-catch
+try-catch-finally
+try-with-resources
+throws
+throw
+```
+
+### 1. try-catch
+
+`try-catch` 用于捕获并处理异常。
+
+```java
+try {
+    int result = 10 / 0;
+    System.out.println(result);
+} catch (ArithmeticException e) {
+    System.out.println("除数不能为0");
+}
+```
+
+当 `try` 中的代码发生异常后，程序会立即跳转到匹配的 `catch` 块中执行。
+
+多个 `catch` 同时存在时，必须先捕获子类异常，再捕获父类异常。
+
+正确写法：
+
+```java
+try {
+    String str = null;
+    System.out.println(str.length());
+} catch (NullPointerException e) {
+    System.out.println("空指针异常");
+} catch (RuntimeException e) {
+    System.out.println("运行时异常");
+} catch (Exception e) {
+    System.out.println("其他异常");
+}
+```
+
+错误写法：
+
+```java
+try {
+    String str = null;
+    System.out.println(str.length());
+} catch (Exception e) {
+    System.out.println("异常");
+} catch (NullPointerException e) {
+    System.out.println("空指针异常");
+}
+```
+
+因为 `Exception` 是父类，放在前面会先捕获所有异常，后面的 `NullPointerException` 永远执行不到。
+
+---
+
+### 2. finally
+
+`finally` 中的代码通常用于释放资源。
+
+无论是否发生异常，`finally` 通常都会执行。
+
+```java
+FileInputStream fis = null;
+
+try {
+    fis = new FileInputStream("a.txt");
+} catch (IOException e) {
+    System.out.println("文件读取失败");
+} finally {
+    if (fis != null) {
+        try {
+            fis.close();
+        } catch (IOException e) {
+            System.out.println("关闭资源失败");
+        }
+    }
+}
+```
+
+但是不推荐在 `finally` 中写 `return`。
+
+例如：
+
+```java
+public static int test() {
+    try {
+        return 1;
+    } finally {
+        return 2;
+    }
+}
+```
+
+最终返回的是：
+
+```text
+2
+```
+
+因为 `finally` 中的 `return` 会覆盖 `try` 中的 `return`。
+
+所以实际开发中要记住：
+
+```text
+不要在 finally 中写 return
+不要在 finally 中抛出新的异常覆盖原始异常
+```
+
+---
+
+### 3. try-with-resources
+
+`try-with-resources` 是 Java 7 引入的语法，用于自动关闭资源。
+
+只要资源实现了 `AutoCloseable` 或 `Closeable` 接口，就可以使用它。
+
+```java
+try (FileInputStream fis = new FileInputStream("a.txt")) {
+    int data = fis.read();
+    System.out.println(data);
+} catch (IOException e) {
+    System.out.println("文件读取失败：" + e.getMessage());
+}
+```
+
+执行完 `try` 代码块后，`fis` 会自动关闭。
+
+多个资源也可以一起写：
+
+```java
+try (
+    FileInputStream fis = new FileInputStream("a.txt");
+    FileOutputStream fos = new FileOutputStream("b.txt")
+) {
+    int data;
+    while ((data = fis.read()) != -1) {
+        fos.write(data);
+    }
+} catch (IOException e) {
+    System.out.println("文件复制失败：" + e.getMessage());
+}
+```
+
+资源关闭顺序是：
+
+```text
+后创建的资源先关闭
+```
+
+也就是说：
+
+```text
+先关闭 fos，再关闭 fis
+```
+
+实际开发中，关闭 IO、数据库连接、网络连接等资源时，优先使用 `try-with-resources`。
+
+---
+
+### 4. throw 和 throws
+
+`throw` 用于在方法内部主动抛出异常对象。
+
+```java
+public void checkAge(int age) {
+    if (age < 0) {
+        throw new IllegalArgumentException("年龄不能小于0");
+    }
+}
+```
+
+`throws` 用在方法声明上，表示当前方法可能会抛出某些异常。
+
+```java
+public void readFile() throws IOException {
+    FileInputStream fis = new FileInputStream("a.txt");
+}
+```
+
+二者区别如下：
+
+| 对比项   | throw        | throws     |
+| ----- | ------------ | ---------- |
+| 使用位置  | 方法内部         | 方法声明上      |
+| 后面跟什么 | 异常对象         | 异常类型       |
+| 作用    | 主动抛出异常       | 声明可能抛出异常   |
+| 数量    | 一次只能抛出一个异常对象 | 可以声明多个异常类型 |
+
+示例：
+
+```java
+public void readFile(String path) throws IOException {
+    if (path == null) {
+        throw new IllegalArgumentException("文件路径不能为空");
+    }
+
+    FileInputStream fis = new FileInputStream(path);
+}
+```
+
+这里：
+
+```java
+throw new IllegalArgumentException("文件路径不能为空");
+```
+
+表示主动抛出一个运行时异常。
+
+```java
+throws IOException
+```
+
+表示该方法可能抛出文件相关的受检异常。
+
+---
+
+## 五、自定义异常
+
+当 JDK 提供的标准异常无法准确表达业务含义时，可以自定义异常。
+
+例如：
+
+```text
+余额不足
+订单状态不允许取消
+用户不存在
+库存不足
+优惠券已过期
+```
+
+这些都属于业务异常，使用自定义异常会更清晰。
+
+### 1. 自定义受检异常
+
+自定义受检异常继承 `Exception`。
+
+```java
+public class CCheckedException extends Exception {
+
+    public CCheckedException() {
+    }
+
+    public CCheckedException(String message) {
+        super(message);
+    }
+
+    public CCheckedException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public CCheckedException(Throwable cause) {
+        super(cause);
+    }
+}
+```
+
+使用时，调用者必须处理：
+
+```java
+public void test() throws CCheckedException {
+    throw new CCheckedException("这是一个受检异常");
+}
+```
+
+---
+
+### 2. 自定义非受检异常
+
+自定义非受检异常继承 `RuntimeException`。
+
+```java
+public class CUncheckedException extends RuntimeException {
+
+    public CUncheckedException() {
+    }
+
+    public CUncheckedException(String message) {
+        super(message);
+    }
+
+    public CUncheckedException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public CUncheckedException(Throwable cause) {
+        super(cause);
+    }
+}
+```
+
+使用时，调用者可以捕获，也可以不捕获：
+
+```java
+public void test() {
+    throw new CUncheckedException("这是一个非受检异常");
+}
+```
+
+---
+
+### 3. 实际业务中常用 RuntimeException
+
+在实际业务开发中，自定义异常大多数会继承 `RuntimeException`。
+
+例如：
+
+```java
+public class BusinessException extends RuntimeException {
+
+    private final String code;
+
+    public BusinessException(String code, String message) {
+        super(message);
+        this.code = code;
+    }
+
+    public BusinessException(String code, String message, Throwable cause) {
+        super(message, cause);
+        this.code = code;
+    }
+
+    public String getCode() {
+        return code;
+    }
+}
+```
+
+使用：
+
+```java
+public void cancelOrder(Order order) {
+    if (!"CREATED".equals(order.getStatus())) {
+        throw new BusinessException("ORDER_STATUS_ERROR", "当前订单状态不允许取消");
+    }
+
+    order.cancel();
+}
+```
+
+这样做的好处是：
+
+```text
+异常类型表达业务问题
+异常 code 方便前端或调用方识别
+异常 message 方便展示或排查问题
+```
+
+---
+
+## 六、异常链 cause
+
+异常链用于保留原始异常信息。
+
+有时候我们捕获到底层异常后，会重新包装成业务异常。
+
+错误写法：
+
+```java
+try {
+    readFile();
+} catch (IOException e) {
+    throw new BusinessException("FILE_ERROR", "文件读取失败");
+}
+```
+
+这种写法会丢失原始异常 `IOException` 的堆栈信息。
+
+正确写法：
+
+```java
+try {
+    readFile();
+} catch (IOException e) {
+    throw new BusinessException("FILE_ERROR", "文件读取失败", e);
+}
+```
+
+这样原始异常会作为 `cause` 被保留下来。
+
+最终排查问题时，可以看到类似信息：
+
+```text
+BusinessException: 文件读取失败
+Caused by: IOException: ...
+```
+
+所以要记住：
+
+```text
+包装异常时，一定要保留原始 cause
+```
+
+---
+
+## 七、异常处理最佳实践
+
+异常处理不是简单地写一个 `try-catch`，而是要看当前层是否真的有能力处理异常。
+
+### 1. 不要忽略异常
+
+不推荐：
+
+```java
+try {
+    doSomething();
+} catch (Exception e) {
+}
+```
+
+这种写法会把异常吞掉，导致问题被隐藏。
+
+至少应该记录日志，或者转换成业务异常继续抛出。
+
+---
+
+### 2. 捕获具体异常，而不是直接捕获 Exception
+
+不推荐：
+
+```java
+try {
+    doSomething();
+} catch (Exception e) {
+    log.error("执行失败", e);
+}
+```
+
+更推荐：
+
+```java
+try {
+    doSomething();
+} catch (IOException e) {
+    log.error("文件处理失败", e);
+} catch (SQLException e) {
+    log.error("数据库操作失败", e);
+}
+```
+
+这样可以针对不同异常做不同处理。
+
+---
+
+### 3. 只捕获自己能处理的异常
+
+如果当前方法无法处理异常，就不要强行捕获。
+
+例如底层方法中捕获异常后只是打印一下日志，并没有补偿、回滚、提示、转换异常，那么这个捕获意义不大。
+
+更好的做法是继续向上抛出，由上层统一处理。
+
+---
+
+### 4. 生产环境不要使用 printStackTrace
+
+不推荐：
+
+```java
+try {
+    doSomething();
+} catch (Exception e) {
+    e.printStackTrace();
+}
+```
+
+原因是：
+
+```text
+printStackTrace 不方便统一收集
+无法记录业务上下文
+无法进入日志系统
+生产环境难以排查
+```
+
+推荐使用日志框架：
+
+```java
+log.error("订单创建失败，orderId={}", orderId, e);
+```
+
+注意最后一个参数传入异常对象 `e`，这样才能打印完整堆栈。
+
+---
+
+### 5. 不要同时 log 异常又抛出异常
+
+不推荐：
+
+```java
+try {
+    doSomething();
+} catch (IOException e) {
+    log.error("文件处理失败", e);
+    throw new BusinessException("FILE_ERROR", "文件处理失败", e);
+}
+```
+
+如果上层也会记录日志，就会导致同一个异常被重复打印多次。
+
+更推荐：
+
+```java
+try {
+    doSomething();
+} catch (IOException e) {
+    throw new BusinessException("FILE_ERROR", "文件处理失败", e);
+}
+```
+
+然后在统一异常处理层记录日志。
+
+核心原则是：
+
+```text
+要么当前层处理并记录日志
+要么包装后继续抛出
+不要既记录又抛出
+```
+
+---
+
+### 6. Throw early, catch late
+
+`Throw early, catch late` 可以理解为：
+
+```text
+尽早抛出异常，尽晚捕获异常
+```
+
+发现参数不合法时，应该尽早抛出异常。
+
+```java
+public void createUser(String username) {
+    if (username == null || username.isEmpty()) {
+        throw new IllegalArgumentException("用户名不能为空");
+    }
+
+    // 后续业务逻辑
+}
+```
+
+不要等到后面出现空指针了才暴露问题。
+
+而捕获异常应该放在真正有能力处理的地方，比如：
+
+```text
+Controller 层
+全局异常处理器
+任务调度入口
+消息消费入口
+```
+
+不要在底层方法里随便捕获后吞掉。
+
+---
+
+### 7. 不要捕获 Throwable
+
+不推荐：
+
+```java
+try {
+    doSomething();
+} catch (Throwable e) {
+    log.error("系统异常", e);
+}
+```
+
+因为 `Throwable` 包括：
+
+```text
+Exception
+Error
+```
+
+捕获 `Throwable` 会把 `OutOfMemoryError`、`StackOverflowError` 这类严重错误也捕获掉。
+
+业务代码中通常不应该这么做。
+
+---
+
+### 8. 能用 JDK 标准异常就不要自定义
+
+例如参数不合法，可以使用：
+
+```java
+IllegalArgumentException
+```
+
+对象状态不对，可以使用：
+
+```java
+IllegalStateException
+```
+
+操作不支持，可以使用：
+
+```java
+UnsupportedOperationException
+```
+
+示例：
+
+```java
+public void setAge(int age) {
+    if (age < 0) {
+        throw new IllegalArgumentException("年龄不能小于0");
+    }
+}
+```
+
+示例：
+
+```java
+public void start() {
+    if (started) {
+        throw new IllegalStateException("服务已经启动，不能重复启动");
+    }
+
+    started = true;
+}
+```
+
+只有当标准异常无法准确表达业务含义时，再自定义异常。
+
+---
+
+## 八、常见标准异常使用场景
+
+| 异常                            | 使用场景          |
+| ----------------------------- | ------------- |
+| IllegalArgumentException      | 方法参数不合法       |
+| IllegalStateException         | 对象状态不允许当前操作   |
+| NullPointerException          | 必须非空的对象为 null |
+| IndexOutOfBoundsException     | 下标越界          |
+| UnsupportedOperationException | 当前操作不支持       |
+| NumberFormatException         | 字符串转数字失败      |
+| ClassCastException            | 类型强转失败        |
+| IOException                   | IO 读写失败       |
+| SQLException                  | 数据库操作失败       |
+
+---
+
+## 九、异常传播流程
+
+异常的传播过程可以理解为：
+
+```text
+方法内部发生异常
+        ↓
+当前方法是否 catch？
+        ↓
+是：执行 catch 中的处理逻辑
+        ↓
+否：异常继续向调用者传播
+        ↓
+调用者是否 catch？
+        ↓
+是：执行调用者的 catch
+        ↓
+否：继续向上抛出
+        ↓
+最终如果没人处理，程序终止并打印异常堆栈
+```
+
+示例：
+
+```java
+public class ExceptionDemo {
+
+    public static void main(String[] args) {
+        try {
+            methodA();
+        } catch (RuntimeException e) {
+            System.out.println("main 方法捕获异常：" + e.getMessage());
+        }
+    }
+
+    public static void methodA() {
+        methodB();
+    }
+
+    public static void methodB() {
+        methodC();
+    }
+
+    public static void methodC() {
+        throw new RuntimeException("methodC 出现异常");
+    }
+}
+```
+
+执行流程是：
+
+```text
+methodC 抛出异常
+methodB 没有处理，继续向上抛
+methodA 没有处理，继续向上抛
+main 方法捕获异常
+```
+
+---
+
+## 十、面试重点总结
+
+### 1. Error 和 Exception 的区别
+
+`Error` 表示程序通常无法处理的严重错误，例如内存溢出、栈溢出等。
+
+`Exception` 表示程序可以捕获并处理的异常，例如 IO 异常、数据库异常、业务异常等。
+
+---
+
+### 2. Checked Exception 和 RuntimeException 的区别
+
+`Checked Exception` 会在编译期被检查，调用者必须捕获或者继续声明抛出。
+
+`RuntimeException` 不会被编译器强制检查，通常表示程序逻辑错误。
+
+---
+
+### 3. finally 一定会执行吗？
+
+通常情况下会执行。
+
+但是以下情况可能不会执行：
+
+```text
+JVM 退出
+线程被强制停止
+系统崩溃
+try 或 catch 中发生死循环
+```
+
+例如：
+
+```java
+try {
+    System.exit(0);
+} finally {
+    System.out.println("finally");
+}
+```
+
+这种情况下 `finally` 不会执行。
+
+---
+
+### 4. finally 中 return 会怎么样？
+
+`finally` 中的 `return` 会覆盖 `try` 或 `catch` 中的 `return`。
+
+所以不推荐在 `finally` 中写 `return`。
+
+---
+
+### 5. throw 和 throws 的区别
+
+`throw` 用在方法内部，用于主动抛出一个异常对象。
+
+`throws` 用在方法声明上，用于声明当前方法可能抛出的异常类型。
+
+---
+
+## 十一、最终总结
+
+Java 异常体系的核心结构是：
+
+```text
+Throwable
+├── Error
+└── Exception
+    ├── Checked Exception
+    └── RuntimeException
+```
+
+重点记住：
+
+```text
+Error：严重错误，通常不处理
+Checked Exception：编译器强制处理
+RuntimeException：运行时异常，通常表示代码逻辑问题
+```
+
+异常处理的核心原则是：
+
+```text
+能处理才捕获，不能处理就向上抛
+不要吞异常
+不要乱捕获 Exception / Throwable
+不要在 finally 中 return
+包装异常时保留 cause
+资源关闭优先使用 try-with-resources
+生产环境使用日志框架，不用 printStackTrace
+```
+
+一句话总结：
+
+```text
+异常机制不是为了把错误藏起来，而是为了让错误以更清晰、可控、可追踪的方式暴露和处理。
+```

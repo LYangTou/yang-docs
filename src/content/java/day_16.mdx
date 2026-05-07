@@ -1,0 +1,58 @@
+## HashSet
+数学意义上的集合，不重复且无需。就是用来去重的
+- 背后实现为HashMap
+- HashSet中的元素相当于HashMap中的Key，而value均为new Object()
+
+```java
+    // 如何构造HashSet
+    Set<String> set = new HashSet<>();
+    set.add("zfa");
+    set.add("zfb");
+    set.add("zfc");
+
+    Collection<Integer> c = new ArrayList<>();
+    c.add(100);
+    c.add(200);
+    c.add(100);
+    c.add(4);
+    c.add(5);
+    Set<Integer> integerSet = new HashSet<>(c);
+    System.out.println(integerSet.size());
+    System.out.println(integerSet.isEmpty());
+
+    // add contains remove
+    integerSet.add(900);
+    integerSet.add(100);
+    System.out.println(integerSet.size());
+    System.out.println(integerSet.isEmpty());
+
+    System.out.println(integerSet.contains(900));
+    boolean r = integerSet.remove(900);
+    System.out.println(r);
+    // bulk operation
+
+    List<String> s = new ArrayList<>();
+    s.add("ss");
+    s.add("ss");
+    s.add("ddd");
+    s.add("bb");
+    set.addAll(s);
+    // 求交集
+//        System.out.println(set.retainAll(s));
+    System.out.println(set);
+
+    System.out.println(set);
+    System.out.println(set.removeAll(s));
+
+    // 如何遍历
+    Iterator<String> it = set.iterator();
+    while (it.hasNext()) {
+        System.out.println(it.next());
+    }
+
+    for (String e : set) {
+        System.out.println(e);
+    }
+
+    set.forEach(System.out::println);
+```
