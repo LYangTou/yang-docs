@@ -1,0 +1,107 @@
+# 注解与反射
+
+## 元数据Metadata
+- 描述数据的数据，或者说是数据的附加信息
+- 再软件开发中，元数据通常用于描述程序的配置信息、注解信息、文档信息
+- 元数据可以分为三个层次
+  - 描述数据的属性和结构，比如数据类型、字段名、长度、精度等
+  - 描述数据的来源和格式，比如数据源、数据格式、数据版本等
+  - 描述数据的用途和访问权限，比如数据的许可证、数据的保密性、数据的可用性等
+
+比如 `String str`， str是数据，规定str多长就是元数据。
+
+## 注解
+- 是Java一种特殊语法元素
+- 提供了一种在程序中添加元数据（Metadata）的方法
+- 可以用于代码的编译、运行和解析时期，为程序的运行提供一些额外的信息
+
+方法的重写`@Override`就是一种注解。其实和注释有类似的方向，也就是都提供一些信息
+
+### 注解的本质和分类
+- 用法： @注解名
+- 本质：特殊Java接口 `@interface`
+- 分类
+  - 运行机制：源码注解，编译时注解，运行时注解
+  - 代码来源：JDK注解，第三方注解，自定义注解
+  - 特殊注解：元注解
+
+#### JDK内置注解
+- @Override：重写类的方法
+- @Deprecated： 表示类、方法、接口已废弃
+- @SuppressWarings：抑制编辑器的警告，可以传一个value
+- @FunctionInterface：函数式接口
+- @SafeVarags
+
+#### JDK元注解
+- @Retention: 注解的保留策略，表明的是表留的阶段
+  - RetentionPolicy
+    - SOURCE
+    - CLASS: 默认行为
+    - RUNTIME：只有注解保留策略选择这个得时候，才能进行反射
+- @Target: 注解的作用目标，指定注解用于修饰那些程序元素（就是限定用在哪，比如Override只能用在方法上）
+  - ElementType
+- @Inherited： 指定注解具有继承性
+- @Documented：注解将被包含在Javadoc中
+- @Repeatable：可重复注解
+- @Native：修饰成员变量，可被本地代码引用（不常用）
+
+#### 自定义注解
+- 用@interface定义注解接口，并给出注解的名称以及元注解
+- 在注解接口中定义注解参数。注解参数的定义方式和接口方法类似，但是没有方法体，而且可以指定默认值。
+    ```java
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.TYPE, ElementType.PARAMETER})
+    public @interface SingleParameterAnnotation {
+        String value() default "unknown";
+        String name() default "aga";
+    }
+    ```
+- 在程序中使用注解。可以在类、方法、字段等元素上使用注解，以便进行元数据描述和处理。
+
+Repeatable使用
+```java
+
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Animals {
+    Animal[] value();
+}
+
+
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Repeatable(Animals.class)
+public @interface Animal {
+    String value();
+}
+
+@Animal("a")
+@Animal("b")
+@Animal("c")
+public class AnnotationDemo {
+
+}
+```
+
+## 反射
+比如 要调用一个类的方法，只知道路径名，但是不知道具体实现，应该怎么办？
+比如 没有为私有属性提供`getter/setter`，非要修改私有属性字段怎么办？
+
+Java 反射的机制： 允许我们再运行时获取类的信息，并动态地创建对象、访问修改对象属性和调用方法。这种灵活性使得Java程序可以更加动态和可拓展。
+
+反射机制的主要作用：
+- 动态创建对象：可以动态地加载类，并创建他的对象。这对于创建灵活的框架和库非常有用。
+- 动态获取类的信息：例如类名、父类、接口、字段和方法等。可以在运行时获取类的信息，并根据这些信息执行操作
+- 动态调用方法：包括私有方法
+- 动态修改属性：包括私有属性。使得我们可以在运行时修改对象的状态 （很少用）
+- 反射重要应用：动态代理
+
+Java反射机制重要核心类`Class`类，用来描述类的信息。
+
+### 如何获取Class对象
+- 使用对象的getClass()方法获取Class对象
+- 使用.class获取Class对象
+- 使用Class.forName()方法获取Class对象
+- （了解）使用类加载器ClassLoader获取Class对象
+- 特殊用法：基本类型包装类的Type
+- 注意：Class对象是在编译期间生成的，所以每个类在JVM中只有一个Class对象。
