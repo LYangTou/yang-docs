@@ -105,3 +105,228 @@ Java反射机制重要核心类`Class`类，用来描述类的信息。
 - （了解）使用类加载器ClassLoader获取Class对象
 - 特殊用法：基本类型包装类的Type
 - 注意：Class对象是在编译期间生成的，所以每个类在JVM中只有一个Class对象。
+```java
+  // 方法1 .class
+        Class<String> clazz1 = String.class;
+        System.out.println(clazz1);
+        Class<MyHashMap> clazz2 = MyHashMap.class;
+        System.out.println(clazz2);
+
+        // 方法2 获取对象的 getClass()
+        String s = "hell world";
+        Class<? extends String> clazz3 =  s.getClass();
+        MyHashMap<Number, String> m = new MyHashMap();
+        Class clazz4 = m.getClass();
+
+        // 方法3： Cla搜索。forName()
+        try {
+            Class clazz5 = Class.forName("java.lang.String");
+            System.out.println(clazz5);
+            Class clazz6 = Class.forName("MyHashMap");
+            System.out.println(clazz6);
+        } catch (ClassNotFoundException ex) {
+            throw new RuntimeException(ex);
+        }
+
+        // (了解) 方法4： 利用classLoader
+        ClassLoader classLoader = ObtainClassDemo.class.getClassLoader();
+        try {
+            Class clazzz = classLoader.loadClass("java.lang.String");
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+
+        // 特殊获取Class对象（只能用于基本类型包装类）
+        Class<Integer> i = Integer.TYPE;
+```
+### 动态创建对象
+
+```java
+public class ObjectCreationDemo {
+    public static Object getInstance() {
+        Random random = new Random();
+        int seed = random.nextInt(2);
+        String className = "";
+        switch (seed){
+            case 0:
+                className = "java.lang.String";
+                break;
+            case 1:
+                className = "MyHashMap";
+                break;
+            default:
+                System.out.println("no");
+        }
+
+        try {
+           Class clazz = Class.forName(className);
+           return clazz.newInstance();
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (InstantiationException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    public static void main(String[] args) {
+        Class<MyHashMap> clazz = MyHashMap.class;
+        try {
+            // 1.需要无参构造器
+            // 2.无参构造器需要有访问权限
+            MyHashMap<Number, String> m1 = clazz.newInstance();
+            System.out.println(m1);
+        } catch (InstantiationException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+
+        for (int i = 0;i < 10;i++) {
+            System.out.println(getInstance());
+        }
+    }
+}
+```
+
+### 如何获取类的相关信息
+
+#### 包名和构造器
+```java
+  // 获取类名
+  Class<Bird> bridClass = Brid.class;
+  System.out.println(bridClass.getName());
+  System.out.println(bridClass.getSingleName());
+
+  // 获取包名
+  Package p = bridClass.getPackage();
+
+  // 获取构造器
+  Constructor<?>[] c = birdClass.getConstructors(); // 获取全部public构造器
+  Constructor<?>[] ca = birdClass.getDeclaredContructors(); // 获取全部构造器
+```
+
+#### 获取属性
+```java
+
+  // 获取属性
+  Field[] fields = birdClass.getFields();
+  for (Field field: fields) {
+    // 变量名
+    field.getName();
+
+    // 访问修饰符
+    Modifer.toString(field.getModifiers());
+
+    //数据类型
+    field.getType();
+  }
+   // 获取自身所有属性
+  birdClass.getDeclaredFields();
+```
+
+#### 获取方法
+```java
+// 获取该类以及其父类的Public method
+Method[] ms = birdClass.getMethods();
+// 获取该类所有方法 
+Method[] mss = birdClass.getDelacredMethods(); 
+for (Method m : ms) {
+  Anntion[] annotations = m.getAnnotations();
+
+  // 方法信息
+  m.getName();
+  m.getReturnTYPE();
+  m.getParamters();
+}
+```
+
+#### 获取类和方法的Annotation
+getAnnotation
+```
+// 获取类的
+Markable mark = birdClass.getAnnotation(Markable.class)
+// 获取
+mark.value()
+```
+
+### 如何动态调用方法
+
+#### 最简单：调用Public无参数无返回值方法
+```java
+// 1. 获取目标类的class对象
+MyClass obj = new MyClass(10);
+Class clazz = obj.getClass()
+
+// 2. 获取目标方法的method对象
+Method d = clazz.getMethod("doNothing");
+
+// 3. 调用method对象的invoke方法
+Object dr = doNothing.invoke(obj)
+```
+
+#### 调用public有参数有返回值犯法
+```java
+// 1. 获取目标类的class对象
+MyClass obj = new MyClass(10);
+Class clazz = obj.getClass()
+
+// 2. 获取目标方法的method对象
+Method d = clazz.getMethod("sum", int.class, String.class);
+
+// 3. 调用method对象的invoke方法, 参数对应method对象
+Object dr = doNothing.invoke(obj, 10， "a")
+
+```
+
+#### 调用private有参数有返回值方法
+
+```java
+// 1. 获取目标类的class对象
+MyClass obj = new MyClass(10);
+Class clazz = obj.getClass();
+// 2. 获取目标方法的method对象
+Method d = clazz.getDelclaredMethod("sum", String.class, String.class);
+// 3. 调用private方法需要设置accessible属性
+d.setAccessible(true);
+// 4. 调用method对象的invoke方法, 参数对应method对象
+Object dr = doNothing.invoke(obj, 10， "a");
+```
+
+#### 调用静态方法
+```java
+// 1. 获取目标类的class对象
+MyClass obj = new MyClass(10);
+Class clazz = obj.getClass();
+// 2. 获取目标方法的method对象
+Method d = clazz.getDelclaredMethod("sum", String.class);
+// 3. 调用private方法需要设置accessible属性
+d.setAccessible(true);
+// 4. 调用method对象的invoke方法, 参数对应method对象, 把object设置为null
+Object dr = doNothing.invoke(null, "a");
+
+```
+
+### 动态修改属性/动态调用构造器
+- 对于private要用declared
+- 对于private要把accessible设为true
+
+```java
+Person person = new Person()
+
+Field ageFiled = Person.getClass().getDeclaredField("age")
+// 将访问权限设置为true
+ageFiled.setAccessible(true)
+// set属性
+ageFiled.set(person, 60)
+```
+
+```java
+Class<Person> personClazz = Person.class;
+// 获取对应要调用的构造器
+Constructor constructor = personClazz.getDeclaredContructors(String.class);
+// 设置可访问性为true
+constructor.setAccessible(true)
+// 利用newInstance初始化对象，注意参数需要和构造器传入参数对应
+Person person = constructor.newInstance("af")
+```
