@@ -1,0 +1,27 @@
+# Servlet
+
+## 什么是Servlet？
+- 尤指Java语言中在服务器上运行的小型应用程序
+- Servlet是一种规范（Sun公司制定）
+
+## Servlet规范
+- Servlet接口
+- 配置文件：名字、存放路径、内容格式
+- Web应用的目录结构
+Web服务器、Web应用开发者都遵循Servlet规范，两者是解耦的。
+
+## 三个参与方
+- Sun公司：定义Servlet接口
+- Web应用开发团队：实现Servlet接口
+- Tomcat开发团队：实现Web服务器功能，接收用户请求，根据请求路径调用对应的Servlet来执行业务路基。
+
+## 如何定义路径与Servlet的映射关系
+由Web应用开发团队定义
+使用配置文件，在配置文件中描述请求路径与Servlet之间的映射关系。JavaWeb开发者将映射关系注册到Web服务器上。
+
+## 要做的两件事
+
+- 实现Servlet接口，在Servlet中实现业务逻辑
+- 定义配置文件，描述路径与Servlet的映射关系
+
+配置文件名字`web.properties`，设置好路径映射关系后，Tomcat用反射`forName`来获取到对应类

@@ -118,7 +118,7 @@ Java反射机制重要核心类`Class`类，用来描述类的信息。
         MyHashMap<Number, String> m = new MyHashMap();
         Class clazz4 = m.getClass();
 
-        // 方法3： Cla搜索。forName()
+        // 方法3： Class.forName()
         try {
             Class clazz5 = Class.forName("java.lang.String");
             System.out.println(clazz5);
