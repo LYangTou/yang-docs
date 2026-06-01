@@ -1,0 +1,108 @@
+# Maven 
+
+## Maven 是什么？
+
+Maven 是一个项目管理工具。
+
+## Maven 有什么用？
+
+Maven 可以对 Java 项目进行构建、依赖管理。
+
+## 什么是构建（build）？
+
+构建是以源代码（例如 Java 代码、配置文件）为原材料，生产出可以运行的项目（例如 war 包）的过程。
+
+## 仓库
+仓库：用于存储资源，各种 jar 包。
+### 仓库分类：
+- 本地仓库：自己电脑上的仓储，从远程仓库获取资源
+- 远程仓库：
+    - 中央仓库：Maven 团队维护的仓库，包含所有开源资源
+    - 私服：公司或其他组织维护的仓库，包含从中央仓库获取的资源和内部资源
+    
+为什么要有私服？
+    - 提升本地资源获取速度，本地仓库直接从私服获取资源，不需要每次都请求中央仓库
+    - 保存内部资源
+
+```text
+    本地仓库  --->  私服  --->  中央仓库
+```
+## 坐标
+
+**Maven 坐标的作用**
+  - 用于描述资源在仓库中的位置。
+  - Maven 根据坐标来定位资源。
+
+**Maven 坐标的组成**
+  - **groupId**
+    - 组 ID。
+    - 表示所属的组织名称。
+    - 通常是域名反写。
+    - 例如：`com.jirengu`
+
+  - **artifactId**
+    - 项目名称。
+    - 例如：`bank`、`hotel`
+
+  - **version**
+    - 版本号。
+
+- **Maven 仓库查询地址**
+  - https://mvnrepository.com/
+
+- **依赖示例**
+    ```xml
+    <!-- https://mvnrepository.com/artifact/javax.servlet/javax.servlet-api -->
+    <dependency>
+        <groupId>javax.servlet</groupId>
+        <artifactId>javax.servlet-api</artifactId>
+        <version>4.0.1</version>
+        <scope>provided</scope>
+    </dependency>
+    ```
+
+## 仓库配置
+
+### 本地仓库配置
+
+- 通常不需要配置。
+  - 因为 IDEA 初次使用 Maven 时，会在默认位置自动创建本地仓库。
+
+- 默认本地仓库位置：
+
+```text
+C:\Users\username\.m2\repository
+```
+
+- 在 `M2_HOME\conf\settings.xml` 中可以配置仓库位置。
+
+- 如果要手动配置本地仓库：
+  - 进入用户目录：
+
+```text
+C:\Users\username\
+```
+
+  - 输入 `mvn` 命令。
+  - Maven 会创建一个空的本地仓库。
+
+### 远程仓库配置
+
+- 如果 A 仓库能提供 B 仓库的所有资源，那么可以认为 A 是 B 的镜像。
+
+- 配置镜像可以加快资源获取速度。
+
+- 镜像不是私服，镜像也对外公开。
+
+- 修改 `settings.xml` 文件配置镜像。
+
+### 镜像配置示例
+
+```xml
+<mirror>
+    <id>alimaven</id>
+    <name>aliyun maven</name>
+    <url>https://maven.aliyun.com/repository/public</url>
+    <mirrorOf>central</mirrorOf>
+</mirror>
+```
