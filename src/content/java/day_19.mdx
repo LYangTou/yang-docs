@@ -25,3 +25,42 @@ Web服务器、Web应用开发者都遵循Servlet规范，两者是解耦的。
 - 定义配置文件，描述路径与Servlet的映射关系
 
 配置文件名字`web.properties`，设置好路径映射关系后，Tomcat用反射`forName`来获取到对应类
+
+## tomact引用和jar包
+
+## 不使用IDEA如何启动
+1. 进入Tomcat根目录下的webapps文件夹
+2. 在webapps目录下创建文件夹（例如hotel），这个文件夹是我们webapp的根目录（webappRoot），文件夹名称就是我们webapp请求路径的根目录
+3. webappRoot下创建WEB-INF文件夹
+4. WEB-INF下创建classes文件夹
+5. 将之前项目内的web.xml文件复制粘贴到WEB-INF
+6. 将之前项目中out目录下的文件复制到刚创建的classes目录下
+7. 启动tomcat，执行startup.sh
+8. 通过配置的请求路径调用Servlet
+
+## webapp目录标准结构
+
+```
+webapproot
+|------WEB-INF
+|      |------classes（存放字节码）
+|      |------lib（第三方jar包）
+|      |------web.xml（注册Servlet配置文件）
+|------html
+|------css
+|------javascript
+|------image
+......
+```
+
+Tomcat的lib中有servelt-api这个jar包，可以直接使用。
+
+## IDEA + maven 优化 webapp 部署
+第一步：在项目的根目录下创建配置文件 pom.xml
+第二步：右键点击 pom.xml，将项目标记为一个 maven 项目（Recreate）
+第三步：编写 pom.xml 
+第四步：IDEA 右侧边栏 Maven，重新加载（reload）项目
+第五步：打 war 包， IDEA 右侧边栏 Maven -> maven项目名 -> Lifecycle -> package
+第六步：将 target 文件夹中生成war包复制粘贴到在 Tomcat 的 webapps 目录下
+第七步：启动 Tomcat，命令行执行 startup.sh
+第八步：通过配置的请求路径调用 Servlet
