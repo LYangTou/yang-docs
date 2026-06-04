@@ -17,7 +17,8 @@ export default {
     'day_16': 'HashSet',
     'day_17': '异常处理机制',
     'day_18': '注解与反射',
-    'day_19': 'servlet',
-    'day_20': 'Maven'
+    'day_19': 'Servlet',
+    'day_20': 'Maven',
+    'day_21': 'Servlet生命周期'
 }
   

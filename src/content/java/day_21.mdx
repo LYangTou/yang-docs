@@ -1,0 +1,289 @@
+# Servlet 生命周期
+
+## 1. 什么是 Servlet 对象的生命周期
+
+Servlet 对象的生命周期，指的是一个 Servlet 对象从创建、使用到销毁的整个过程。
+
+基本流程：
+
+```text
+创建 -> 初始化 -> 提供服务 -> 销毁
+```
+
+对应到 Servlet 中，主要涉及三个核心方法：
+
+- `init()`：初始化方法
+- `service()`：提供服务的方法
+- `destroy()`：销毁方法
+
+## 2. service 方法什么时候被调用
+
+`service()` 方法在用户访问 Servlet 的请求路径时被调用。
+
+特点：
+
+- 用户请求一次，`service()` 方法就会执行一次。
+- 浏览器反复刷新请求时，`service()` 会被反复调用。
+- `service()` 的作用是处理业务逻辑。
+
+例如：
+
+- 查询空房
+- 预定房间
+
+可以理解为：Servlet 创建出来以后，真正对外提供服务的核心方法就是 `service()`。
+
+## 3. Servlet 对象什么时候实例化
+
+Servlet 对象由 Web 服务器通过反射机制调用无参构造方法创建。
+
+因此，无参构造方法被调用的时刻，就是 Servlet 对象实例化的时刻。
+
+默认情况下：
+
+- 服务器启动时，Servlet 对象不会立即创建。
+- 用户第一次访问该 Servlet 时，Servlet 对象才会被实例化。
+
+这样设计的好处：
+
+- 节约服务器内存资源。
+
+缺点：
+
+- 第一次访问时可能稍慢，因为需要先创建 Servlet 对象。
+
+如果希望服务器启动时就创建 Servlet 对象，可以配置 `load-on-startup`：
+
+```xml
+<servlet>
+    <servlet-name>HolyShit</servlet-name>
+    <servlet-class>com.fuck.www.HolyShit</servlet-class>
+    <load-on-startup>1</load-on-startup>
+</servlet>
+```
+
+说明：
+
+- `load-on-startup` 的值越小，启动加载优先级越高。
+- 配置后，Servlet 会在服务器启动时被创建，而不是等到第一次请求时再创建。
+
+## 4. Servlet 对象会创建几个
+
+Servlet 对象默认是单例的，也就是一个 Servlet 类只会创建一个对象。
+
+验证方式：
+
+- 在 `service()` 方法中打印当前对象地址。
+- 多次刷新浏览器请求。
+- 如果每次打印的对象地址相同，说明使用的是同一个 Servlet 对象。
+
+结论：
+
+- Servlet 对象只创建一次。
+- 多次请求调用的是同一个 Servlet 对象的 `service()` 方法。
+- Servlet 对象创建后会被 Web 容器保存起来，需要时取出使用。
+
+## 5. init 方法什么时候被调用
+
+`init()` 方法在 Servlet 对象创建完成后被调用。
+
+调用顺序：
+
+```text
+调用无参构造方法创建对象 -> 调用 init() 方法完成初始化
+```
+
+特点：
+
+- `init()` 方法只会被调用一次。
+- 它用于执行 Servlet 初始化逻辑。
+
+常见用途：
+
+- 初始化配置
+- 建立资源连接
+- 准备 Servlet 运行所需的数据
+
+例如，有些 Servlet 在真正提供服务前，需要先连接数据库，这类初始化工作适合放在 `init()` 方法中。
+
+### 为什么不建议把初始化逻辑写在无参构造方法中
+
+虽然构造方法中也可以写初始化逻辑，但不推荐这样做。
+
+原因：
+
+- Servlet 对象由 Web 容器创建，不是程序员手动创建。
+- Servlet 必须有可用的无参构造方法。
+- 如果误改构造方法，比如添加参数，可能导致 Web 容器无法实例化 Servlet。
+
+更推荐的方式是：
+
+- 构造方法只负责创建对象。
+- `init()` 方法负责对象创建后的初始化工作。
+
+这种设计思想在很多框架中也很常见，例如 Spring。
+
+## 6. destroy 方法什么时候被调用
+
+`destroy()` 方法在服务器关闭前、Servlet 对象销毁前被调用。
+
+特点：
+
+- `destroy()` 方法只会被调用一次。
+- 调用 `destroy()` 时，Servlet 对象还没有真正销毁。
+- 因为 `destroy()` 是实例方法，必须先有对象，才能调用该方法。
+
+常见用途：
+
+- 释放资源
+- 关闭数据库连接
+- 保存必要状态
+- 做对象销毁前的清理工作
+
+## 7. Servlet 生命周期完整总结
+
+Servlet 生命周期可以总结为：
+
+1. 默认情况下，第一次请求到来时，Web 容器创建 Servlet 对象。
+2. 如果配置了 `load-on-startup`，Servlet 会在服务器启动时被创建。
+3. Servlet 对象创建完成后，Web 容器调用 `init()` 方法进行初始化。
+4. Servlet 是单实例的，一个 Servlet 类通常只创建一个对象。
+5. 每次请求到来时，Web 容器都会调用该对象的 `service()` 方法处理请求。
+6. 服务器关闭前，Web 容器会调用 `destroy()` 方法。
+7. `destroy()` 方法执行完成后，Servlet 对象才会被销毁。
+
+完整流程：
+
+```text
+服务器启动
+  |
+  |-- 如果配置 load-on-startup，则创建 Servlet 对象
+  |
+第一次请求到来
+  |
+  |-- 如果 Servlet 还没有创建，则创建 Servlet 对象
+  |
+调用 init() 方法
+  |
+多次请求
+  |
+反复调用 service() 方法
+  |
+服务器关闭
+  |
+调用 destroy() 方法
+  |
+Servlet 对象销毁
+```
+
+## 8. Web 容器的作用
+
+Servlet 对象不是由开发者手动创建和维护的，而是由 Web 服务器维护。
+
+目前使用的 Web 服务器是 Tomcat，它也可以称为 Web 容器。
+
+### 什么是 Web 容器
+
+Web 容器用于存放和管理 Servlet 对象，并负责 Servlet 的整个生命周期。
+
+Web 容器负责：
+
+- 在合适的时机创建 Servlet 对象。
+- 调用 `init()` 方法初始化 Servlet。
+- 调用 `service()` 方法响应用户请求。
+- 在服务器关闭前调用 `destroy()` 方法。
+- 在 `destroy()` 方法执行后销毁 Servlet 对象。
+
+模拟web容器
+```java
+package com.fuck.www;
+
+import javax.servlet.Servlet;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import java.io.IOException;
+import java.util.*;
+
+public class WebContainer {
+    Map<String, String> urlPatternToServletClass = new HashMap<>();
+    Map<String, Servlet> urlPatternToServlet = new HashMap<>();
+    // 启动web容器
+    public void start (List<ServletConfiguration> configurationList) throws ClassNotFoundException, InstantiationException, IllegalAccessException, ServletException {
+        List<ServletConfiguration> servletNeedToLoadOnStart = new ArrayList<>();
+        for (ServletConfiguration servletConfiguration : configurationList) {
+            String urlPattern  = servletConfiguration.getUrlPattern();
+            String servletClass = servletConfiguration.getServletClass();
+            urlPatternToServletClass.put(urlPattern, servletClass);
+            Integer loadOnStartup = servletConfiguration.getLoadOnStartup();
+            if (loadOnStartup != null && loadOnStartup >= 0) {
+                // 不是在这里创建Servlet对象，因为loadOnStartup有优先级概念，需要按照优先级顺序创建对象
+                servletNeedToLoadOnStart.add(servletConfiguration);
+            }
+            // 按照优先级排序
+            servletNeedToLoadOnStart.sort(Comparator.comparing(v -> v.getLoadOnStartup()));
+        }
+        // 创建对象
+        for (ServletConfiguration config: servletNeedToLoadOnStart) {
+            String servletClass = config.getServletClass();
+            String urlPattern = config.getUrlPattern();
+            createServletObj(servletClass, urlPattern);
+        }
+    }
+
+    private Servlet createServletObj (String servletClass, String urlPattern) throws ClassNotFoundException, InstantiationException, IllegalAccessException, ServletException {
+        Class clazz = Class.forName(servletClass);
+        Object obj = clazz.newInstance();
+        Servlet servlet = (Servlet) obj;
+        // 对象调用后调用init完成初始化
+        servlet.init(null);
+        urlPatternToServlet.put(urlPattern, servlet);
+        return servlet;
+    }
+
+    // 执行请求
+    public void doService (String urlPattern, ServletRequest req, ServletResponse res) throws ServletException, IOException, ClassNotFoundException, InstantiationException, IllegalAccessException {
+        // 如果请求路径和Servlet对象之间的映射关系已经存在，直接获取对象调用方法
+        if (urlPatternToServlet.containsKey(urlPattern)) {
+            Servlet servlet = urlPatternToServlet.get(urlPattern);
+            servlet.service(req, res);
+            return;
+        }
+        // 如果映射关系还不存在，但是请求路径和Serlvet类名之间映射关系存在，那么创建Servlet对象，并调用其方法
+        if (urlPatternToServletClass.containsKey(urlPattern)) {
+            String servletClass = urlPatternToServletClass.get(urlPattern);
+            Servlet servlet = createServletObj(servletClass, urlPattern);
+            servlet.service(req, res);
+            return;
+        }
+        // 如果请求路径不存在，那么无法处理
+        System.out.println("请求路径不存在");
+    }
+
+    // 关闭web容器
+    public void close () {
+        for (Servlet value : urlPatternToServlet.values()) {
+            value.destroy();
+        }
+    }
+}
+```
+
+## 9. 重点记忆
+
+| 方法 | 调用时机 | 调用次数 | 作用 |
+|---|---|---|---|
+| 构造方法 | Servlet 对象创建时 | 一次 | 创建 Servlet 对象 |
+| `init()` | 构造方法执行完成后 | 一次 | 初始化 Servlet |
+| `service()` | 每次请求到来时 | 多次 | 处理请求，执行业务逻辑 |
+| `destroy()` | 服务器关闭前、对象销毁前 | 一次 | 释放资源，执行清理工作 |
+
+核心结论：
+
+- Servlet 默认在第一次请求时创建。
+- 配置 `load-on-startup` 后，可以在服务器启动时创建。
+- Servlet 是单例的。
+- `init()` 只执行一次。
+- `service()` 每次请求都会执行。
+- `destroy()` 在对象销毁前执行一次。
+- Servlet 的生命周期由 Web 容器管理。
