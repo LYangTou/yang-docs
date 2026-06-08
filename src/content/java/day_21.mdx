@@ -287,3 +287,46 @@ public class WebContainer {
 - `service()` 每次请求都会执行。
 - `destroy()` 在对象销毁前执行一次。
 - Servlet 的生命周期由 Web 容器管理。
+
+## 适配器模式改造Servlet
+用一个抽象适配器类把 Servlet 接口里重复的默认实现收起来，让真正的 Servlet 类只关注业务逻辑，同时用 init(ServletConfig config) 保护容器初始化流程。
+```java
+package com.fuck.www;
+
+import javax.servlet.*;
+import java.io.IOException;
+
+public abstract class MyGenericServlet implements Servlet {
+
+    private ServletConfig config;
+
+    @Override
+    public void init(ServletConfig config) throws ServletException {
+        this.config = config;
+        init();
+    }
+
+    public void init () {
+
+    }
+
+    @Override
+    public ServletConfig getServletConfig() {
+        return this.config;
+    }
+
+    @Override
+    abstract public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException;
+
+    @Override
+    public String getServletInfo() {
+        return "";
+    }
+
+    @Override
+    public void destroy() {
+
+    }
+}
+```
+实际上Servlet也有`GenericServlet`

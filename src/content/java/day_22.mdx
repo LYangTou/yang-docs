@@ -1,0 +1,357 @@
+# HttpServlet 笔记
+
+## 1. 本节主要内容
+
+- `HttpServlet` 介绍
+- 模板方法设计模式
+- `HttpServlet` 源码解析
+- `HttpServletRequest` 接口详解
+
+## 2. HttpServlet 介绍
+
+`HttpServlet` 是 Servlet 规范的一部分，继承自 `GenericServlet`，专门为 HTTP 协议准备。
+
+相比 `GenericServlet`，`HttpServlet` 更适合 HTTP 协议下的 Web 开发。
+
+相关接口和类的关系：
+
+```text
+Servlet
+  ^
+  |
+GenericServlet
+  ^
+  |
+HttpServlet
+```
+
+请求和响应对象：
+
+```text
+ServletRequest
+  ^
+  |
+HttpServletRequest
+
+ServletResponse
+  ^
+  |
+HttpServletResponse
+```
+
+说明：
+
+- `HttpServletRequest` 继承 `ServletRequest`，是 HTTP 协议专用的请求对象。
+- `HttpServletRequest` 封装了 HTTP 请求的全部内容。
+- 面向 `HttpServletRequest` 接口编程，就可以获取 HTTP 请求中的信息。
+- `HttpServletResponse` 继承 `ServletResponse`，是 HTTP 协议专用的响应对象。
+
+## 3. 模板方法设计模式
+
+模板方法模式：在父类中定义一个操作的算法骨架，将某些步骤的具体实现延迟到子类中。
+
+作用：
+
+- 父类固定整体流程。
+- 子类在不改变流程结构的前提下，重写某些具体步骤。
+
+优点：
+
+- 统一算法结构。
+- 保留扩展灵活性。
+- 父类控制流程，子类负责个性化实现。
+
+### 示例理解
+
+父类 `People` 定义一天的流程：
+
+```java
+public abstract class People {
+    public void oneDay() {
+        qichuang();
+        xishu();
+        quxuexiao();
+        shangke();
+    }
+
+    public void qichuang() {
+    }
+
+    public void xishu() {
+        System.out.println("洗漱：刷牙洗脸。");
+    }
+
+    public void quxuexiao() {
+        System.out.println("去学校：坐校车去学校");
+    }
+
+    public void shangke() {
+    }
+}
+```
+
+`Student` 和 `Teacher` 都继承 `People`，但可以重写不同步骤：
+
+```text
+学生的一天：
+起床：爸爸妈妈叫醒
+洗漱：刷牙洗脸
+去学校：爸爸妈妈开车送去学校
+上课：学习知识
+
+老师的一天：
+起床：闹钟叫醒
+洗漱：刷牙洗脸
+去学校：坐地铁去学校
+上课：教授知识
+```
+
+这个例子中：
+
+- `oneDay()` 是模板方法，固定了一天的执行流程。
+- `qichuang()`、`quxuexiao()`、`shangke()` 是可由子类重写的具体步骤。
+
+## 4. HttpServlet 中的 init 方法
+
+`HttpServlet` 本身没有实现 `init()` 方法，使用的是父类 `GenericServlet` 的 `init()` 方法。
+
+`GenericServlet` 中的核心逻辑：
+
+```java
+public void init(ServletConfig config) throws ServletException {
+    this.config = config;
+    this.init();
+}
+
+public void init() throws ServletException {
+}
+```
+
+说明：
+
+- Web 容器调用的是带参数的 `init(ServletConfig config)`。
+- 该方法先保存 `ServletConfig`。
+- 然后再调用无参数的 `init()`。
+- Java 程序员通常重写无参数的 `init()`，把初始化逻辑写在里面。
+
+## 5. HttpServlet 中的 service 方法
+
+`HttpServlet` 的 `service()` 方法体现了模板方法设计模式。
+
+### 5.1 从 GenericServlet 继承的 service 方法
+
+`GenericServlet` 中的 `service()` 接收的是通用请求和响应对象：
+
+```java
+public void service(ServletRequest req, ServletResponse res)
+        throws ServletException, IOException {
+
+    HttpServletRequest request;
+    HttpServletResponse response;
+
+    if (!(req instanceof HttpServletRequest &&
+            res instanceof HttpServletResponse)) {
+        throw new ServletException("non-HTTP request or response");
+    }
+
+    request = (HttpServletRequest) req;
+    response = (HttpServletResponse) res;
+
+    service(request, response);
+}
+```
+
+核心逻辑：
+
+- 判断请求和响应对象是否属于 HTTP 类型。
+- 将 `ServletRequest` 向下转型为 `HttpServletRequest`。
+- 将 `ServletResponse` 向下转型为 `HttpServletResponse`。
+- 调用 `HttpServlet` 自定义的 `service(HttpServletRequest, HttpServletResponse)`。
+
+### 5.2 HttpServlet 自己的 service 方法
+
+`HttpServlet` 中的 `service()` 会根据 HTTP 请求方法类型进行分发：
+
+```java
+protected void service(HttpServletRequest req, HttpServletResponse resp)
+        throws ServletException, IOException {
+
+    String method = req.getMethod();
+
+    if (method.equals("GET")) {
+        doGet(req, resp);
+    } else if (method.equals("HEAD")) {
+        doHead(req, resp);
+    } else if (method.equals("POST")) {
+        doPost(req, resp);
+    } else if (method.equals("PUT")) {
+        doPut(req, resp);
+    } else if (method.equals("DELETE")) {
+        doDelete(req, resp);
+    } else if (method.equals("OPTIONS")) {
+        doOptions(req, resp);
+    } else if (method.equals("TRACE")) {
+        doTrace(req, resp);
+    } else {
+        // 不支持的请求方法类型
+        error;
+    }
+}
+```
+
+结论：
+
+- `HttpServlet.service()` 固定了请求分发流程。
+- 不同请求方法会进入不同的 `doXxx()` 方法。
+- 自定义 Servlet 继承 `HttpServlet` 时，通常不重写 `service()`。
+- 正确做法是根据请求方式重写对应的 `doGet()`、`doPost()` 等方法。
+
+## 6. 为什么不建议重写 service 方法
+
+`HttpServlet` 的 `service()` 方法中已经包含了请求方法类型检查和分发逻辑。
+
+如果直接重写 `service()`，容易破坏原有分发流程。
+
+正规开发流程：
+
+- 后端明确接口支持的请求方法类型。
+- 前端使用对应的请求方法发送请求。
+- 后端重写对应的 `doXxx()` 方法处理请求。
+
+例如：
+
+- 前端发送 `GET` 请求，后端重写 `doGet()`。
+- 前端发送 `POST` 请求，后端重写 `doPost()`。
+
+如果请求方法是 `POST`，但 Java 程序员没有重写 `doPost()`，会返回 405 错误。
+
+405 表示：
+
+```text
+Method Not Allowed
+```
+
+即请求方法不被支持。
+
+## 7. GET 请求缓存机制
+
+`HttpServlet` 对 `GET` 请求包含缓存相关逻辑。
+
+核心字段：
+
+- `lastModified`：服务端维护的资源最近修改时间。
+- `ifModifiedSince`：浏览器维护的资源最近修改时间。
+
+执行逻辑：
+
+- 如果 `lastModified == -1`，说明 Servlet 不支持缓存判断，直接执行 `doGet()`。
+- 如果 `ifModifiedSince < lastModified`，说明服务端数据更新过，不能使用缓存，执行 `doGet()`。
+- 如果 `ifModifiedSince == lastModified`，说明数据没有变化，可以使用缓存，响应状态码为 `304 Not Modified`。
+
+### 为什么自定义 Servlet 的 GET 请求通常不使用浏览器缓存
+
+如果想让自定义 Servlet 的 `GET` 请求使用浏览器缓存，需要维护数据的最近变更时间，并将该时间告知浏览器。
+
+这种机制比较复杂，动态资源一般不建议依赖浏览器缓存。
+
+实际开发中更常用：
+
+- 后端缓存
+- 数据库缓存
+- Redis 缓存
+
+而不是直接使用浏览器缓存机制处理动态数据。
+
+## 8. HttpServletRequest 接口
+
+`HttpServletRequest` 是接口。
+
+问题：
+ 
+- 接口的实现类是谁定义的？
+- 实现类对象是谁创建的？
+
+答案：
+
+- 实现类由 Web 服务器定义，例如 Tomcat。
+- 实现类对象由 Web 服务器创建。
+- Web 服务器会把创建好的请求对象传入 `service()` 方法。
+
+开发者不需要关心具体实现类，只需要面向 `HttpServletRequest` 接口编程。
+
+### 请求对象中封装了什么
+
+`HttpServletRequest` 封装了 HTTP 请求的全部信息。
+
+请求处理过程：
+
+```text
+客户端发送符合 HTTP 协议格式的请求
+        |
+        v
+Tomcat 按照 HTTP 请求格式解析数据
+        |
+        v
+Tomcat 将解析结果封装到 HttpServletRequest 实现类对象中
+        |
+        v
+Tomcat 将请求对象传入 service 方法
+        |
+        v
+程序员面向 HttpServletRequest 接口获取请求信息
+```
+
+在 Tomcat 中，常见的请求对象实现相关类是 `RequestFacade`。
+
+## 9. 获取浏览器提交的数据
+
+可以通过以下四个方法获取前端浏览器提交的数据：
+
+| 方法 | 作用 |
+|---|---|
+| `Map<String, String[]> getParameterMap()` | 获取参数名称和参数值组成的 Map |
+| `Enumeration<String> getParameterNames()` | 获取所有参数名称 |
+| `String[] getParameterValues(String name)` | 根据参数名获取多个参数值 |
+| `String getParameter(String name)` | 根据参数名获取单个参数值，最常用 |
+
+### 为什么参数值是 String[] 类型
+
+因为浏览器提交的数据可能存在多选。
+
+例如复选框：
+
+```html
+hobby:
+sing<input type="checkbox" name="hobby" value="s" />
+dance<input type="checkbox" name="hobby" value="d" />
+rap<input type="checkbox" name="hobby" value="r" />
+basketball<input type="checkbox" name="hobby" value="b" />
+```
+
+如果用户同时选择了 `sing` 和 `rap`，那么提交的数据可能是：
+
+```text
+hobby=s
+hobby=r
+```
+
+同一个参数名 `hobby` 对应多个值，所以参数值类型需要使用 `String[]`。
+
+### 方法选择
+
+- 普通单值参数：使用 `getParameter(name)`。
+- 多选参数：使用 `getParameterValues(name)`。
+- 遍历所有参数名：使用 `getParameterNames()`。
+- 获取完整参数映射：使用 `getParameterMap()`。
+
+## 10. 核心总结
+
+- `HttpServlet` 专门服务于 HTTP 协议。
+- `HttpServletRequest` 封装 HTTP 请求信息。
+- `HttpServletResponse` 用于封装 HTTP 响应信息。
+- `HttpServlet` 的 `service()` 使用模板方法设计模式。
+- 自定义 Servlet 一般不重写 `service()`。
+- 正确做法是重写 `doGet()`、`doPost()` 等方法。
+- 如果请求方法和后端重写的方法不匹配，可能出现 405 错误。
+- `HttpServletRequest` 的实现类和对象都由 Web 容器创建。
+- 程序员只需要面向 `HttpServletRequest` 接口获取请求数据。
