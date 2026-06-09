@@ -20,6 +20,7 @@ export default {
     'day_19': 'Servlet',
     'day_20': 'Maven',
     'day_21': 'Servlet生命周期',
-    'day_22': 'HttpServlet'
+    'day_22': 'HttpServlet',
+    'day_23': 'Cookie'
 }
   
