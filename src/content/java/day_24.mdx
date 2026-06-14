@@ -1,0 +1,974 @@
+# Filter 过滤器学习笔记
+
+> 来源：`Filter-过滤器` PPT  
+> 主题：Java Web / Servlet Filter  
+> 说明：本文以 PPT 内容为主线，并补充了学习理解、代码示例、常见坑和复习题。
+
+## 1. 本节课主要内容
+
+这份 PPT 围绕 Servlet 规范中的 `Filter` 展开，主要包括：
+
+- 什么是 `Filter`
+- 如何使用 `Filter`
+- `Filter` 的生命周期
+- 多个 `Filter` 如何拦截同一个请求
+- `FilterChain` 的实现思路
+- 如何用 `Filter` 改造项目中的登录校验代码
+
+---
+
+## 2. 什么是 Filter？
+
+`Filter`，中文通常称为“过滤器”，是 Servlet 规范中非常重要的组件。它可以在 Web 应用程序中拦截请求和响应，用来实现一些通用的处理逻辑。
+
+通俗理解：
+
+- 请求到达目标 `Servlet` 之前，先经过 `Filter`
+- `Servlet` 处理完成之后，响应返回浏览器之前，也可以再次经过 `Filter`
+- 所以 `Filter` 可以同时处理“请求进入前”和“响应返回前”的逻辑
+
+### 2.1 为什么需要 Filter？
+
+假设系统中有很多个 `Servlet`，每个 `Servlet` 都需要做用户登录验证：
+
+```text
+请求 -> Servlet 1：登录验证 + 业务逻辑
+请求 -> Servlet 2：登录验证 + 业务逻辑
+请求 -> Servlet 3：登录验证 + 业务逻辑
+```
+
+这样会产生大量重复代码，而且以后修改登录验证逻辑时，每个 `Servlet` 都要改。
+
+使用 `Filter` 后，可以把通用逻辑抽取出来：
+
+```text
+请求 -> Filter：登录验证 -> Servlet：业务逻辑
+响应 <- Filter：响应处理 <- Servlet：业务处理结果
+```
+
+这样每个 `Servlet` 只需要专注于自己的业务逻辑。
+
+### 2.2 Filter 的典型应用场景
+
+常见的 `Filter` 用法包括：
+
+| 场景 | 说明 |
+| --- | --- |
+| 登录校验 | 判断用户是否已登录，未登录则跳转登录页 |
+| 权限控制 | 判断用户是否有访问某个路径或资源的权限 |
+| 编码处理 | 统一设置请求和响应字符编码 |
+| 日志记录 | 记录请求路径、耗时、IP、用户信息等 |
+| 跨域处理 | 统一处理 CORS 响应头 |
+| 敏感词过滤 | 对请求参数或响应内容做过滤 |
+| 性能统计 | 在请求前记录时间，在响应后计算耗时 |
+
+> 补充：`Filter` 适合处理“横切逻辑”，也就是很多请求都需要执行、但又不属于具体业务本身的逻辑。
+
+---
+
+## 3. Filter 的执行流程
+
+一个最基本的 `Filter` 执行过程如下：
+
+```text
+Request
+  |
+  v
+Filter 前置代码
+  |
+  v
+chain.doFilter(request, response)
+  |
+  v
+Servlet.service()
+  |
+  v
+Filter 后置代码
+  |
+  v
+Response
+```
+
+对应到代码中，核心方法是 `doFilter`：
+
+```java
+@Override
+public void doFilter(
+        HttpServletRequest req,
+        HttpServletResponse res,
+        FilterChain chain
+) throws IOException, ServletException {
+    System.out.println("MyFilter before.");
+
+    // 调用 chain.doFilter 后，请求才会继续传递给下一个 Filter 或目标 Servlet
+    chain.doFilter(req, res);
+
+    System.out.println("MyFilter after.");
+}
+```
+
+### 3.1 `chain.doFilter()` 的作用
+
+`chain.doFilter(req, res)` 是理解 `Filter` 的关键。
+
+它的作用是：
+
+- 如果后面还有其他 `Filter`，就把请求交给下一个 `Filter`
+- 如果当前已经是最后一个 `Filter`，就把请求交给目标 `Servlet`
+- 当后续处理完成后，程序会回到当前 `Filter` 的 `chain.doFilter()` 下一行继续执行
+
+所以：
+
+```java
+System.out.println("before");
+chain.doFilter(req, res);
+System.out.println("after");
+```
+
+不是简单的顺序打印。它代表：
+
+```text
+请求进入时执行 before
+请求继续传递给后续 Filter 或 Servlet
+响应返回时执行 after
+```
+
+### 3.2 如果不调用 `chain.doFilter()` 会怎样？
+
+如果在 `Filter` 中没有调用 `chain.doFilter()`，请求就不会继续向后传递。
+
+这在登录校验中很常见：
+
+```java
+if (user == null) {
+    response.sendRedirect("/login");
+    return;
+}
+
+chain.doFilter(request, response);
+```
+
+含义是：
+
+- 已登录：放行，请求继续执行
+- 未登录：直接重定向到登录页，不再访问目标 `Servlet`
+
+> 补充：拦截请求并终止后续执行，是 `Filter` 的重要能力。但要注意，通常一次请求中 `chain.doFilter()` 最多调用一次，避免重复执行后续逻辑。
+
+---
+
+## 4. 使用 Filter
+
+PPT 中给出的使用步骤是：
+
+1. 创建 `Filter` 类，实现 `Filter` 接口或继承 `HttpFilter`
+2. 重写 `doFilter` 方法
+3. 在 `web.xml` 中配置 `Filter`
+
+### 4.1 创建 Filter 类
+
+如果是基于较新的 Servlet API，可以继承 `HttpFilter`：
+
+```java
+public class MyFilter extends HttpFilter {
+    @Override
+    protected void doFilter(
+            HttpServletRequest req,
+            HttpServletResponse res,
+            FilterChain chain
+    ) throws IOException, ServletException {
+        System.out.println("MyFilter before.");
+        chain.doFilter(req, res);
+        System.out.println("MyFilter after.");
+    }
+}
+```
+
+也可以实现 `Filter` 接口：
+
+```java
+public class MyFilter implements Filter {
+    @Override
+    public void doFilter(
+            ServletRequest request,
+            ServletResponse response,
+            FilterChain chain
+    ) throws IOException, ServletException {
+        System.out.println("MyFilter before.");
+        chain.doFilter(request, response);
+        System.out.println("MyFilter after.");
+    }
+}
+```
+
+> 补充：老项目常见包名是 `javax.servlet.*`；较新的 Jakarta EE 项目包名可能是 `jakarta.servlet.*`。课堂项目一般以项目实际依赖为准。
+
+### 4.2 在 `web.xml` 中配置 Filter
+
+PPT 中的配置示例：
+
+```xml
+<filter>
+    <filter-name>myFilter</filter-name>
+    <filter-class>com.jirengu.hotel.filter.MyFilter</filter-class>
+</filter>
+
+<filter-mapping>
+    <filter-name>myFilter</filter-name>
+    <url-pattern>/session/queryCart</url-pattern>
+</filter-mapping>
+```
+
+这段配置分两部分：
+
+| 配置 | 作用 |
+| --- | --- |
+| `<filter>` | 声明一个过滤器，指定名称和类 |
+| `<filter-mapping>` | 指定这个过滤器拦截哪些请求 |
+| `<filter-name>` | 两处名称必须对应 |
+| `<filter-class>` | 过滤器类的全限定类名 |
+| `<url-pattern>` | 过滤器要匹配的请求路径 |
+
+### 4.3 `url-pattern` 常见写法
+
+```xml
+<!-- 精确匹配 -->
+<url-pattern>/session/queryCart</url-pattern>
+
+<!-- 目录匹配：拦截 /session/ 下的所有请求 -->
+<url-pattern>/session/*</url-pattern>
+
+<!-- 扩展名匹配：拦截所有 .do 请求 -->
+<url-pattern>*.do</url-pattern>
+
+<!-- 全局匹配：拦截所有请求 -->
+<url-pattern>/*</url-pattern>
+```
+
+使用全局匹配时要特别小心，因为它可能连静态资源、登录页、验证码接口都一起拦截。
+
+### 4.4 注解方式配置 Filter
+
+补充：除了 `web.xml`，还可以使用注解：
+
+```java
+@WebFilter("/session/*")
+public class MyFilter implements Filter {
+    @Override
+    public void doFilter(
+            ServletRequest request,
+            ServletResponse response,
+            FilterChain chain
+    ) throws IOException, ServletException {
+        chain.doFilter(request, response);
+    }
+}
+```
+
+不过如果多个 `Filter` 对顺序有严格要求，使用 `web.xml` 更直观，因为可以通过配置顺序控制链条顺序。
+
+---
+
+## 5. Filter 的生命周期
+
+PPT 中强调：
+
+- `Filter` 由 Web 容器创建
+- `Filter` 的生命周期也由 Web 容器管理
+- 这一点和 `Servlet` 类似
+
+### 5.1 生命周期四个阶段
+
+```text
+服务启动
+  |
+  v
+实例化 Filter
+  |
+  v
+init()
+  |
+  v
+doFilter()
+  |
+  v
+destroy()
+  |
+  v
+对象销毁
+```
+
+### 5.2 阶段说明
+
+| 阶段 | 说明 | 执行时机 |
+| --- | --- | --- |
+| 实例化 | Web 容器通过反射调用无参构造方法创建对象 | 服务启动时 |
+| 初始化 `init` | 容器调用 `init` 方法完成初始化 | 实例化之后 |
+| 过滤 `doFilter` | 每次匹配路径的请求到来时执行 | 请求到来时 |
+| 销毁 `destroy` | 容器关闭前执行资源释放 | 服务关闭前 |
+
+### 5.3 Filter 和 Servlet 生命周期的一个差异
+
+PPT 中指出：
+
+- `Servlet` 默认通常在第一次访问时实例化
+- `Filter` 通常在 Web 容器启动时就实例化并初始化
+
+这意味着：
+
+- `Filter` 比很多 `Servlet` 更早准备好
+- `Filter` 的初始化逻辑不应该依赖某个请求已经发生
+- 不要在 `Filter` 成员变量中保存某个用户请求相关的数据
+
+### 5.4 线程安全提醒
+
+补充：一个 `Filter` 对象通常会服务多个请求，多个线程可能同时执行同一个 `Filter` 的 `doFilter` 方法。
+
+因此：
+
+```java
+public class BadFilter implements Filter {
+    private String currentUser; // 不推荐：多个请求会共享这个字段
+}
+```
+
+不要把某个请求、某个用户的数据存在 `Filter` 的成员变量中。请求级别的数据应该放在：
+
+- 局部变量
+- `request` 属性
+- `session`
+- 线程安全的数据结构中
+
+---
+
+## 6. 多个 Filter 拦截同一个请求
+
+PPT 中说明：可以配置多个 `Filter` 按顺序拦截同一个请求。
+
+这些 `Filter` 会组成一条链，也就是 `FilterChain`。它可以看作“责任链模式”的一种变体。
+
+### 6.1 多个 Filter 的执行顺序
+
+假设配置了三个过滤器：
+
+```text
+filter1 -> filter2 -> filter3 -> Servlet
+```
+
+每个过滤器结构都类似：
+
+```java
+System.out.println("filter before");
+chain.doFilter(req, res);
+System.out.println("filter after");
+```
+
+那么整体执行顺序是：
+
+```text
+filter1 before
+filter2 before
+filter3 before
+Servlet service
+filter3 after
+filter2 after
+filter1 after
+```
+
+也就是说：
+
+- 请求进入时：按照链条顺序依次执行前置逻辑
+- 响应返回时：按照相反顺序依次执行后置逻辑
+
+### 6.2 `web.xml` 中多个 Filter 的配置
+
+PPT 中展示了多个 `Filter` 的声明：
+
+```xml
+<filter>
+    <filter-name>myFilter1</filter-name>
+    <filter-class>com.jirengu.hotel.filter.MyFilter1</filter-class>
+</filter>
+
+<filter>
+    <filter-name>myFilter2</filter-name>
+    <filter-class>com.jirengu.hotel.filter.MyFilter2</filter-class>
+</filter>
+
+<filter>
+    <filter-name>myFilter3</filter-name>
+    <filter-class>com.jirengu.hotel.filter.MyFilter3</filter-class>
+</filter>
+```
+
+还需要为它们配置映射：
+
+```xml
+<filter-mapping>
+    <filter-name>myFilter1</filter-name>
+    <url-pattern>/session/queryCart</url-pattern>
+</filter-mapping>
+
+<filter-mapping>
+    <filter-name>myFilter2</filter-name>
+    <url-pattern>/session/queryCart</url-pattern>
+</filter-mapping>
+
+<filter-mapping>
+    <filter-name>myFilter3</filter-name>
+    <url-pattern>/session/queryCart</url-pattern>
+</filter-mapping>
+```
+
+如果这三个 `Filter` 都匹配同一个请求，它们会形成链条。
+
+> 补充：实际项目里，多个 `Filter` 的执行顺序通常由 `filter-mapping` 的配置顺序决定。不要只看 `<filter>` 声明顺序，要关注映射顺序。
+
+---
+
+## 7. FilterChain 的实现思路
+
+PPT 中给出了一个自己实现 `FilterChain` 的思路，这有助于理解容器内部是如何让多个 `Filter` 串起来的。
+
+### 7.1 基本思路
+
+需要保存三类信息：
+
+1. 用一个 `List` 按顺序保存所有 `Filter`
+2. 保存最终需要执行的 `Servlet`
+3. 用一个指针指向当前应该执行的 `Filter`
+
+图示理解：
+
+```text
+FilterChain
+
+filterList:
+
+filter1 -> filter2 -> filter3 -> servlet
+             ^
+             |
+            指针：当前 filter
+```
+
+### 7.2 简化版代码模型
+
+下面是一个便于理解的简化实现，不是完整 Servlet 容器源码：
+
+```java
+package com.fuck.www;
+
+import javax.servlet.*;
+import javax.servlet.http.HttpFilter;
+import java.io.IOException;
+import java.util.ArrayList;
+
+public class MyFilterChain implements FilterChain {
+    private ArrayList<Filter> filterList;
+
+    private Servlet servlet;
+
+    private int point;
+
+    public MyFilterChain(ArrayList<Filter> filterList, Servlet servlet) {
+        if (filterList == null) {
+            filterList = new ArrayList<>();
+        }
+        filterList.add(new FilterProxy(servlet));
+        this.filterList = filterList;
+        this.point = 0;
+//        this.servlet = servlet;
+//        if (filterList == null || filterList.size() == 0) {
+//            point = -1;
+//        } else {
+//            point = 0;
+//        }
+    }
+
+    @Override
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse) throws IOException, ServletException {
+        if (point < filterList.size()) {
+            Filter filter = filterList.get(point);
+            point++;
+            filter.doFilter(servletRequest, servletResponse, this);
+        }
+//        if (point == -1) {
+//            servlet.service(servletRequest, servletResponse);
+//        } else {
+//            if (point >= filterList.size()) {
+//                servlet.service(servletRequest, servletResponse);
+//            } else  {
+//                Filter filter = filterList.get(point);
+//                point++;
+//                filter.doFilter(servletRequest, servletResponse, this);
+//            }
+//        }
+    }
+
+    private static class FilterProxy extends HttpFilter {
+
+        private Servlet servlet;
+
+        public FilterProxy(Servlet servlet) {
+            this.servlet = servlet;
+        }
+
+        @Override
+        public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
+            servlet.service(req, res);
+        }
+    }
+}
+```
+
+关键点：
+
+- `point` 表示当前执行到哪个 `Filter`
+- 每次调用 `chain.doFilter()`，都会推动链条向后走一步
+- 当所有 `Filter` 都执行完后，调用目标 `Servlet` 的 `service` 方法
+
+### 7.3 为什么响应会倒序返回？
+
+因为每个 `Filter` 都会在自己的 `chain.doFilter()` 处“暂停”，等待后面的组件执行完。
+
+可以把它看成方法调用栈：
+
+```text
+filter1.doFilter()
+  filter2.doFilter()
+    filter3.doFilter()
+      servlet.service()
+    filter3 after
+  filter2 after
+filter1 after
+```
+
+所以后进入的 `Filter`，后置逻辑会先执行。
+
+---
+
+## 8. 使用 FilterProxy 优化 FilterChain
+
+PPT 中还给出了一种优化思路：
+
+- 自定义一个 `FilterProxy`
+- 用 `FilterProxy` 把 `Servlet` 包装起来
+- 这样就可以把包装好的 `Servlet` 也作为一个“类似 Filter 的对象”加入到 `filterList` 中
+- 链条中所有元素都可以统一按 `Filter` 形式处理
+
+### 8.1 优化前
+
+```text
+filterList: filter1 -> filter2 -> filter3
+
+FilterChain 内部还要额外保存 servlet
+```
+
+代码逻辑需要判断：
+
+```java
+if (还有 filter) {
+    执行下一个 filter
+} else {
+    执行 servlet.service()
+}
+```
+
+### 8.2 优化后
+
+```text
+filterList: filter1 -> filter2 -> filter3 -> FilterProxy(servlet)
+```
+
+`FilterProxy` 内部负责调用 `servlet.service()`。
+
+示例：
+
+```java
+public class FilterProxy implements Filter {
+    private final Servlet servlet;
+
+    public FilterProxy(Servlet servlet) {
+        this.servlet = servlet;
+    }
+
+    @Override
+    public void doFilter(
+            ServletRequest request,
+            ServletResponse response,
+            FilterChain chain
+    ) throws IOException, ServletException {
+        servlet.service(request, response);
+    }
+}
+```
+
+这样 `FilterChain` 就只需要关心：
+
+```text
+从 filterList 中取出当前元素并执行
+```
+
+而不用单独判断最后是不是 `Servlet`。
+
+> 补充：这是一种“统一抽象”的思想。把不同类型的对象包装成统一接口后，链条处理会更简单。
+
+---
+
+## 9. 用 Filter 改造项目代码：登录校验
+
+PPT 最后一部分讲的是用 `LoginFilter` 改造项目中的登录验证逻辑。
+
+改造步骤：
+
+1. 创建 `LoginFilter`
+2. 将用户登录验证代码移到 `LoginFilter`
+3. 在 `web.xml` 中配置 `LoginFilter`
+
+### 9.1 改造前的问题
+
+如果每个需要登录的 `Servlet` 都自己判断用户是否登录：
+
+```java
+Object user = request.getSession().getAttribute("user");
+if (user == null) {
+    response.sendRedirect("/login");
+    return;
+}
+
+// 业务逻辑
+```
+
+问题是：
+
+- 代码重复
+- 容易漏写
+- 登录逻辑修改时要改很多地方
+- 业务逻辑和权限逻辑混在一起
+
+### 9.2 改造后的思路
+
+把登录验证抽取到 `LoginFilter`：
+
+```text
+请求
+  |
+  v
+LoginFilter 判断是否登录
+  |
+  +-- 已登录：放行，继续访问目标 Servlet
+  |
+  +-- 未登录：跳转到登录页，终止请求
+```
+
+### 9.3 `LoginFilter` 示例
+
+```java
+public class LoginFilter implements Filter {
+    @Override
+    public void doFilter(
+            ServletRequest request,
+            ServletResponse response,
+            FilterChain chain
+    ) throws IOException, ServletException {
+        HttpServletRequest req = (HttpServletRequest) request;
+        HttpServletResponse resp = (HttpServletResponse) response;
+
+        Object user = req.getSession().getAttribute("user");
+
+        if (user == null) {
+            resp.sendRedirect(req.getContextPath() + "/login");
+            return;
+        }
+
+        chain.doFilter(request, response);
+    }
+}
+```
+
+### 9.4 配置 LoginFilter
+
+```xml
+<filter>
+    <filter-name>loginFilter</filter-name>
+    <filter-class>com.jirengu.hotel.filter.LoginFilter</filter-class>
+</filter>
+
+<filter-mapping>
+    <filter-name>loginFilter</filter-name>
+    <url-pattern>/session/*</url-pattern>
+</filter-mapping>
+```
+
+这里表示：拦截 `/session/` 路径下的请求，对它们进行登录检查。
+
+### 9.5 登录过滤器的白名单
+
+补充：实际项目中，登录页本身、登录接口、静态资源通常不能被登录过滤器拦截，否则可能产生“还没登录就无法访问登录页”的问题。
+
+可以加白名单：
+
+```java
+String uri = req.getRequestURI();
+String contextPath = req.getContextPath();
+String path = uri.substring(contextPath.length());
+
+boolean isPublicPath =
+        path.equals("/login")
+        || path.equals("/session/login")
+        || path.startsWith("/css/")
+        || path.startsWith("/js/")
+        || path.startsWith("/images/");
+
+if (isPublicPath) {
+    chain.doFilter(request, response);
+    return;
+}
+```
+
+完整逻辑：
+
+```java
+Object user = req.getSession().getAttribute("user");
+
+if (user != null) {
+    chain.doFilter(request, response);
+    return;
+}
+
+resp.sendRedirect(req.getContextPath() + "/login");
+```
+
+---
+
+## 10. 责任链模式与 FilterChain
+
+`FilterChain` 和责任链模式很像。
+
+责任链模式的核心思想：
+
+- 多个处理器按照顺序排成链条
+- 每个处理器只负责自己的逻辑
+- 当前处理器可以决定是否把请求交给下一个处理器
+
+在 `Filter` 中：
+
+| 责任链角色 | Filter 中的对应对象 |
+| --- | --- |
+| 请求 | `ServletRequest` / `HttpServletRequest` |
+| 响应 | `ServletResponse` / `HttpServletResponse` |
+| 处理器 | `Filter` |
+| 链条 | `FilterChain` |
+| 最终目标 | `Servlet` |
+
+`Filter` 的特别之处是：它不仅可以处理请求进入前的逻辑，还可以处理响应返回后的逻辑。
+
+---
+
+## 11. 常见错误与排查
+
+### 11.1 忘记调用 `chain.doFilter`
+
+现象：
+
+- 目标 `Servlet` 没有执行
+- 页面空白
+- 请求被过滤器“卡住”
+
+原因：
+
+```java
+// 忘记放行
+// chain.doFilter(request, response);
+```
+
+### 11.2 登录过滤器把登录页也拦截了
+
+现象：
+
+- 访问登录页也被重定向
+- 页面反复跳转
+- 浏览器提示重定向次数过多
+
+解决：
+
+- 给登录页、登录接口、静态资源设置白名单
+- 或者只拦截真正需要登录的路径，例如 `/session/*`
+
+### 11.3 多个 Filter 顺序不符合预期
+
+现象：
+
+- 日志打印顺序和预想不同
+- 编码过滤器在读取参数之后才执行，导致乱码
+- 权限过滤器早于登录过滤器执行，拿不到用户信息
+
+解决：
+
+- 检查 `web.xml` 中 `filter-mapping` 的顺序
+- 对顺序敏感的过滤器尽量用 `web.xml` 明确配置
+
+### 11.4 在 Filter 成员变量里保存请求数据
+
+错误示例：
+
+```java
+public class LoginFilter implements Filter {
+    private HttpServletRequest currentRequest;
+}
+```
+
+原因：
+
+- `Filter` 是容器管理的共享对象
+- 多个请求可能同时进入同一个 `Filter`
+- 成员变量可能被不同线程互相覆盖
+
+解决：
+
+- 请求数据使用局部变量
+- 用户数据使用 `session`
+- 共享数据使用线程安全机制
+
+### 11.5 响应已经提交后还继续放行
+
+错误示例：
+
+```java
+response.sendRedirect("/login");
+chain.doFilter(request, response); // 不应该继续执行
+```
+
+正确写法：
+
+```java
+response.sendRedirect("/login");
+return;
+```
+
+---
+
+## 12. 快速记忆
+
+### 12.1 一句话理解 Filter
+
+`Filter` 是请求到达 `Servlet` 前、响应返回客户端前的一道可编程关卡。
+
+### 12.2 一句话理解 FilterChain
+
+`FilterChain` 是多个 `Filter` 按顺序组成的调用链，`chain.doFilter()` 会把请求交给链条中的下一个节点。
+
+### 12.3 一句话理解 `doFilter`
+
+`doFilter` 中，`chain.doFilter()` 前是请求前置处理，`chain.doFilter()` 后是响应后置处理。
+
+### 12.4 执行顺序口诀
+
+```text
+请求顺序进，响应倒序出。
+前置从前往后，后置从后往前。
+```
+
+---
+
+## 13. 复习题
+
+1. `Filter` 和 `Servlet` 分别负责什么？
+2. 为什么登录验证适合放到 `Filter` 中？
+3. `chain.doFilter(request, response)` 的作用是什么？
+4. 如果 `Filter` 中不调用 `chain.doFilter()`，会发生什么？
+5. 多个 `Filter` 同时匹配一个请求时，执行顺序是什么？
+6. 为什么 `Filter` 的后置逻辑是倒序执行的？
+7. `Filter` 的生命周期包括哪几个阶段？
+8. `Filter` 为什么不适合用成员变量保存请求数据？
+9. `web.xml` 中 `<filter>` 和 `<filter-mapping>` 的作用分别是什么？
+10. 用 `LoginFilter` 做登录校验时，为什么需要白名单？
+
+---
+
+## 14. 面试/考试高频点
+
+### 14.1 Filter 的作用
+
+用于拦截请求和响应，执行通用逻辑，例如登录校验、权限控制、日志记录、编码处理等。
+
+### 14.2 Filter 的生命周期
+
+由 Web 容器管理，通常包括：
+
+```text
+实例化 -> init -> doFilter -> destroy
+```
+
+### 14.3 FilterChain 的执行顺序
+
+如果链条是：
+
+```text
+Filter1 -> Filter2 -> Filter3 -> Servlet
+```
+
+则执行过程是：
+
+```text
+Filter1 前置
+Filter2 前置
+Filter3 前置
+Servlet
+Filter3 后置
+Filter2 后置
+Filter1 后置
+```
+
+### 14.4 Filter 和 Interceptor 的区别
+
+补充：如果后续学习 Spring MVC，会遇到 `Interceptor`。
+
+| 对比项 | Filter | Interceptor |
+| --- | --- | --- |
+| 所属体系 | Servlet 规范 | Spring MVC |
+| 作用范围 | Web 容器层面 | Spring MVC 控制器层面 |
+| 拦截对象 | 请求和响应 | Controller 调用前后 |
+| 是否依赖 Spring | 不依赖 | 依赖 Spring MVC |
+| 常见用途 | 编码、登录、权限、日志、跨域 | 登录、权限、Controller 日志、参数检查 |
+
+简单理解：
+
+- `Filter` 更靠近 Web 容器
+- `Interceptor` 更靠近 Spring MVC 业务控制器
+
+---
+
+## 15. 本节课知识结构图
+
+```text
+Filter 过滤器
+|
++-- 作用
+|   +-- 拦截请求
+|   +-- 拦截响应
+|   +-- 抽取通用逻辑
+|
++-- 使用步骤
+|   +-- 创建 Filter 类
+|   +-- 重写 doFilter
+|   +-- 配置 web.xml 或 @WebFilter
+|
++-- 生命周期
+|   +-- 实例化
+|   +-- init
+|   +-- doFilter
+|   +-- destroy
+|
++-- FilterChain
+|   +-- 多个 Filter 按顺序组成链条
+|   +-- chain.doFilter 推动链条继续执行
+|   +-- 请求顺序进入，响应倒序返回
+|
++-- 项目应用
+    +-- LoginFilter
+    +-- 登录校验
+    +-- 白名单
+    +-- 业务代码解耦
+```
+
