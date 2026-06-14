@@ -22,6 +22,7 @@ export default {
     'day_21': 'Servlet生命周期',
     'day_22': 'HttpServlet',
     'day_23': 'Cookie',
-    'day_24': 'Servlet Filter'
+    'day_24': 'Servlet Filter',
+    'day_25': 'Servlet Listener'
 }
   

@@ -1,0 +1,1050 @@
+# Listener 监听器学习笔记
+
+> 来源：`Listener监听器` PPT  
+> 主题：Java Web / Servlet Listener  
+> 说明：本文以 PPT 内容为主线，并补充了常用接口说明、代码示例、在线人数统计实战和复习题。
+
+## 1. 本节课主要内容
+
+这份 PPT 主要讲 Servlet 规范中的 `Listener`，也就是监听器。核心内容包括：
+
+- 什么是 `Listener`
+- `Listener` 的类型
+- 如何使用 `Listener`
+- 实战：基于 `Listener` 实现在线人数统计
+
+---
+
+## 2. 什么是 Listener？
+
+`Listener`，中文叫“监听器”，是 Servlet 规范中的一种组件。
+
+它用于监听 Java Web 应用程序中的事件，当某些事件发生时，自动执行开发者定义好的逻辑。
+
+例如：
+
+- Web 应用启动了
+- Web 应用关闭了
+- 一个 `Session` 创建了
+- 一个 `Session` 销毁了
+- 请求对象创建了
+- 请求对象销毁了
+- 某个作用域中的属性被添加、删除或替换了
+
+### 2.1 通俗理解
+
+监听器就像“事件观察员”：
+
+```text
+某个事件发生
+  |
+  v
+Web 容器通知 Listener
+  |
+  v
+Listener 自动执行对应方法
+```
+
+例如：
+
+```text
+服务器启动
+  |
+  v
+ServletContext 创建
+  |
+  v
+ServletContextListener.contextInitialized()
+```
+
+再比如：
+
+```text
+用户第一次访问并创建 Session
+  |
+  v
+HttpSession 创建
+  |
+  v
+HttpSessionListener.sessionCreated()
+```
+
+### 2.2 Listener 使用的设计模式
+
+PPT 中提到：`Listener` 使用了观察者模式，也叫发布订阅模式。
+
+可以这样理解：
+
+| 角色 | Java Web 中的对应对象 |
+| --- | --- |
+| 被观察者 / 发布者 | Web 容器、作用域对象、异步任务 |
+| 事件 | 应用启动、Session 创建、请求销毁、属性变化等 |
+| 观察者 / 订阅者 | 各种 Listener |
+| 回调方法 | `contextInitialized`、`sessionCreated`、`requestDestroyed` 等 |
+
+当事件发生时，Web 容器会自动调用对应监听器的方法。
+
+### 2.3 Listener 适合做什么？
+
+`Listener` 适合处理“事件发生时自动执行”的逻辑。
+
+常见场景：
+
+| 场景 | 适合的 Listener |
+| --- | --- |
+| 应用启动时加载配置 | `ServletContextListener` |
+| 应用关闭时释放资源 | `ServletContextListener` |
+| 统计在线人数 | `HttpSessionListener` |
+| 监听全局属性变化 | `ServletContextAttributeListener` |
+| 监听 Session 中用户信息变化 | `HttpSessionAttributeListener` |
+| 记录每个请求的创建和销毁 | `ServletRequestListener` |
+| 监听异步请求完成、超时、出错 | `AsyncListener` |
+
+---
+
+## 3. Listener、Filter、Servlet 的区别
+
+这三个都是 Java Web 中常见组件，但职责不同。
+
+| 组件 | 主要作用 | 触发方式 |
+| --- | --- | --- |
+| `Servlet` | 处理具体请求，生成响应 | 请求匹配到对应 URL |
+| `Filter` | 在请求到达 Servlet 前后拦截处理 | 请求匹配过滤规则 |
+| `Listener` | 监听 Web 应用中的事件 | 事件发生时由容器自动调用 |
+
+简单记忆：
+
+```text
+Servlet：处理请求
+Filter：拦截请求
+Listener：监听事件
+```
+
+---
+
+## 4. Java Web 中的三大作用域
+
+理解 Listener 类型前，要先理解 Java Web 中常见的三个作用域。
+
+### 4.1 请求域：Request
+
+请求域表示“处理一个用户请求期间”存活的数据。
+
+特点：
+
+- 一次请求创建
+- 响应结束前有效
+- 请求结束后数据销毁
+- 由 `HttpServletRequest` 实现
+
+典型使用：
+
+```java
+request.setAttribute("message", "保存成功");
+Object message = request.getAttribute("message");
+```
+
+适合保存一次请求内需要传递的数据。
+
+### 4.2 会话域：Session
+
+会话域表示“一个用户会话期间”存活的数据。
+
+特点：
+
+- 同一个用户的多个请求可以共享
+- 通常从创建 `Session` 开始，到超时、手动失效或容器关闭前有效
+- 由 `HttpSession` 实现
+
+典型使用：
+
+```java
+HttpSession session = request.getSession();
+session.setAttribute("user", user);
+Object user = session.getAttribute("user");
+```
+
+适合保存登录用户信息、购物车等和用户会话相关的数据。
+
+### 4.3 应用域：Application
+
+应用域表示“整个 Web 应用程序期间”存活的数据。
+
+特点：
+
+- 应用启动时创建
+- 应用关闭前有效
+- 所有用户共享
+- 由 `ServletContext` 实现
+
+典型使用：
+
+```java
+ServletContext context = getServletContext();
+context.setAttribute("onlineCount", 0);
+Object onlineCount = context.getAttribute("onlineCount");
+```
+
+适合保存全局数据，例如：
+
+- 在线人数
+- 全局配置
+- 应用级缓存
+- 共享资源引用
+
+---
+
+## 5. 关于 ServletContext
+
+PPT 中专门提到 `ServletContext`。
+
+`ServletContext` 是 Java Web 中的一个接口，由 Web 容器负责创建。
+
+每个 Web 应用程序只有一个 `ServletContext` 对象实例，并且它在整个 Web 应用生命周期中有效。
+
+### 5.1 ServletContext 的作用
+
+`ServletContext` 可以用来：
+
+- 共享全局数据
+- 存储全局变量
+- 获取 Web 应用真实路径
+- 获取初始化参数
+- 监听 Web 应用生命周期事件
+- 在多个 `Servlet`、`Filter`、`Listener` 之间传递应用级数据
+
+### 5.2 获取 ServletContext
+
+在 `Servlet` 中：
+
+```java
+ServletContext context = getServletContext();
+```
+
+或者：
+
+```java
+ServletContext context = request.getServletContext();
+```
+
+在 `Listener` 中，通常从事件对象里获取：
+
+```java
+public void contextInitialized(ServletContextEvent sce) {
+    ServletContext context = sce.getServletContext();
+}
+```
+
+---
+
+## 6. Listener 的类型
+
+PPT 中提到：Java Web 中不同事件对应不同的 Listener 接口，总共有 8 个 Listener 接口，按监听的事件域可以分为 4 类：
+
+- 应用域 Listener
+- 会话域 Listener
+- 请求域 Listener
+- 异步 Listener
+
+分类图可以整理为：
+
+```text
+JavaWeb Listener
+|
++-- ServletContext 相关（应用域）
+|   +-- ServletContextListener
+|   +-- ServletContextAttributeListener
+|
++-- HttpSession 相关（会话域）
+|   +-- HttpSessionListener
+|   +-- HttpSessionAttributeListener
+|   +-- HttpSessionActivationListener
+|
++-- ServletRequest 相关（请求域）
+|   +-- ServletRequestListener
+|   +-- ServletRequestAttributeListener
+|
++-- 其他
+    +-- AsyncListener
+```
+
+---
+
+## 7. 应用域 Listener
+
+应用域 Listener 用来监听 `ServletContext` 相关事件。
+
+### 7.1 ServletContextListener
+
+作用：监听 `ServletContext` 对象的创建和销毁。
+
+常用场景：
+
+- Web 应用启动时初始化资源
+- Web 应用关闭时释放资源
+- 初始化全局变量
+- 加载配置文件
+- 创建连接池、线程池等全局资源
+
+核心方法：
+
+```java
+public class MyServletContextListener implements ServletContextListener {
+    @Override
+    public void contextInitialized(ServletContextEvent sce) {
+        System.out.println("服务启动.");
+    }
+
+    @Override
+    public void contextDestroyed(ServletContextEvent sce) {
+        System.out.println("服务关闭.");
+    }
+}
+```
+
+执行时机：
+
+| 方法 | 触发时机 |
+| --- | --- |
+| `contextInitialized` | Web 应用启动，`ServletContext` 创建后 |
+| `contextDestroyed` | Web 应用关闭，`ServletContext` 销毁前 |
+
+### 7.2 ServletContextAttributeListener
+
+作用：监听 `ServletContext` 应用域属性的添加、删除和替换。
+
+核心方法：
+
+```java
+public class MyContextAttributeListener implements ServletContextAttributeListener {
+    @Override
+    public void attributeAdded(ServletContextAttributeEvent event) {
+        System.out.println("应用域属性添加: " + event.getName());
+    }
+
+    @Override
+    public void attributeRemoved(ServletContextAttributeEvent event) {
+        System.out.println("应用域属性删除: " + event.getName());
+    }
+
+    @Override
+    public void attributeReplaced(ServletContextAttributeEvent event) {
+        System.out.println("应用域属性替换: " + event.getName());
+    }
+}
+```
+
+触发示例：
+
+```java
+ServletContext context = request.getServletContext();
+
+context.setAttribute("siteName", "Hotel System"); // attributeAdded
+context.setAttribute("siteName", "New Hotel");    // attributeReplaced
+context.removeAttribute("siteName");              // attributeRemoved
+```
+
+---
+
+## 8. 会话域 Listener
+
+会话域 Listener 用来监听 `HttpSession` 相关事件。
+
+### 8.1 HttpSessionListener
+
+作用：监听 `HttpSession` 对象的创建和销毁。
+
+常用场景：
+
+- 统计在线人数
+- 用户会话创建时初始化数据
+- 会话销毁时清理用户临时数据
+
+核心方法：
+
+```java
+public class MySessionListener implements HttpSessionListener {
+    @Override
+    public void sessionCreated(HttpSessionEvent se) {
+        System.out.println("Session 创建");
+    }
+
+    @Override
+    public void sessionDestroyed(HttpSessionEvent se) {
+        System.out.println("Session 销毁");
+    }
+}
+```
+
+执行时机：
+
+| 方法 | 触发时机 |
+| --- | --- |
+| `sessionCreated` | 创建 `HttpSession` 时 |
+| `sessionDestroyed` | `HttpSession` 失效、超时或被销毁时 |
+
+注意：不是每次请求都会创建 `Session`。通常只有调用 `request.getSession()` 或 `request.getSession(true)` 时，才会创建新的 `Session`。
+
+### 8.2 HttpSessionAttributeListener
+
+作用：监听 `Session` 中属性的添加、删除和替换。
+
+核心方法：
+
+```java
+public class MySessionAttributeListener implements HttpSessionAttributeListener {
+    @Override
+    public void attributeAdded(HttpSessionBindingEvent event) {
+        System.out.println("Session 属性添加: " + event.getName());
+    }
+
+    @Override
+    public void attributeRemoved(HttpSessionBindingEvent event) {
+        System.out.println("Session 属性删除: " + event.getName());
+    }
+
+    @Override
+    public void attributeReplaced(HttpSessionBindingEvent event) {
+        System.out.println("Session 属性替换: " + event.getName());
+    }
+}
+```
+
+触发示例：
+
+```java
+HttpSession session = request.getSession();
+
+session.setAttribute("user", user);       // attributeAdded
+session.setAttribute("user", newUser);    // attributeReplaced
+session.removeAttribute("user");          // attributeRemoved
+```
+
+### 8.3 HttpSessionActivationListener
+
+作用：监听 `Session` 的钝化和活化。
+
+这个接口常见于分布式部署、Session 持久化或服务器迁移场景。
+
+| 概念 | 含义 |
+| --- | --- |
+| 钝化 | 把内存中的 `Session` 写入硬盘或迁移出去 |
+| 活化 | 把硬盘或其他节点中的 `Session` 恢复到内存 |
+
+核心方法：
+
+```java
+public class UserInfo implements HttpSessionActivationListener, Serializable {
+    @Override
+    public void sessionWillPassivate(HttpSessionEvent se) {
+        System.out.println("Session 即将钝化");
+    }
+
+    @Override
+    public void sessionDidActivate(HttpSessionEvent se) {
+        System.out.println("Session 已经活化");
+    }
+}
+```
+
+注意：这个监听器通常由放入 `Session` 的对象自己实现，而不是像其他 Listener 那样单独配置在 `web.xml` 中。
+
+---
+
+## 9. 请求域 Listener
+
+请求域 Listener 用来监听 `ServletRequest` 相关事件。
+
+### 9.1 ServletRequestListener
+
+作用：监听请求对象的创建和销毁。
+
+常用场景：
+
+- 记录请求开始和结束
+- 统计请求耗时
+- 初始化请求级资源
+- 请求结束时释放资源
+
+核心方法：
+
+```java
+public class MyRequestListener implements ServletRequestListener {
+    @Override
+    public void requestInitialized(ServletRequestEvent sre) {
+        System.out.println("请求开始");
+    }
+
+    @Override
+    public void requestDestroyed(ServletRequestEvent sre) {
+        System.out.println("请求结束");
+    }
+}
+```
+
+补充：如果只是统计接口耗时，`Filter` 也很常用；如果希望监听请求对象生命周期本身，可以用 `ServletRequestListener`。
+
+### 9.2 ServletRequestAttributeListener
+
+作用：监听请求域属性的添加、删除和替换。
+
+核心方法：
+
+```java
+public class MyRequestAttributeListener implements ServletRequestAttributeListener {
+    @Override
+    public void attributeAdded(ServletRequestAttributeEvent event) {
+        System.out.println("请求域属性添加: " + event.getName());
+    }
+
+    @Override
+    public void attributeRemoved(ServletRequestAttributeEvent event) {
+        System.out.println("请求域属性删除: " + event.getName());
+    }
+
+    @Override
+    public void attributeReplaced(ServletRequestAttributeEvent event) {
+        System.out.println("请求域属性替换: " + event.getName());
+    }
+}
+```
+
+触发示例：
+
+```java
+request.setAttribute("msg", "success");     // attributeAdded
+request.setAttribute("msg", "updated");     // attributeReplaced
+request.removeAttribute("msg");             // attributeRemoved
+```
+
+---
+
+## 10. 异步 Listener
+
+### 10.1 AsyncListener
+
+作用：监听 Servlet 异步处理中的事件。
+
+核心方法：
+
+```java
+public class MyAsyncListener implements AsyncListener {
+    @Override
+    public void onComplete(AsyncEvent event) throws IOException {
+        System.out.println("异步任务完成");
+    }
+
+    @Override
+    public void onTimeout(AsyncEvent event) throws IOException {
+        System.out.println("异步任务超时");
+    }
+
+    @Override
+    public void onError(AsyncEvent event) throws IOException {
+        System.out.println("异步任务出错");
+    }
+
+    @Override
+    public void onStartAsync(AsyncEvent event) throws IOException {
+        System.out.println("异步任务重新开始");
+    }
+}
+```
+
+典型使用：
+
+```java
+AsyncContext asyncContext = request.startAsync();
+asyncContext.addListener(new MyAsyncListener());
+```
+
+`AsyncListener` 在普通入门项目中不一定常用，但在长轮询、异步接口、后台任务通知等场景中会遇到。
+
+---
+
+## 11. 使用 Listener
+
+PPT 中给出的使用步骤是：
+
+1. 创建 Listener 类
+2. 根据感兴趣的事件，选择对应的 Listener 接口去实现
+3. 在 `web.xml` 中配置 Listener
+
+### 11.1 创建 Listener 类
+
+例如监听 Web 应用启动和关闭：
+
+```java
+public class MyServletContextListener implements ServletContextListener {
+    @Override
+    public void contextInitialized(ServletContextEvent sce) {
+        System.out.println("服务启动.");
+    }
+
+    @Override
+    public void contextDestroyed(ServletContextEvent sce) {
+        System.out.println("服务关闭.");
+    }
+}
+```
+
+### 11.2 在 web.xml 中配置 Listener
+
+PPT 中的配置示例：
+
+```xml
+<listener>
+    <listener-class>com.jirengu.hotel.listener.MyServletContextListener</listener-class>
+</listener>
+```
+
+说明：
+
+| 配置 | 作用 |
+| --- | --- |
+| `<listener>` | 声明一个监听器 |
+| `<listener-class>` | 指定监听器类的全限定类名 |
+
+和 `Filter` 不同，`Listener` 通常不需要配置 URL 映射，因为它不是根据请求路径触发，而是根据事件触发。
+
+### 11.3 注解方式配置 Listener
+
+补充：也可以使用 `@WebListener` 注解：
+
+```java
+@WebListener
+public class MyServletContextListener implements ServletContextListener {
+    @Override
+    public void contextInitialized(ServletContextEvent sce) {
+        System.out.println("服务启动.");
+    }
+
+    @Override
+    public void contextDestroyed(ServletContextEvent sce) {
+        System.out.println("服务关闭.");
+    }
+}
+```
+
+如果项目使用注解扫描，使用 `@WebListener` 会更简洁。
+
+### 11.4 包名提醒
+
+老的 Java Web 项目常见包名：
+
+```java
+import javax.servlet.*;
+import javax.servlet.http.*;
+```
+
+较新的 Jakarta EE 项目可能是：
+
+```java
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+```
+
+课堂或项目中应该以实际依赖为准。
+
+---
+
+## 12. 实战：基于 Listener 实现在线人数统计
+
+PPT 中的实现思路：
+
+1. 服务启动时，在 `ServletContext` 中创建变量 `onlineCount = 0`
+2. 用存活的 `Session` 个数表示在线人数
+3. 实现 `HttpSessionListener` 接口
+4. 当有 `Session` 创建时，在线人数加 1
+5. 当有 `Session` 销毁时，在线人数减 1
+
+### 12.1 为什么可以用 Session 个数表示在线人数？
+
+一个用户访问 Web 应用后，如果服务器为他创建了一个 `Session`，这个 `Session` 可以代表一次用户会话。
+
+因此：
+
+```text
+Session 创建  -> 认为有一个用户上线
+Session 销毁  -> 认为有一个用户下线
+```
+
+但要注意：这是一种简化统计。
+
+它统计的是“当前存活的 Session 数”，不一定完全等于真实在线人数。
+
+例如：
+
+- 用户关闭浏览器后，Session 不会立刻销毁，要等超时
+- 一个用户多个浏览器可能产生多个 Session
+- 爬虫或匿名访问也可能创建 Session
+
+### 12.2 初始化 onlineCount
+
+用 `ServletContextListener` 在应用启动时初始化在线人数：
+
+```java
+public class OnlineCountContextListener implements ServletContextListener {
+    @Override
+    public void contextInitialized(ServletContextEvent sce) {
+        ServletContext context = sce.getServletContext();
+        context.setAttribute("onlineCount", 0);
+    }
+
+    @Override
+    public void contextDestroyed(ServletContextEvent sce) {
+        // 应用关闭前可以做资源清理
+    }
+}
+```
+
+### 12.3 监听 Session 创建和销毁
+
+用 `HttpSessionListener` 修改在线人数：
+
+```java
+public class OnlineCountSessionListener implements HttpSessionListener {
+    @Override
+    public void sessionCreated(HttpSessionEvent se) {
+        ServletContext context = se.getSession().getServletContext();
+
+        Integer onlineCount = (Integer) context.getAttribute("onlineCount");
+        if (onlineCount == null) {
+            onlineCount = 0;
+        }
+
+        context.setAttribute("onlineCount", onlineCount + 1);
+    }
+
+    @Override
+    public void sessionDestroyed(HttpSessionEvent se) {
+        ServletContext context = se.getSession().getServletContext();
+
+        Integer onlineCount = (Integer) context.getAttribute("onlineCount");
+        if (onlineCount == null || onlineCount <= 0) {
+            onlineCount = 0;
+        } else {
+            onlineCount = onlineCount - 1;
+        }
+
+        context.setAttribute("onlineCount", onlineCount);
+    }
+}
+```
+
+### 12.4 更稳妥的线程安全写法
+
+补充：`ServletContext` 是全局共享的，多个请求可能同时创建或销毁 `Session`。如果只是用 `Integer` 取出、加一、再放回，极端情况下可能有并发问题。
+
+可以使用 `AtomicInteger`：
+
+```java
+public class OnlineCountContextListener implements ServletContextListener {
+    @Override
+    public void contextInitialized(ServletContextEvent sce) {
+        ServletContext context = sce.getServletContext();
+        context.setAttribute("onlineCount", new AtomicInteger(0));
+    }
+
+    @Override
+    public void contextDestroyed(ServletContextEvent sce) {
+    }
+}
+```
+
+Session 监听器：
+
+```java
+public class OnlineCountSessionListener implements HttpSessionListener {
+    @Override
+    public void sessionCreated(HttpSessionEvent se) {
+        AtomicInteger onlineCount = getOnlineCount(se);
+        onlineCount.incrementAndGet();
+    }
+
+    @Override
+    public void sessionDestroyed(HttpSessionEvent se) {
+        AtomicInteger onlineCount = getOnlineCount(se);
+        onlineCount.updateAndGet(count -> Math.max(0, count - 1));
+    }
+
+    private AtomicInteger getOnlineCount(HttpSessionEvent se) {
+        ServletContext context = se.getSession().getServletContext();
+        return (AtomicInteger) context.getAttribute("onlineCount");
+    }
+}
+```
+
+需要导入：
+
+```java
+import java.util.concurrent.atomic.AtomicInteger;
+```
+
+### 12.5 在页面或 Servlet 中读取在线人数
+
+在 Servlet 中读取：
+
+```java
+AtomicInteger onlineCount =
+        (AtomicInteger) request.getServletContext().getAttribute("onlineCount");
+
+int count = onlineCount == null ? 0 : onlineCount.get();
+
+response.getWriter().write("当前在线人数：" + count);
+```
+
+如果使用 JSP，可以从 `applicationScope` 中读取，具体写法取决于项目是否使用 JSP/EL。
+
+### 12.6 配置两个 Listener
+
+`web.xml` 示例：
+
+```xml
+<listener>
+    <listener-class>com.jirengu.hotel.listener.OnlineCountContextListener</listener-class>
+</listener>
+
+<listener>
+    <listener-class>com.jirengu.hotel.listener.OnlineCountSessionListener</listener-class>
+</listener>
+```
+
+### 12.7 设置 Session 超时时间
+
+如果希望用户长时间不操作后自动下线，可以配置 Session 超时时间。
+
+`web.xml`：
+
+```xml
+<session-config>
+    <session-timeout>30</session-timeout>
+</session-config>
+```
+
+这里的 `30` 表示 30 分钟。
+
+也可以在代码中设置：
+
+```java
+request.getSession().setMaxInactiveInterval(30 * 60);
+```
+
+单位是秒。
+
+---
+
+## 13. 常见错误与排查
+
+### 13.1 Listener 没有生效
+
+可能原因：
+
+- 没有在 `web.xml` 中配置
+- `@WebListener` 没有被扫描
+- 类路径写错
+- 项目没有重新部署
+- 使用了错误的 `javax.*` / `jakarta.*` 包
+
+排查方式：
+
+- 在监听器方法中打印日志
+- 检查 `web.xml` 路径和类名
+- 检查服务器启动日志
+
+### 13.2 以为每次请求都会创建 Session
+
+`HttpSessionListener.sessionCreated()` 只在创建新 `Session` 时触发。
+
+如果代码没有调用：
+
+```java
+request.getSession();
+```
+
+或者没有其他机制创建 `Session`，则不一定触发。
+
+### 13.3 在线人数不会立刻减少
+
+用户关闭浏览器，不代表服务器端 `Session` 立刻销毁。
+
+`Session` 通常在以下情况销毁：
+
+- 调用 `session.invalidate()`
+- 超过最大不活动时间
+- 应用关闭或容器销毁 Session
+
+所以在线人数统计通常会有延迟。
+
+### 13.4 ServletContext 中的数据是全局共享的
+
+`ServletContext` 是整个应用共享的，所有用户都能访问同一个应用域数据。
+
+因此：
+
+- 不要在 `ServletContext` 中保存某个用户的私有数据
+- 用户私有数据应该放在 `Session`
+- 一次请求内的数据应该放在 `Request`
+
+### 13.5 计数器并发问题
+
+如果多个 Session 同时创建或销毁，普通 `Integer` 加减可能不够安全。
+
+更推荐：
+
+- 使用 `AtomicInteger`
+- 或使用同步代码块
+- 或用更可靠的在线用户集合来统计
+
+---
+
+## 14. 快速记忆
+
+### 14.1 一句话理解 Listener
+
+`Listener` 是 Java Web 中用来监听应用、会话、请求、异步任务等事件的组件。
+
+### 14.2 一句话理解 ServletContextListener
+
+`ServletContextListener` 监听 Web 应用启动和关闭，常用于初始化和清理全局资源。
+
+### 14.3 一句话理解 HttpSessionListener
+
+`HttpSessionListener` 监听 Session 创建和销毁，常用于在线人数统计。
+
+### 14.4 一句话理解 AttributeListener
+
+`AttributeListener` 监听作用域中属性的添加、删除和替换。
+
+### 14.5 记忆口诀
+
+```text
+应用看 Context，
+会话看 Session，
+请求看 Request，
+异步看 Async。
+
+生命周期 Listener 管创建销毁，
+AttributeListener 管属性变化。
+```
+
+---
+
+## 15. 面试/考试高频点
+
+### 15.1 Listener 的作用是什么？
+
+监听 Web 应用中的事件，并在事件发生时自动执行对应逻辑。
+
+### 15.2 Java Web 中有哪些常见 Listener？
+
+按域分类：
+
+- 应用域：`ServletContextListener`、`ServletContextAttributeListener`
+- 会话域：`HttpSessionListener`、`HttpSessionAttributeListener`、`HttpSessionActivationListener`
+- 请求域：`ServletRequestListener`、`ServletRequestAttributeListener`
+- 异步：`AsyncListener`
+
+### 15.3 Listener 怎么配置？
+
+可以在 `web.xml` 中配置：
+
+```xml
+<listener>
+    <listener-class>完整类名</listener-class>
+</listener>
+```
+
+也可以使用注解：
+
+```java
+@WebListener
+public class MyListener implements ServletContextListener {
+}
+```
+
+### 15.4 如何实现在线人数统计？
+
+基本思路：
+
+```text
+应用启动：onlineCount = 0
+Session 创建：onlineCount + 1
+Session 销毁：onlineCount - 1
+页面展示：从 ServletContext 中读取 onlineCount
+```
+
+核心接口：
+
+- `ServletContextListener`
+- `HttpSessionListener`
+
+### 15.5 Listener 和 Filter 的区别
+
+| 对比项 | Listener | Filter |
+| --- | --- | --- |
+| 关注点 | 事件 | 请求拦截 |
+| 触发方式 | 事件发生时自动触发 | 请求匹配 URL 规则时触发 |
+| 是否需要 URL 映射 | 通常不需要 | 需要 |
+| 常见用途 | 初始化资源、统计在线人数、监听属性变化 | 登录校验、权限控制、编码处理、日志记录 |
+
+---
+
+## 16. 复习题
+
+1. 什么是 `Listener`？
+2. `Listener` 使用了哪种设计模式？
+3. `ServletContext`、`HttpSession`、`HttpServletRequest` 分别对应什么作用域？
+4. `ServletContextListener` 的两个核心方法是什么？分别什么时候执行？
+5. `HttpSessionListener` 可以用来做什么？
+6. 为什么用 `Session` 统计在线人数可能不完全准确？
+7. `ServletContextAttributeListener` 监听哪些事件？
+8. `HttpSessionActivationListener` 中“钝化”和“活化”是什么意思？
+9. `Listener` 和 `Filter` 的区别是什么？
+10. 如何在 `web.xml` 中配置一个 Listener？
+
+---
+
+## 17. 本节课知识结构图
+
+```text
+Listener 监听器
+|
++-- 核心作用
+|   +-- 监听 Web 应用中的事件
+|   +-- 事件发生时自动回调方法
+|   +-- 使用观察者模式 / 发布订阅模式
+|
++-- 作用域
+|   +-- 请求域：HttpServletRequest
+|   +-- 会话域：HttpSession
+|   +-- 应用域：ServletContext
+|
++-- 类型
+|   +-- 应用域 Listener
+|   |   +-- ServletContextListener
+|   |   +-- ServletContextAttributeListener
+|   |
+|   +-- 会话域 Listener
+|   |   +-- HttpSessionListener
+|   |   +-- HttpSessionAttributeListener
+|   |   +-- HttpSessionActivationListener
+|   |
+|   +-- 请求域 Listener
+|   |   +-- ServletRequestListener
+|   |   +-- ServletRequestAttributeListener
+|   |
+|   +-- 异步 Listener
+|       +-- AsyncListener
+|
++-- 使用步骤
+|   +-- 创建 Listener 类
+|   +-- 实现对应接口
+|   +-- web.xml 配置或 @WebListener 注解
+|
++-- 实战
+    +-- 在线人数统计
+    +-- ServletContext 保存 onlineCount
+    +-- HttpSessionListener 监听 Session 创建/销毁
+```
+
