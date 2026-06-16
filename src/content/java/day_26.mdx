@@ -1,0 +1,353 @@
+# JavaWeb 注解式开发
+
+## 一、什么是注解式开发
+
+在早期 JavaWeb 开发中，Servlet、Filter、Listener 等组件都需要在 `web.xml` 中进行配置。
+
+从 Servlet 3.0 开始，可以通过注解（Annotation）直接完成组件注册，无需再编写大量 XML 配置。
+
+优点：
+
+* 配置更简单
+* 代码与配置集中在一起
+* 减少 web.xml 内容
+* 提高开发效率
+
+---
+
+## 二、使用 @WebListener
+
+### 作用
+
+用于声明一个监听器（Listener）。
+
+使用后不需要再在 `web.xml` 中配置监听器。
+
+### 示例
+
+```java
+import javax.servlet.annotation.WebListener;
+import javax.servlet.ServletContextListener;
+import javax.servlet.ServletContextEvent;
+
+@WebListener
+public class MyListener implements ServletContextListener {
+
+    @Override
+    public void contextInitialized(ServletContextEvent sce) {
+        System.out.println("项目启动");
+    }
+
+    @Override
+    public void contextDestroyed(ServletContextEvent sce) {
+        System.out.println("项目关闭");
+    }
+}
+```
+
+### 配置要求
+
+在 `web.xml` 中需要允许注解扫描：
+
+```xml
+<web-app metadata-complete="false">
+</web-app>
+```
+
+### 工作流程
+
+```text
+服务器启动
+      │
+      ▼
+扫描@WebListener
+      │
+      ▼
+创建监听器对象
+      │
+      ▼
+执行 contextInitialized()
+      │
+      ▼
+应用运行
+      │
+      ▼
+应用关闭
+      │
+      ▼
+执行 contextDestroyed()
+```
+
+---
+
+## 三、使用 @WebServlet
+
+### 作用
+
+用于声明一个 Servlet。
+
+代替 web.xml 中的 servlet 和 servlet-mapping 配置。
+
+### 常用属性
+
+| 属性          | 说明              |
+| ----------- | --------------- |
+| name        | Servlet名称       |
+| urlPatterns | 请求路径映射          |
+| value       | urlPatterns简写形式 |
+
+---
+
+### 示例
+
+```java
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+@WebServlet(
+    name = "HelloServlet",
+    urlPatterns = "/hello"
+)
+public class HelloServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(
+            HttpServletRequest req,
+            HttpServletResponse resp) {
+
+        System.out.println("Hello Servlet");
+    }
+}
+```
+
+访问：
+
+```text
+http://localhost:8080/项目名/hello
+```
+
+---
+
+### 等价 XML 配置
+
+```xml
+<servlet>
+    <servlet-name>HelloServlet</servlet-name>
+    <servlet-class>
+        com.demo.HelloServlet
+    </servlet-class>
+</servlet>
+
+<servlet-mapping>
+    <servlet-name>HelloServlet</servlet-name>
+    <url-pattern>/hello</url-pattern>
+</servlet-mapping>
+```
+
+---
+
+### 工作流程
+
+```text
+浏览器请求
+      │
+      ▼
+匹配 URL
+      │
+      ▼
+找到 @WebServlet
+      │
+      ▼
+创建 Servlet
+      │
+      ▼
+调用 service()
+      │
+      ▼
+执行 doGet()/doPost()
+      │
+      ▼
+返回响应
+```
+
+---
+
+## 四、使用 @WebFilter
+
+### 作用
+
+用于声明过滤器（Filter）。
+
+代替 web.xml 中的 Filter 配置。
+
+### 常用属性
+
+| 属性          | 说明       |
+| ----------- | -------- |
+| filterName  | Filter名称 |
+| urlPatterns | 拦截路径     |
+
+---
+
+### 示例
+
+```java
+import javax.servlet.annotation.WebFilter;
+import javax.servlet.*;
+import java.io.IOException;
+
+@WebFilter(
+    filterName = "LoginFilter",
+    urlPatterns = "/*"
+)
+public class LoginFilter implements Filter {
+
+    @Override
+    public void doFilter(
+            ServletRequest request,
+            ServletResponse response,
+            FilterChain chain)
+            throws IOException, ServletException {
+
+        System.out.println("请求被拦截");
+
+        chain.doFilter(request, response);
+
+        System.out.println("响应返回");
+    }
+}
+```
+
+---
+
+### 等价 XML 配置
+
+```xml
+<filter>
+    <filter-name>LoginFilter</filter-name>
+    <filter-class>
+        com.demo.LoginFilter
+    </filter-class>
+</filter>
+
+<filter-mapping>
+    <filter-name>LoginFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
+```
+
+---
+
+### 工作流程
+
+```text
+浏览器请求
+      │
+      ▼
+进入 Filter
+      │
+      ▼
+前置处理
+      │
+      ▼
+chain.doFilter()
+      │
+      ▼
+Servlet处理
+      │
+      ▼
+返回 Filter
+      │
+      ▼
+后置处理
+      │
+      ▼
+响应客户端
+```
+
+---
+
+# 三大注解总结
+
+| 注解           | 作用          | 代替配置         |
+| ------------ | ----------- | ------------ |
+| @WebServlet  | 注册 Servlet  | `<servlet>`  |
+| @WebFilter   | 注册 Filter   | `<filter>`   |
+| @WebListener | 注册 Listener | `<listener>` |
+
+---
+
+# JavaWeb 组件执行顺序
+
+```text
+服务器启动
+    │
+    ▼
+Listener初始化
+    │
+    ▼
+浏览器请求
+    │
+    ▼
+Filter执行
+    │
+    ▼
+Servlet执行
+    │
+    ▼
+返回响应
+    │
+    ▼
+服务器关闭
+    │
+    ▼
+Listener销毁
+```
+
+---
+
+## 面试题
+
+### Servlet 3.0 之后为什么可以不写 web.xml？
+
+因为 Servlet 3.0 引入了注解开发机制，可以通过：
+
+* @WebServlet
+* @WebFilter
+* @WebListener
+
+自动注册 Web 组件，容器启动时会扫描这些注解并完成配置。
+
+---
+
+### @WebServlet 和 urlPatterns 有什么作用？
+
+`@WebServlet` 用于注册 Servlet。
+
+`urlPatterns` 用于指定请求路径映射。
+
+```java
+@WebServlet(urlPatterns="/user")
+```
+
+表示访问：
+
+```text
+http://localhost:8080/项目名/user
+```
+
+时会进入该 Servlet。
+
+---
+
+### Filter 和 Listener 的区别？
+
+| 对比项    | Filter           | Listener          |
+| ------ | ---------------- | ----------------- |
+| 作用     | 过滤请求和响应          | 监听事件              |
+| 处理对象   | Request、Response | Context、Session 等 |
+| 是否拦截请求 | 是                | 否                 |
+| 典型场景   | 登录校验、编码处理        | 项目启动初始化           |
+
