@@ -1,0 +1,432 @@
+# MySQL 的基本概念和基本操作
+
+> 这节课可以当成 MySQL 入门的第一张地图：先知道数据库里那些名词是什么意思，再学会建库、建表、插入、查询、更新、删除、改表、清表、删表、删库。
+
+## 我先记住结论
+
+MySQL 里最常打交道的是这几个层级：
+
+```text
+数据库服务实例
+  └─ 数据库 Database
+      └─ 数据表 Table
+          ├─ 列 Column / 字段 Field
+          └─ 行 Row / 记录 Record
+```
+
+最常用的 SQL 可以分两类：
+
+- `DDL`：操作结构，比如建库、建表、改表、删表。
+- `DML`：操作数据，也就是增删改查。
+
+这节课真正要练熟的是一条完整路径：
+
+```text
+登录 MySQL -> 查看数据库 -> 创建数据库 -> 使用数据库 -> 创建表
+-> 插入数据 -> 查询数据 -> 更新数据 -> 删除数据
+-> 修改表结构 -> 清空表 -> 删除表 -> 删除数据库
+```
+
+## 这份笔记怎么复习
+
+我觉得可以按三遍来过：
+
+第一遍先看“基本概念”和“DDL / DML”，把名词混熟。
+
+第二遍照着“登录和准备数据库”到“清空表、删表、删库”把 SQL 敲一遍。
+
+第三遍只看“我容易混的点”，检查自己有没有把危险操作和默认值规则搞混。
+
+## 基本概念
+
+数据库 `Database`：一组相关数据的集合。比如学校系统可以有一个学校数据库，酒店系统可以有一个酒店数据库。
+
+表 `Table`：数据库里真正存数据的结构。比如学生表、班级表。
+
+列 `Column`：也叫字段 `Field`，描述一条数据有哪些属性。比如学生表里的 `name`、`age`、`country`。
+
+行 `Row`：也叫记录 `Record`，表示表里的一条具体数据。
+
+主键 `Primary Key`：用来唯一标识一行数据，最常见的是 `id`。
+
+索引 `Index`：用来加快查询速度的数据结构。先记住它是“为了查得更快”，后面再细学。
+
+事务 `Transaction`：一组操作要么都成功，要么都失败回滚。核心是保证数据一致性。
+
+## DDL 和 DML
+
+`DDL` 是 Data Definition Language，数据定义语言，主要管“结构”。
+
+常见命令：
+
+- `CREATE`：创建数据库、表、索引等。
+- `ALTER`：修改表结构，比如加字段、删字段、改字段。
+- `DROP`：删除数据库对象，比如删表、删库。
+- `TRUNCATE`：清空表数据，但表还在。
+- `RENAME`：重命名数据库对象。
+- `COMMENT`：加注释。
+
+`DML` 是 Data Manipulation Language，数据操作语言，主要管“数据”。
+
+常见命令：
+
+- `SELECT`：查询。
+- `INSERT`：新增。
+- `UPDATE`：修改。
+- `DELETE`：删除。
+
+平时说的 `CRUD` 就是这几个：
+
+- `Create`：增加，对应 `INSERT`
+- `Retrieve`：查询，对应 `SELECT`
+- `Update`：修改，对应 `UPDATE`
+- `Delete`：删除，对应 `DELETE`
+
+## 登录和准备数据库
+
+先用 root 用户登录：
+
+```sql
+mysql -uroot -p
+```
+
+查看当前 MySQL 服务实例里有哪些数据库：
+
+```sql
+show databases;
+```
+
+创建一个学校数据库：
+
+```sql
+create database school_database;
+```
+
+进入这个数据库：
+
+```sql
+use school_database;
+```
+
+查看当前数据库里有哪些表：
+
+```sql
+show tables;
+```
+
+这里我容易忘的是：`show databases` 看的是整个 MySQL 实例里的数据库；`show tables` 看的是当前正在使用的数据库里的表。
+
+## 创建表
+
+创建表的基本结构大概是这样：
+
+```sql
+create table 表名 (
+    字段名 字段类型 字段属性,
+    字段名 字段类型 字段属性,
+    primary key (主键字段)
+) engine = InnoDB default charset = utf8mb4 comment = '表注释';
+```
+
+比如创建一个学生信息表：
+
+```sql
+create table student (
+    id bigint not null auto_increment comment '主键ID',
+    name varchar(64) not null comment '姓名',
+    age int not null comment '年龄',
+    country varchar(64) not null default '中国' comment '国家',
+    favorite_class varchar(64) default null comment '喜欢的课程',
+    created_at datetime not null comment '创建时间',
+    primary key (id)
+) engine = InnoDB default charset = utf8mb4 comment = '学生信息表';
+```
+
+几个点要记住：
+
+- `auto_increment` 一般给主键用，表示自增。
+- `primary key (id)` 指定主键。
+- `not null` 表示不能为空。
+- `default` 表示默认值。
+- `comment` 是注释，方便以后看表结构。
+- 现在主流存储引擎一般用 `InnoDB`。
+
+命名习惯也要注意：
+
+- Java 变量常用小驼峰：`favoriteClass`
+- MySQL 字段常用下划线：`favorite_class`
+
+## MySQL 常用数据类型
+
+整数类型：
+
+- `TINYINT`
+- `SMALLINT`
+- `MEDIUMINT`
+- `INT`
+- `BIGINT`
+
+小数类型：
+
+- `FLOAT`
+- `DOUBLE`
+- `DECIMAL`
+
+字符串类型：
+
+- `CHAR`
+- `VARCHAR`
+- `TEXT`
+- `BLOB`
+
+日期时间类型：
+
+- `DATE`
+- `TIME`
+- `DATETIME`
+- `TIMESTAMP`
+
+还有枚举 `ENUM`、集合 `SET`，先知道有这些类型就行。
+
+我先按实用规则记：
+
+- 整数常用 `INT` 或 `BIGINT`。
+- 字符串常用 `VARCHAR`。
+- 时间常用 `DATETIME`、`TIMESTAMP`，或者用 `BIGINT` 存毫秒时间戳。
+- 金额、重量这类精度敏感的数据，不要随便用浮点数。
+
+比如钱最好不要存 `12.34` 这种小数，可以存成 `1234` 分。这样能避免浮点精度问题。
+
+## 插入数据
+
+插入单条数据：
+
+```sql
+insert into student (name, age, country, favorite_class, created_at)
+values ('张三', 18, '中国', '数学', now());
+```
+
+插入多条数据：
+
+```sql
+insert into student (name, age, country, favorite_class, created_at)
+values
+    ('李四', 19, '中国', '英语', now()),
+    ('王五', 20, '中国', '计算机', now());
+```
+
+插入时要注意：
+
+- 如果字段是 `not null`，并且没有默认值，插入时必须给值。
+- 如果字段有默认值，不写这个字段时会使用默认值。
+- 不能给 `not null` 字段显式插入 `null`。
+- 自增主键 `id` 通常不用手动传。
+
+为什么插入数据时一般不给 `id` 赋值？
+
+因为 `id` 是主键，主键不能重复。手动给值容易冲突。设置成 `auto_increment` 后，数据库会自动生成递增的主键。
+
+如果以后不想用数据库自增主键，就需要专门的分布式 ID 生成方案。
+
+## 查询数据
+
+查询所有字段：
+
+```sql
+select * from student;
+```
+
+查询部分字段：
+
+```sql
+select id, name, age from student;
+```
+
+带条件查询：
+
+```sql
+select id, name, age
+from student
+where age >= 18;
+```
+
+排序：
+
+```sql
+select id, name, age
+from student
+order by age asc;
+```
+
+`asc` 是升序，`desc` 是降序。不写默认是升序。
+
+也可以按多个字段排序：
+
+```sql
+select id, name, age, created_at
+from student
+order by age desc, created_at asc;
+```
+
+限制返回条数：
+
+```sql
+select id, name, age
+from student
+limit 10;
+```
+
+分页查询：
+
+```sql
+select id, name, age
+from student
+order by id asc
+limit 10 offset 20;
+```
+
+这里表示跳过前 20 条，再取 10 条。
+
+我记分页可以这么想：
+
+```text
+limit = 这页要几条
+offset = 前面跳过几条
+```
+
+## 更新数据
+
+更新基本语法：
+
+```sql
+update student
+set age = 21
+where id = 1;
+```
+
+也可以一次更新多个字段：
+
+```sql
+update student
+set age = 21,
+    favorite_class = 'MySQL'
+where id = 1;
+```
+
+这里最重要的提醒：`where` 不是语法上必须写，但实际操作强烈建议写。
+
+如果不写：
+
+```sql
+update student
+set age = 21;
+```
+
+这会把整张表的 `age` 都改掉。这个坑非常经典，属于数据库新手成人礼，最好只在笔记里经历。
+
+## 删除数据
+
+删除基本语法：
+
+```sql
+delete from student
+where id = 1;
+```
+
+同样，`where` 一定要小心。
+
+如果不写：
+
+```sql
+delete from student;
+```
+
+这会删除整张表里的所有数据，但表结构还在。
+
+## 修改表结构
+
+添加字段：
+
+```sql
+alter table student
+add column email varchar(128) default null comment '邮箱';
+```
+
+删除字段：
+
+```sql
+alter table student
+drop column email;
+```
+
+修改字段有两个常用关键字：`modify` 和 `change`。
+
+`modify` 只能改字段类型、属性、注释，不能改字段名：
+
+```sql
+alter table student
+modify column favorite_class varchar(128) default null comment '最喜欢的课程';
+```
+
+`change` 可以改字段名，也可以改类型、属性、注释：
+
+```sql
+alter table student
+change column favorite_class favorite_subject varchar(128) default null comment '最喜欢的科目';
+```
+
+我的记法：
+
+- `modify`：只改这个字段本身的定义。
+- `change`：可以连字段名一起换掉。
+
+## 清空表、删表、删库
+
+清空表数据，但保留表结构：
+
+```sql
+truncate table student;
+```
+
+删除表：
+
+```sql
+drop table student;
+```
+
+删除数据库：
+
+```sql
+drop database school_database;
+```
+
+这三个命令要分清：
+
+```text
+delete from student;       删除表里的数据，可以带 where
+truncate table student;    清空整张表，表结构还在
+drop table student;        表没了
+drop database xxx;         数据库没了
+```
+
+## 我容易混的点
+
+`DDL` 管结构，`DML` 管数据。
+
+`database` 下面有很多 `table`，`table` 里面才是行和列。
+
+主键是为了唯一标识一行数据，常用 `id`。
+
+`auto_increment` 可以让数据库自动生成自增主键，所以插入时一般不用传 `id`。
+
+`not null` 字段不能插入 `null`，即使它有默认值也不行。
+
+`default` 只有在插入时不传这个字段时才会生效。
+
+`update` 和 `delete` 一定要特别注意 `where`，不然就是全表操作。
+
+`truncate` 是清空表，不是删除表。
+
+`drop table` 是删除表。
+
+`drop database` 是删除数据库。

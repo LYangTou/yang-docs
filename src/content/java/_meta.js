@@ -24,6 +24,7 @@ export default {
     'day_23': 'Cookie',
     'day_24': 'Servlet Filter',
     'day_25': 'Servlet Listener',
-    'day_26': 'Servlet 注解式开发'
+    'day_26': 'Servlet 注解式开发',
+    'day_27': 'MySQL 基础操作'
 }
   
