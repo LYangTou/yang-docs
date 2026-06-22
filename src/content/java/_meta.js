@@ -26,6 +26,7 @@ export default {
     'day_25': 'Servlet Listener',
     'day_26': 'Servlet 注解式开发',
     'day_27': 'MySQL 基础操作',
-    'day_28': '索引'
+    'day_28': '索引',
+    'day_29': '事务基础'
 }
   
