@@ -28,6 +28,7 @@ export default {
     'day_27': 'MySQL 基础操作',
     'day_28': '索引',
     'day_29': '事务基础',
-    'day_30': 'JDBC'
+    'day_30': 'JDBC',
+    'day_31': 'Maven补充'
 }
   
