@@ -1,0 +1,500 @@
+# JDBC 
+
+> JDBC 是 Java 访问关系型数据库的标准 API。它通过一组统一的接口隔离 Java 程序和具体数据库驱动，让应用代码可以用相对统一的方式连接数据库、执行 SQL、读取结果和管理事务。
+
+## 先看结论
+
+- JDBC 全称是 `Java Database Connectivity`，表示 Java 数据库连接。
+- JDBC 是 Java 官方定义的一套数据库访问规范，核心由接口和类组成。
+- 各数据库厂商提供对应的 JDBC 驱动 jar 包，实现 JDBC 规范。
+- Java 程序通常面向 JDBC 接口编程，真正执行数据库操作的是驱动包中的实现类。
+- JDBC 基本流程是：引入驱动、获取连接、定义 SQL、执行 SQL、处理结果、释放资源。
+- 实际开发中应优先使用 `PreparedStatement`，避免 SQL 注入风险。
+- 数据库连接池用于复用连接，减少频繁创建和销毁连接的开销。
+
+## 内容结构
+
+JDBC 的学习可以分成四部分：
+
+1. 理解 JDBC 是什么，以及它为什么能屏蔽不同数据库的差异。
+2. 掌握一个最基本的 JDBC 程序流程。
+3. 熟悉常用 JDBC API：`DriverManager`、`Connection`、`Statement`、`ResultSet`、`PreparedStatement`。
+4. 理解数据库连接池的作用，以及 Druid 连接池的基本使用流程。
+
+## JDBC 的作用
+
+JDBC 是 Java 语言访问关系型数据库的标准 API。
+
+可以理解为：
+
+```text
+Java 程序
+  -> JDBC 接口
+      -> 数据库厂商提供的驱动实现
+          -> MySQL / Oracle / PostgreSQL 等数据库
+```
+
+JDBC 的关键价值在于解耦：
+
+- Java 代码面向 JDBC 接口编程。
+- MySQL、Oracle 等数据库厂商实现 JDBC 接口。
+- 切换底层数据库时，只要 SQL 差异不大，Java 代码通常不需要大规模改动。
+
+例如，Java 程序调用的是 `Connection`、`Statement`、`ResultSet` 等 JDBC 类型，而不是直接依赖某个数据库内部的连接实现。
+
+## JDBC 入门程序流程
+
+一个最基础的 JDBC 程序通常包含 5 个步骤：
+
+```text
+1. 引入数据库驱动依赖
+2. 注册驱动
+3. 获取数据库连接
+4. 定义并执行 SQL
+5. 释放资源
+```
+``` java
+public static void main(String[] args) throws ClassNotFoundException, SQLException {
+    // 1. 注册驱动
+    Class.forName("com.mysql.cj.jdbc.Driver");
+    // 2. 获取链接
+    String url = "jdbc:mysql://localhost:3306/school";
+    String user = "root";
+    String password = "a7788945";
+    Connection connection = DriverManager.getConnection(url, user, password);
+    // 3. 定义sql语句
+    String sql = "update school.student_table set age=86 where id=1;";
+    // 4. 执行sql语句
+    Statement statement = connection.createStatement();
+    int count = statement.executeUpdate(sql);
+    System.out.println(count);
+    // 5. 释放资源
+    statement.close();
+    connection.close();
+}
+```
+
+### 1. 引入 MySQL 驱动
+
+如果使用 Maven，可以引入 MySQL Connector/J：
+
+```xml
+<dependency>
+    <groupId>com.mysql</groupId>
+    <artifactId>mysql-connector-j</artifactId>
+    <version>8.4.0</version>
+</dependency>
+```
+
+如果是普通 Java 项目，则需要把 MySQL 驱动 jar 包加入项目依赖。
+
+### 2. 注册驱动
+
+早期 JDBC 程序通常显式加载驱动类：
+
+```java
+Class.forName("com.mysql.cj.jdbc.Driver");
+```
+
+`Class.forName()` 会触发类加载，驱动类中的静态代码块会完成驱动注册。
+
+从 JDBC 4.0 开始，通常不再需要显式调用 `Class.forName()`。驱动 jar 包会通过 `META-INF/services/java.sql.Driver` 声明驱动类，JDBC 会自动加载。
+
+### 3. 获取连接
+
+JDBC URL 的基本格式：
+
+```text
+jdbc:mysql://主机名或IP:端口号/数据库名?参数名1=参数值1&参数名2=参数值2
+```
+
+示例：
+
+```text
+jdbc:mysql://localhost:3306/school
+jdbc:mysql://127.0.0.1:3306/school
+```
+
+更完整的 MySQL 连接示例：
+
+```java
+String url = "jdbc:mysql://localhost:3306/school?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8";
+String username = "root";
+String password = "123456";
+
+Connection connection = DriverManager.getConnection(url, username, password);
+```
+
+### 4. 定义并执行 SQL
+
+示例：查询学生表。
+
+```java
+String sql = "select id, name, age from student";
+Statement statement = connection.createStatement();
+ResultSet resultSet = statement.executeQuery(sql);
+```
+
+### 5. 释放资源
+
+JDBC 资源使用完毕后需要关闭。
+
+关闭顺序通常与创建顺序相反：
+
+```text
+ResultSet -> Statement -> Connection
+```
+
+推荐使用 `try-with-resources` 自动释放资源：
+
+```java
+String url = "jdbc:mysql://localhost:3306/school?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8";
+String username = "root";
+String password = "123456";
+String sql = "select id, name, age from student";
+
+try (
+    Connection connection = DriverManager.getConnection(url, username, password);
+    Statement statement = connection.createStatement();
+    ResultSet resultSet = statement.executeQuery(sql)
+) {
+    while (resultSet.next()) {
+        long id = resultSet.getLong("id");
+        String name = resultSet.getString("name");
+        int age = resultSet.getInt("age");
+        System.out.println(id + ", " + name + ", " + age);
+    }
+}
+```
+
+## JDBC 常用 API
+
+### DriverManager
+
+`DriverManager` 主要有两个作用：
+
+- 注册数据库驱动。
+- 获取数据库连接。
+
+常用方法：
+
+```java
+Connection connection = DriverManager.getConnection(url, username, password);
+```
+
+`DriverManager` 会根据 JDBC URL 选择合适的驱动实现。
+
+### Connection
+
+`Connection` 表示数据库连接。
+
+常见作用：
+
+- 获取执行 SQL 的对象。
+- 创建 `Statement` 或 `PreparedStatement`。
+- 管理事务。
+
+获取执行 SQL 的对象：
+
+```java
+Statement statement = connection.createStatement();
+```
+
+获取预编译 SQL 对象：
+
+```java
+PreparedStatement preparedStatement = connection.prepareStatement(sql);
+```
+
+事务管理：
+
+```java
+connection.setAutoCommit(false);
+
+try {
+    // 执行多条 SQL
+    connection.commit();
+} catch (Exception e) {
+    connection.rollback();
+    throw e;
+}
+```
+
+### Statement
+
+`Statement` 用于执行 SQL 语句，可以执行 DDL、DML 和 DQL。
+
+常用方法：
+
+| 方法 | 用途 |
+| --- | --- |
+| `executeUpdate(sql)` | 执行 DDL 或 DML，例如建表、插入、更新、删除 |
+| `executeQuery(sql)` | 执行 DQL，也就是查询语句 |
+
+示例：执行更新。
+
+```java
+String sql = "update student set age = 18 where id = 1";
+int count = statement.executeUpdate(sql);
+System.out.println("影响行数：" + count);
+```
+
+示例：执行查询。
+
+```java
+String sql = "select id, name, age from student";
+ResultSet resultSet = statement.executeQuery(sql);
+```
+
+`Statement` 的问题是容易出现 SQL 注入，因此处理用户输入时不推荐直接拼接 SQL。
+
+### ResultSet
+
+`ResultSet` 表示查询结果集，用于封装 `select` 语句返回的数据。
+
+核心方法：
+
+| 方法 | 作用 |
+| --- | --- |
+| `next()` | 将游标移动到下一行，返回当前行是否有效 |
+| `getXxx(String columnLabel)` | 根据列名获取当前行数据 |
+| `getXxx(int columnIndex)` | 根据返回结果中的列序号获取当前行数据，序号从 1 开始 |
+
+示例：
+
+```java
+while (resultSet.next()) {
+    long id = resultSet.getLong("id");
+    String name = resultSet.getString("name");
+    int age = resultSet.getInt("age");
+    System.out.println(id + ", " + name + ", " + age);
+}
+```
+
+注意：`columnIndex` 指的是查询结果中的列序号，不一定等于数据库表中的字段顺序。
+
+## SQL 注入问题
+
+SQL 注入是指攻击者把恶意 SQL 片段作为输入内容传入程序，使原本应该作为参数的数据变成 SQL 语句的一部分，从而执行非预期的数据库操作。
+
+常见错误写法：
+
+```java
+String username = inputUsername;
+String password = inputPassword;
+
+String sql = "select * from user where username = '" + username
+        + "' and password = '" + password + "'";
+```
+
+如果输入内容被构造为：
+
+```text
+username: admin
+password: ' or '1' = '1
+```
+
+最终 SQL 可能变成：
+
+```sql
+select * from user
+where username = 'admin'
+and password = '' or '1' = '1'
+```
+
+由于 `'1' = '1'` 永远为 true，原本的用户名密码校验可能失效。
+
+关键点：
+
+- `or` 原本应该只是参数字符串的一部分。
+- SQL 拼接让它变成了 SQL 逻辑的一部分。
+- 最终 where 条件可能恒为 true，导致返回非预期数据。
+
+## PreparedStatement
+
+`PreparedStatement` 用于预编译 SQL 并绑定参数，可以有效降低 SQL 注入风险。
+
+基本使用步骤：
+
+```text
+1. 编写带 ? 占位符的 SQL
+2. 通过 Connection 创建 PreparedStatement
+3. 使用 setXxx 方法给占位符赋值
+4. 执行 SQL
+```
+
+示例：安全查询用户。
+
+```java
+String sql = "select id, username from user where username = ? and password = ?";
+
+try (
+    Connection connection = DriverManager.getConnection(url, username, password);
+    PreparedStatement preparedStatement = connection.prepareStatement(sql)
+) {
+    preparedStatement.setString(1, inputUsername);
+    preparedStatement.setString(2, inputPassword);
+
+    try (ResultSet resultSet = preparedStatement.executeQuery()) {
+        while (resultSet.next()) {
+            long id = resultSet.getLong("id");
+            String user = resultSet.getString("username");
+            System.out.println(id + ", " + user);
+        }
+    }
+}
+```
+
+占位符赋值规则：
+
+- `?` 的编号从 1 开始。
+- `setXxx(参数1, 参数2)` 中，参数1 是占位符位置，参数2 是实际值。
+- 执行时不再把 SQL 传入 `executeQuery()` 或 `executeUpdate()`。
+
+错误示例：
+
+```java
+preparedStatement.executeQuery(sql);
+```
+
+正确示例：
+
+```java
+preparedStatement.executeQuery();
+```
+
+## PreparedStatement 防止 SQL 注入的原理
+
+`PreparedStatement` 的核心机制包括：
+
+| 机制 | 说明 |
+| --- | --- |
+| 预编译 | 创建对象时，数据库会先解析 SQL 结构，生成执行计划 |
+| 占位符 | SQL 中的 `?` 表示参数位置，参数不会直接拼接进 SQL 结构 |
+| 参数绑定 | 使用 `setString()`、`setInt()` 等方法绑定具体参数 |
+| 参数转义 | 特殊字符会作为参数内容处理，不会改变 SQL 语义 |
+| 分离 SQL 和数据 | SQL 结构与用户输入的数据分开处理 |
+
+因此，即使输入中包含 `or '1'='1` 这类内容，也会被当成普通字符串参数，而不是 SQL 条件。
+
+## 数据库连接池
+
+数据库连接池用于管理和复用数据库连接。
+
+直接创建数据库连接通常需要：
+
+- 网络通信。
+- 身份验证。
+- 分配连接资源。
+- 建立会话状态。
+
+这些操作成本较高。如果每次访问数据库都创建和销毁连接，性能会比较差。
+
+连接池的做法是：
+
+```text
+预先创建一批数据库连接
+应用程序需要访问数据库时，从池中取一个连接
+使用完毕后归还连接池
+后续请求继续复用连接
+```
+
+连接池的主要优势：
+
+| 优势 | 说明 |
+| --- | --- |
+| 提高性能 | 避免频繁创建和销毁连接 |
+| 连接复用 | 多个请求可以复用已有连接 |
+| 资源管理 | 限制最大连接数，避免数据库压力过大 |
+| 可用性管理 | 支持连接检测、超时处理、连接销毁等机制 |
+
+常见数据库连接池包括：
+
+- C3P0
+- Druid
+- HikariCP
+
+## Druid 连接池基本使用
+
+Druid 是常用的 Java 数据库连接池之一。
+
+使用流程：
+
+```text
+1. 引入 Druid 依赖
+2. 配置连接池参数
+3. 创建连接池对象
+4. 从连接池中获取数据库连接
+5. 使用完毕后关闭连接，将连接归还给连接池
+```
+
+Maven 依赖示例：
+
+```xml
+<dependency>
+    <groupId>com.alibaba</groupId>
+    <artifactId>druid</artifactId>
+    <version>1.2.23</version>
+</dependency>
+```
+
+配置文件示例 `druid.properties`：
+
+```properties
+driverClassName=com.mysql.cj.jdbc.Driver
+url=jdbc:mysql://localhost:3306/school?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+username=root
+password=123456
+initialSize=5
+maxActive=20
+maxWait=3000
+```
+
+Java 使用示例：
+
+```java
+Properties properties = new Properties();
+try (InputStream inputStream = JdbcDemo.class.getClassLoader()
+        .getResourceAsStream("druid.properties")) {
+    properties.load(inputStream);
+}
+
+DataSource dataSource = DruidDataSourceFactory.createDataSource(properties);
+
+try (Connection connection = dataSource.getConnection()) {
+    String sql = "select id, name, age from student where id = ?";
+    try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+        preparedStatement.setLong(1, 1L);
+        try (ResultSet resultSet = preparedStatement.executeQuery()) {
+            while (resultSet.next()) {
+                System.out.println(resultSet.getString("name"));
+            }
+        }
+    }
+}
+```
+
+注意：从连接池中获取的 `Connection` 调用 `close()` 时，通常不是物理关闭连接，而是把连接归还给连接池。
+
+## 容易混淆的点
+
+`JDBC` 是 Java 访问数据库的标准 API，不是某一个具体数据库驱动。
+
+`DriverManager` 负责获取连接，真正连接数据库的是驱动实现。
+
+JDBC 4.0 之后通常不需要显式 `Class.forName()` 注册驱动，但了解其原理有助于理解驱动加载过程。
+
+`Statement` 可以执行 SQL，但直接拼接用户输入容易产生 SQL 注入。
+
+`PreparedStatement` 使用占位符和参数绑定，推荐作为执行 SQL 的默认选择。
+
+`ResultSet.next()` 不只是判断是否有数据，还会把游标移动到下一行。
+
+`getXxx(int columnIndex)` 的序号从 1 开始，指查询结果列的位置。
+
+连接池中的 `Connection.close()` 通常表示归还连接，不是直接关闭物理连接。
+
+## 总结
+
+JDBC 提供了 Java 访问关系型数据库的统一方式。基础使用流程包括获取连接、执行 SQL、处理结果和释放资源。`Statement` 能完成基本 SQL 执行，但在处理外部输入时应优先使用 `PreparedStatement`，以避免 SQL 注入。随着应用访问量增加，数据库连接池可以通过连接复用和资源管理显著提升数据库访问效率。
+
