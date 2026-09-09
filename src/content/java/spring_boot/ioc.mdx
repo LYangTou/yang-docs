@@ -1,0 +1,477 @@
+# Spring IoC 学习笔记
+
+## 1. 项目概览
+
+这个模块基于 Spring Boot 2.6.13，`maven-compiler-plugin` 当前把源码和目标字节码设置为 Java 16，主要用于演示 Spring IoC 容器的以下能力：
+
+- 组件扫描与分层注解
+- 使用 `@Bean` 注册对象
+- 按类型、名称和限定符自动装配
+- 集合类型自动装配
+- `@Primary` 主候选 Bean
+- 条件装配 `@Conditional`
+- 环境隔离 `@Profile`
+- `@Value`、配置文件和 SpEL
+- `Aware` 回调接口
+- Bean 初始化、销毁与 `BeanPostProcessor`
+
+注意：POM 中的 `<java.version>1.8</java.version>` 与编译插件的 `<source>16</source>`、`<target>16</target>` 并不一致。由于代码使用了 Java 16 的 `instanceof` 模式匹配语法，实际构建 JDK 至少需要 Java 16；当前真正控制 Maven 编译级别的是编译插件中的 16。
+
+应用入口是 `SpringIocApplication`。`SpringApplication.run(...)` 返回的
+`ConfigurableApplicationContext` 就是 Spring 容器，可以通过它获取 Bean、环境变量和配置属性。
+
+## 2. 组件扫描与常用分层注解
+
+`@SpringBootApplication` 是组合注解，默认包含：
+
+- `@SpringBootConfiguration`：声明当前类是配置类。
+- `@EnableAutoConfiguration`：启用 Spring Boot 自动配置。
+- `@ComponentScan`：扫描启动类所在包及其子包。
+
+当前启动类位于 `com.example.springioc`，因此该包下的组件默认都会被扫描。代码中额外声明的：
+
+```java
+@ComponentScan(basePackages = "com.example.springioc")
+```
+
+与 `@SpringBootApplication` 的默认扫描范围相同，实际上可以省略。只有需要扫描启动类所在包之外的组件时，才需要显式配置扫描范围。
+
+项目中的分层注解如下：
+
+| 注解 | 当前示例 | 含义 |
+| --- | --- | --- |
+| `@Controller` | `UserController` | Web/控制层组件 |
+| `@Service` | `UserService`、`HahaService` | 业务层组件 |
+| `@Repository` | `UserDao` | 持久层组件，还可参与持久层异常转换 |
+| `@Component` | `Dog` | 通用 Spring 组件 |
+
+这四种注解注册 Bean 的基础能力相同，默认 Bean 名称是类名首字母小写，例如 `UserService` 对应 `userService`。
+
+## 3. Bean 的注册与获取
+
+### 3.1 `@Configuration` 和 `@Bean`
+
+`PersonConfig`、`CatConfig` 是配置类。配置类中的 `@Bean` 方法把方法返回值交给 Spring 容器管理：
+
+```java
+@Bean("bill")
+public Person bill() {
+    return new Person();
+}
+```
+
+显式指定 `@Bean("bill")` 时，Bean 名称是 `bill`；不指定名称时，默认使用方法名。
+
+`Person` 本身没有 `@Component`，所以它不会被组件扫描直接注册。项目中的 `Person` 对象都来自 `PersonConfig` 的 `@Bean` 方法。
+
+### 3.2 按名称和类型获取
+
+```java
+ioc.getBean("bill");
+ioc.getBean(Person.class);
+ioc.getBeansOfType(Person.class);
+```
+
+- 按名称获取时，名称必须存在，否则抛出 `NoSuchBeanDefinitionException`。
+- 按类型获取时，没有候选 Bean 会报错；存在多个候选且无法确定唯一对象时，会抛出 `NoUniqueBeanDefinitionException`。
+- `getBeansOfType(Person.class)` 返回 `Map<String, Person>`，键是 Bean 名称，值是 Bean 对象。
+
+### 3.3 作用域和创建时机
+
+Spring Bean 默认作用域为 `singleton`。非懒加载的单例 Bean 一般在容器启动过程中创建，因此即使 `main` 没有调用 `getBean(UserController.class)`，`UserController` 的依赖通常也会在启动时完成注入。
+
+- `@Scope("prototype")`：每次获取时创建新对象。
+- `@Lazy`：推迟单例 Bean 的创建，直到首次需要它。
+- `FactoryBean<T>`：用于封装复杂对象的创建过程；默认从容器获取的是它生产的对象，使用 `&beanName` 才能获取 `FactoryBean` 本身。
+
+## 4. 自动装配
+
+### 4.1 `@Autowired` 的候选选择
+
+`@Autowired` 主要按类型查找候选 Bean。存在多个候选时，会继续结合以下信息选择：
+
+- `@Qualifier` 指定的名称或限定符
+- `@Primary` 标记的主候选
+- 注入点名称与 Bean 名称的匹配
+
+应该优先使用显式的 `@Qualifier` 表达业务意图，不要只依赖字段名碰巧与 Bean 名称相同。
+
+当前 `PersonConfig` 把 `heihei` 标记为主候选：
+
+```java
+@Primary
+@Bean("heihei")
+public Person person2() { ... }
+```
+
+因此下面的字段虽然名为 `bill`，实际注入的通常是主候选 `heihei`：
+
+```java
+@Autowired
+Person bill;
+```
+
+如果确实需要 `bill`，应该写成：
+
+```java
+@Autowired
+@Qualifier("bill")
+private Person bill;
+```
+
+`UserService` 和 `UserDao` 已经演示了 `@Qualifier("bill")` 的精确注入。
+
+### 4.2 集合自动装配
+
+`UserController` 中的两种集合注入都会收集容器内所有 `Person` Bean：
+
+```java
+@Autowired
+List<Person> personList;
+
+@Autowired
+Map<String, Person> personMap;
+```
+
+- `List<Person>` 的元素是所有匹配类型的 Bean。
+- `Map<String, Person>` 的键是 Bean 名称，值是对应 Bean。
+- `@Primary` 只帮助单值依赖确定默认候选，不会让集合只保留主 Bean。
+- 集合内容取决于条件与 Profile；某个 Bean 未注册时，自然不会出现在集合中。
+
+在当前 Windows 环境中，预期的 `Person` Bean 是 `bill`、`hahaha`、`heihei`；`jo` 不会注册。
+
+### 4.3 字段、Setter 和构造器注入
+
+项目展示了三种注入位置：
+
+- `UserController`、`UserService`：字段注入。
+- `UserDao.setPerson(...)`：Setter 方法注入。
+- `UserDao` 中注释掉的构造器：构造器注入。
+
+实际项目更推荐构造器注入，因为依赖可以声明为 `final`，对象创建后就是完整状态，而且更容易进行单元测试。单构造器场景不需要写 `@Autowired`。
+
+```java
+private final Person person;
+
+public UserDao(@Qualifier("bill") Person person) {
+    this.person = person;
+}
+```
+
+### 4.4 可选依赖
+
+```java
+@Autowired(required = false)
+@Qualifier("li")
+Person li;
+```
+
+容器中没有 `li` 时不会报错，字段保持 `null`。使用它之前必须判空。更明确的表达方式还包括 `Optional<Person>` 或 `ObjectProvider<Person>`。
+
+### 4.5 `@Resource` 与 `@Autowired`
+
+`UserService.userDao` 使用了 `@Resource`：
+
+```java
+@Resource
+UserDao userDao;
+```
+
+- `@Autowired` 是 Spring 注解，主要按类型装配，可结合 `@Qualifier`。
+- `@Resource` 是 JSR-250 注解，通常先按注入点名称匹配，再按类型匹配，也可通过 `@Resource(name = "...")` 显式指定名称。
+
+“`@Resource` 通用性更强”不够准确；两者的主要区别是来源和候选解析规则不同。当前 Spring Boot 2.6 使用的是 `javax.annotation.Resource`。
+
+## 5. 条件装配
+
+`@Conditional` 只有在指定 `Condition` 返回 `true` 时才注册 Bean：
+
+```java
+@Conditional(WindowsCondition.class)
+@Bean("bill")
+public Person bill() { ... }
+```
+
+`WindowsCondition` 从 Spring `Environment` 中读取 `OS`，值包含 `Windows` 时注册 `bill`。
+
+`MacCondition` 当前直接返回 `false`，它只是占位实现，不会在 macOS 上自动成功。因此 `jo` 目前永远不会注册。如果要实现 macOS 判断，应读取系统属性，例如 `os.name`，而不是始终返回 `false`。
+
+条件可以标在方法或配置类上：
+
+- 标在 `@Bean` 方法上，只影响这个 Bean。
+- 标在 `@Configuration` 类上，会影响该配置类内的所有 Bean。
+
+此前若启用 `PersonConfig` 类上的 `@Conditional(MacCondition.class)`，整个配置类都会失效，所有 `Person` Bean 都无法注册。
+
+### `@ConditionalOnMissingBean`
+
+当前代码是：
+
+```java
+@ConditionalOnMissingBean(name = "hh")
+@Bean("hahaha")
+public Person person() { ... }
+```
+
+它表达的是“容器中没有名为 `hh` 的 Bean 时注册 `hahaha`”，不是“没有 `hahaha` 时注册”。因为项目中没有 `hh`，所以该条件通常成立。若想防止 `hahaha` 重复注册，应检查 `hahaha`，或按目标类型设计条件。
+
+条件 Bean 也可能成为其他必需依赖的前置条件。例如 `UserService` 和 `UserDao` 都强制要求 `bill`；在非 Windows 环境中，`bill` 不注册，应用会启动失败。这个示例目前不具备跨平台稳定性。
+
+## 6. Profile 环境隔离
+
+`@Profile` 是 Spring 内置条件，用来按环境注册不同 Bean。当前配置文件激活了：
+
+```properties
+spring.profiles.active=test
+```
+
+因此 `CatConfig` 中：
+
+- `cat1` 只在 `dev` 或 `default` 环境注册。
+- `cat2` 在 `test` 环境注册。
+
+`@Profile({"dev", "default"})` 中多个值是“或”的关系。显式激活 `test` 后，`default` 不再作为活动 Profile，所以当前 `main` 获取到的是 `cat2`。
+
+Profile 也可以标在整个配置类上，此时会控制类内全部 Bean。
+
+`DogConfig` 当前的 `@Configuration` 被注释，因此其中的 `dog1`、`dog2` 都不会注册，其方法上的 `@Profile` 也不会生效。另外 `"deb"` 看起来是 `"dev"` 的拼写错误。
+
+## 7. 配置文件、`@Value` 与 SpEL
+
+### 7.1 `application.properties`
+
+Spring Boot 会自动加载 `src/main/resources/application.properties`。当前配置包括：
+
+```properties
+spring.application.name=spring-ioc
+dog.color=17
+spring.profiles.active=test
+```
+
+`Dog` 展示了三类 `@Value` 用法：
+
+```java
+@Value("旺财")
+private String name;                       // 字面量
+
+@Value("${dog.color}")
+private String color;                      // 配置属性占位符
+
+@Value("#{10 * 20}")
+private Integer age;                       // SpEL 表达式
+
+@Value("#{T(java.util.UUID).randomUUID().toString()}")
+private String id;                         // SpEL 调用静态方法
+```
+
+`${...}` 是读取属性，`#{...}` 是执行 Spring 表达式，两者不要混淆。如果 `dog.color` 缺失且没有默认值，容器创建 `Dog` 时会失败；可以写成 `${dog.color:unknown}` 提供默认值。
+
+### 7.2 自定义属性文件
+
+`cat.properties` 不会像 `application.properties` 一样被 Spring Boot 自动加载，需要显式声明：
+
+```java
+@PropertySource("classpath:cat.properties")
+@Component
+public class Cat {
+    @Value("${cat.name:tom}")
+    private String name;
+}
+```
+
+- `classpath:` 从当前类路径寻找一个资源。
+- `classpath*:` 会从所有类路径位置搜索同名资源，常用于扫描多个依赖中的资源。
+
+当前 `Cat` 上的 `@PropertySource`、`@Component` 和 `@Value` 都被注释，所以 `cat.properties` 实际没有参与 `Cat` 的创建。当前 `Cat` 来自 `CatConfig`，属性由 Setter 直接赋值。
+
+`cat.properties` 中的 `cat.name="TOM"` 会把双引号视为属性值的一部分。Java Properties 通常应写为：
+
+```properties
+cat.name=TOM
+```
+
+### 7.3 类路径资源读取
+
+开发环境中可以使用 `ResourceUtils.getFile("classpath:...")`，但资源被打进 JAR 后通常不再是普通文件。需要兼容打包运行时，应通过 `ClassPathResource` 或 `getResourceAsStream(...)` 获取输入流。
+
+## 8. `EnvironmentAware`
+
+`HahaService` 实现 `EnvironmentAware` 后，Spring 会回调：
+
+```java
+setEnvironment(Environment environment)
+```
+
+这样 Bean 可以访问活动 Profile、配置属性、系统属性和环境变量。实际业务代码通常更倾向于构造器注入 `Environment`，或者使用 `@ConfigurationProperties` 映射一组强类型配置；Aware 接口更常见于框架扩展代码。
+
+## 9. Bean 生命周期
+
+### 9.1 当前示例如何注册 `User`
+
+`User` 本身没有 `@Component`，它由 `UserConfig` 中的工厂方法注册：
+
+```java
+@Bean(initMethod = "initUser", destroyMethod = "destoryUser")
+public User user1() {
+    User user = new User();
+    user.setAge(18);
+    user.setUsername("nidie");
+    return user;
+}
+```
+
+- Bean 名称默认为方法名 `user1`。
+- `initMethod` 指定容器初始化阶段要调用的方法。
+- `destroyMethod` 指定容器销毁该 Bean 时要调用的方法。
+- `destoryUser` 虽然是 `destroyUser` 的拼写错误，但注解中的名称与实际方法完全一致，所以仍能正常执行；建议后续统一改成正确拼写。
+
+`User` 同时使用了三套初始化和销毁机制，适合用来观察它们的先后顺序：
+
+| 机制 | 初始化回调 | 销毁回调 | 特点 |
+| --- | --- | --- | --- |
+| JSR-250 注解 | `@PostConstruct` | `@PreDestroy` | 业务代码中常用，当前项目导入自 `javax.annotation` |
+| Spring 接口 | `InitializingBean.afterPropertiesSet()` | `DisposableBean.destroy()` | 与 Spring API 耦合 |
+| `@Bean` 属性 | `initMethod = "initUser"` | `destroyMethod = "destoryUser"` | Bean 类无需实现 Spring 接口，适合第三方类 |
+
+### 9.2 初始化阶段的完整顺序
+
+结合 `User`、`UserConfig` 和实际运行日志，当前示例的顺序是：
+
+```text
+1. 调用 User 构造器
+2. UserConfig.user1() 设置 age 和 username
+3. Spring 进行依赖填充，调用 @Autowired setDog(...)
+4. MyTestBeanPostProcessor.postProcessBeforeInitialization(...)
+5. 调用 @PostConstruct 方法
+6. 调用 InitializingBean.afterPropertiesSet()
+7. 调用 @Bean(initMethod = "initUser") 指定的方法
+8. MyTestBeanPostProcessor.postProcessAfterInitialization(...)
+9. Bean 初始化完成，可以从容器中获取和使用
+```
+
+对应本项目输出的核心片段是：
+
+```text
+User构造
+自动注入：属性值：Dog{...}
+postProcessBeforeInitialization:user1
+PostConstruct
+afterPropertiesSet
+初始化 initUser
+postProcessAfterInitialization:user1
+```
+
+`@PostConstruct` 注释为“构造器之后”不够完整。它确实在构造之后，但还要晚于普通属性赋值和依赖注入；更准确的描述是“依赖填充完成后、标准初始化回调阶段调用”。此时 `dog`、`age`、`username` 等依赖和属性已经可以使用。
+
+Spring 的总体初始化框架是：
+
+```text
+实例化 → 属性/依赖填充 → 初始化前处理器 → 初始化回调 → 初始化后处理器
+```
+
+其中 `@PostConstruct` 本身也是由 Spring 内置的 Bean 后置处理器执行的。因此多个 `BeanPostProcessor` 之间的先后顺序会影响某个自定义处理器与 `@PostConstruct` 的相对位置；本项目实际观察到的是自定义初始化前日志先输出，再执行 `@PostConstruct`。如果业务必须依赖处理器顺序，应实现 `Ordered`、`PriorityOrdered` 或使用 `@Order` 明确优先级，不应只依赖偶然的注册顺序。
+
+### 9.3 `BeanPostProcessor` 的作用
+
+`MyTestBeanPostProcessor` 使用 `@Component` 注册到容器：
+
+```java
+public class MyTestBeanPostProcessor implements BeanPostProcessor {
+    public Object postProcessBeforeInitialization(Object bean, String beanName) {
+        // 初始化回调之前
+        return bean;
+    }
+
+    public Object postProcessAfterInitialization(Object bean, String beanName) {
+        // 初始化回调之后
+        return bean;
+    }
+}
+```
+
+后置处理器不是只处理 `User`，它会参与容器中每个符合条件的 Bean 的初始化，所以当前代码会为 `dog`、`userService`、`userController` 等大量 Bean 输出日志。处理器自身以及部分过早创建的基础设施 Bean 不一定经历该处理器，因此“拦截所有 Bean”只是便于理解的说法，不应当作绝对保证。
+
+方法参数含义：
+
+- `bean`：当前正在初始化的 Bean 实例。
+- `beanName`：当前 Bean 在容器中的名称，例如 `user1`。
+- 返回值：交给后续处理器和容器使用的对象，可以是原对象，也可以是包装对象或代理对象。
+
+当前处理器在初始化之前识别 `User` 并修改用户名：
+
+```java
+if (bean instanceof User user1) {
+    user1.setUsername("账册");
+    return user1;
+}
+```
+
+所以 `UserConfig` 最初设置的 `username = "nidie"` 最终被覆盖成 `账册`。`instanceof User user1` 是 Java 16 引入的模式匹配语法；若项目要保持 Java 8，必须改成传统的判断和强制类型转换。
+
+接口默认实现本身就是返回原 Bean，因此当前代码里的：
+
+```java
+return BeanPostProcessor.super.postProcessAfterInitialization(bean, beanName);
+```
+
+可以更直观地写为：
+
+```java
+return bean;
+```
+
+许多 Spring 底层能力都建立在 Bean 后置处理器之上，例如 `@Autowired`、`@PostConstruct` 和 AOP 代理。尤其是初始化后的回调，常用于用代理对象替换原始对象。
+
+### 9.4 销毁阶段的顺序
+
+当前 `User` 是默认的单例 Bean。Spring 容器正常关闭时，实际顺序为：
+
+```text
+1. 调用 @PreDestroy 方法
+2. 调用 DisposableBean.destroy()
+3. 调用 @Bean(destroyMethod = "destoryUser") 指定的方法
+```
+
+对应输出：
+
+```text
+preDestroy
+destroyBean
+销毁 destoryUser
+```
+
+销毁回调的适用边界：
+
+- 必须让容器正常关闭，例如调用 `context.close()`，或由 Spring Boot 注册的 JVM shutdown hook 在程序退出时关闭容器。
+- 强制结束进程、断电等异常退出无法保证执行销毁逻辑，因此不能只靠销毁回调保存关键业务数据。
+- Spring 会管理单例 Bean 的完整销毁过程。
+- 对 `prototype` Bean，Spring 负责创建和初始化，但通常不跟踪其后续生命周期，也不会自动调用销毁回调，需要使用者自行清理。
+
+### 9.5 生命周期回调的选择
+
+同一个 Bean 同时使用三套回调主要适合教学，生产代码通常选择一种即可：
+
+- 自己维护的普通业务 Bean：优先使用 `@PostConstruct`、`@PreDestroy`，或者用构造器直接完成不依赖容器的初始化。
+- 必须明确使用 Spring 生命周期接口的框架代码：使用 `InitializingBean`、`DisposableBean`。
+- 无法修改的第三方类：在 `@Bean` 上配置 `initMethod` 和 `destroyMethod`。
+- 需要统一修改大量 Bean、创建代理或参与框架扩展：使用 `BeanPostProcessor`，并严格限制处理范围。
+
+初始化方法适合校验配置、准备连接或构建缓存；销毁方法适合释放线程池、连接、文件句柄等资源。不要在初始化方法中执行耗时且不可恢复的业务任务，否则会拖慢或阻断整个 Spring 容器启动。
+
+## 10. 当前运行链路
+
+当前 `main` 的核心过程如下：
+
+1. 启动 Spring 容器并加载 `application.properties`。
+2. 激活 `test` Profile。
+3. 提前注册 `MyTestBeanPostProcessor`，让它参与后续 Bean 的初始化。
+4. 扫描并创建 `Dog`、`UserController`、`UserService`、`UserDao`、`HahaService` 等单例组件。
+5. 根据条件创建 `Person` Bean；Windows 下创建 `bill`，同时创建 `hahaha` 和主 Bean `heihei`。
+6. `UserService` 与 `UserDao` 通过 `@Qualifier("bill")` 注入 `bill`；`UserController` 的集合包含全部已注册的 `Person`。
+7. `test` Profile 使 `CatConfig.cat2()` 生效。
+8. 创建 `user1`，完成依赖注入、三种初始化回调和两个后置处理器回调，用户名被处理器改为 `账册`。
+9. `SpringApplication.run(...)` 返回时，非懒加载单例 Bean 已基本完成初始化，随后输出“ioc容器创建完成”。
+10. `main` 获取并打印 `user1`；应用退出、容器关闭时执行三种销毁回调。
+
+
+复习时重点记住：Spring IoC 的核心不是主动 `new` 和查找依赖，而是先描述“哪些对象交给容器管理”以及“对象需要哪些依赖”，再由容器负责创建、选择和注入。
