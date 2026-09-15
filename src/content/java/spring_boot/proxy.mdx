@@ -1,8 +1,8 @@
 # Java 静态代理与动态代理学习笔记
 
-## 1. 项目示例概览
+## 1. 代理模式概览
 
-本模块围绕 `MathCalculator` 展示代理模式：
+以 `MathCalculator` 为例说明代理模式：
 
 ```java
 public interface MathCalculator {
@@ -20,7 +20,7 @@ public interface MathCalculator {
           └─ 附加逻辑
 ```
 
-代理的核心思想是：调用方依赖接口，而不是依赖具体实现类。项目中的测试也体现了依赖倒置：
+代理的核心思想是：调用方依赖接口，而不是依赖具体实现类：
 
 ```java
 MathCalculator calculator = ...;
@@ -33,7 +33,7 @@ calculator.add(1, 2);
 
 静态代理是在编译期就写好代理类和目标对象之间的关系。代理类通常实现与目标对象相同的接口，并把目标对象保存为自己的成员变量。
 
-项目中的 [CalculatorStaticProxy.java](src/main/java/com/example/springaop/proxy/statics/CalculatorStaticProxy.java) 就是静态代理：
+静态代理的典型写法如下：
 
 ```java
 public class CalculatorStaticProxy implements MathCalculator {
@@ -85,13 +85,13 @@ proxy.add(2, 3);
 - 接口新增方法时，静态代理也要同步修改，否则无法编译。
 - 如果很多类都需要相同日志逻辑，会产生大量重复代码。
 
-项目中的静态代理只在 `add` 方法中打印日志，其他方法只是简单转发，这正好体现了“手写、逐方法维护”的特点。
+如果静态代理只增强 `add`、其他方法仅做转发，也仍需逐个实现接口方法，这体现了其手写、逐方法维护的特点。
 
 ## 3. JDK 动态代理
 
 ### 3.1 定义
 
-JDK 动态代理在运行时生成代理对象，不需要提前编写一个具体的代理实现类。项目中的 [DynamicProxy.java](src/main/java/com/example/springaop/proxy/dynamic/DynamicProxy.java) 使用了 JDK 原生的：
+JDK 动态代理在运行时生成代理对象，不需要提前编写一个具体的代理实现类。它使用 JDK 原生的：
 
 ```java
 Proxy.newProxyInstance(...)
@@ -141,7 +141,7 @@ invoke 开始
 → 返回结果
 ```
 
-项目中的 `DynamicProxy.getProxyInstance(target)` 将这套流程封装起来：
+可以把这套流程封装为 `DynamicProxy.getProxyInstance(target)`：
 
 ```java
 MathCalculator proxy = (MathCalculator)
@@ -163,7 +163,7 @@ return method.invoke(target, args);
 
 ### 3.5 异常处理
 
-项目代码使用：
+异常处理可以写成：
 
 ```java
 try {
@@ -177,7 +177,7 @@ try {
 
 `Method.invoke(...)` 反射调用失败时，目标方法抛出的异常通常会被包装在 `InvocationTargetException` 中，真实异常可以通过 `getCause()` 获取。
 
-当前示例记录异常后没有继续抛出，因此调用方可能拿到 `null` 或默认结果。这适合演示日志流程，但生产代码通常应记录后重新抛出，避免把业务失败伪装成成功。
+记录异常后如果不继续抛出，调用方可能拿到 `null` 或默认结果。通常应记录后重新抛出，避免把业务失败伪装成成功。
 
 ## 4. 静态代理与 JDK 动态代理对比
 
@@ -196,17 +196,11 @@ try {
 
 一句话记忆：静态代理是“提前写好一个代理类”，JDK 动态代理是“运行时根据接口和处理器生成代理对象”。
 
-## 5. 当前项目与 Spring 的关系
+## 5. 代理对象与 Spring 容器
 
-### 5.1 当前代码的 Spring 装配现状
+### 5.1 手写代理的装配
 
-`CalculatorStaticProxy` 标有 `@Component`，但 `MathCalculatorImpl` 的 `@Component` 注解被注释/没有启用：
-
-```java
-public class MathCalculatorImpl implements MathCalculator {
-```
-
-静态代理的构造器需要一个 `MathCalculator`：
+让 Spring 管理手写静态代理时，目标对象和代理对象都需要正确注册。静态代理的构造器接收目标接口：
 
 ```java
 public CalculatorStaticProxy(MathCalculator mc) {
@@ -214,7 +208,7 @@ public CalculatorStaticProxy(MathCalculator mc) {
 }
 ```
 
-如果想让 Spring 自动装配这条链路，需要让目标对象先成为 Bean，例如：
+目标实现可以注册为 Bean：
 
 ```java
 @Component
@@ -222,7 +216,7 @@ public class MathCalculatorImpl implements MathCalculator {
 }
 ```
 
-然后 Spring 才能创建：
+容器随后可以形成：
 
 ```text
 MathCalculatorImpl Bean → CalculatorStaticProxy Bean → @Autowired MathCalculator
@@ -230,7 +224,7 @@ MathCalculatorImpl Bean → CalculatorStaticProxy Bean → @Autowired MathCalcul
 
 如果同时存在多个 `MathCalculator` Bean，需要用 `@Qualifier` 或 `@Primary` 明确注入哪个对象。
 
-### 5.2 `@Autowired MathCalculator` 注入什么
+### 5.2 同类型 Bean 的选择
 
 当静态代理和目标实现都同时注册为 `MathCalculator` 类型时，单纯按类型注入会有多个候选，可能产生 `NoUniqueBeanDefinitionException`。生产代码通常会：
 
@@ -238,7 +232,7 @@ MathCalculatorImpl Bean → CalculatorStaticProxy Bean → @Autowired MathCalcul
 - 使用 `@Primary` 标记代理；或
 - 使用 `@Qualifier` 指定目标和代理的名称。
 
-Spring AOP 通常会自动创建代理对象，调用方仍然依赖业务接口，不需要手动 `new CalculatorStaticProxy(...)`。本模块当前主要演示 Java 原生代理机制，还没有写 `@Aspect`、切点和通知。
+Spring AOP 通常会自动创建代理对象，调用方仍然依赖业务接口，不需要手动创建代理类。
 
 ## 6. 容易混淆的概念
 
@@ -254,7 +248,7 @@ proxy != target
 
 ### 6.2 JDK 动态代理不是“代理万物”
 
-源码注释中“可以代理万物”是便于理解的概括，但 JDK 动态代理有明确限制：目标对象必须有接口，且只能拦截接口方法。没有接口的类通常需要使用基于子类的代理方案，例如 CGLIB；本项目没有演示 CGLIB。
+JDK 动态代理有明确限制：目标对象必须有接口，且只能拦截接口方法。没有接口的类通常需要使用基于子类的代理方案，例如 CGLIB。
 
 ### 6.3 `InvocationHandler` 类似统一拦截器
 
@@ -275,8 +269,4 @@ proxy != target
 3. 修改 `args` 后观察目标方法收到的实际参数。
 4. 对 `div(10, 0)` 保留异常并重新抛出，比较吞掉异常前后的调用结果。
 5. 给 `MathCalculatorImpl` 添加 `@Component`，再观察 Spring 如何创建目标对象和代理对象。
-6. 后续学习 Spring AOP 时，把当前 `InvocationHandler` 中的“前置逻辑、目标调用、异常逻辑、返回逻辑”分别对应到通知类型。
-
-## 8. 当前验证说明
-
-本次只整理学习笔记，没有修改 `spring-aop` 的代理源码。尝试执行模块测试时，Maven 因当前环境无法连接阿里云镜像而无法重新解析 Spring Boot 3.0.2 的依赖；因此笔记中的代理结论来自源码和 Java 代理 API 语义，Spring 自动装配部分按当前代码结构标注了需要注意的配置条件。
+6. 学习 Spring AOP 时，把 `InvocationHandler` 中的“前置逻辑、目标调用、异常逻辑、返回逻辑”分别对应到通知类型。

@@ -1,0 +1,400 @@
+# Spring MVC 数据校验与分层设计
+
+本文围绕数据校验、DAO、VO、TO、单一职责和项目最佳实践展开。
+
+## 一、一次请求中的对象流转
+
+```text
+前端 JSON
+   ↓ 反序列化 + 参数校验
+Request VO
+   ↓ 转换
+DO / Entity
+   ↓
+Service（业务规则、事务）
+   ↓
+DAO（SQL、数据库访问）
+   ↓
+DO / Entity
+   ↓ 转换、字段筛选或脱敏
+Response VO
+   ↓ 序列化
+前端 JSON
+```
+
+每种对象只服务于自己的边界，不要让一个 JavaBean 同时承担请求参数、数据库记录和响应结果三种职责。
+
+## 二、Bean Validation 数据校验
+
+### 1. 基本使用步骤
+
+Spring Boot 项目先引入校验 starter：
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+```
+
+在请求对象上声明约束：
+
+```java
+@Data
+public class EmployeeAddVo {
+    @NotBlank(message = "姓名不能为空")
+    private String name;
+
+    @NotNull(message = "年龄不能为空")
+    @Min(value = 0, message = "年龄不能小于 0")
+    @Max(value = 150, message = "年龄不能大于 150")
+    private Integer age;
+
+    @Email(message = "邮箱格式不正确")
+    private String email;
+}
+```
+
+在 Controller 参数前添加 `@Valid` 或 `@Validated`：
+
+```java
+@PostMapping("/employee")
+public R<?> add(@RequestBody @Valid EmployeeAddVo vo) {
+    // 校验成功后才会进入方法体
+}
+```
+
+请求体校验失败时，Spring MVC 通常抛出 `MethodArgumentNotValidException`，可以由
+`@RestControllerAdvice` 统一转换为响应。
+
+### 2. 常见约束
+
+| 注解 | 作用 | 重要说明 |
+|---|---|---|
+| `@NotNull` | 不能为 `null` | 空字符串仍然通过 |
+| `@NotEmpty` | 不能为 `null` 或空 | 字符串、集合、数组、Map 可用 |
+| `@NotBlank` | 不能为 `null`、空串或全空白 | 只用于字符序列 |
+| `@Min` / `@Max` | 数值上下界 | `null` 默认通过，应按需组合 `@NotNull` |
+| `@Positive` | 必须大于 0 | `null` 默认通过 |
+| `@Size` | 字符串或集合长度范围 | 不负责非空校验 |
+| `@Email` | 邮箱格式 | 是否必填应另加 `@NotBlank` |
+| `@Pattern` | 正则匹配 | 适合简单、稳定的格式规则 |
+| `@Past` / `@Future` | 日期过去或未来 | 支持 Java 时间类型 |
+
+多数格式类约束把 `null` 视为有效，因为“是否必填”和“格式是否合法”是两个职责。
+例如可选邮箱只写 `@Email`，必填邮箱组合 `@NotBlank + @Email`。
+
+### 3. `@Valid` 与 `@Validated`
+
+- `@Valid` 来自 Jakarta Validation，支持对象校验和嵌套对象的级联校验。
+- `@Validated` 来自 Spring，除了触发校验，还支持校验分组。
+- 对 `@RequestBody` 的普通校验，两者都可以使用。
+- 方法参数、路径变量等方法级约束需要结合 Spring 的方法校验机制；不同 Spring Boot 版本的启用方式可能不同。
+
+嵌套对象需要在字段上继续加 `@Valid`：
+
+```java
+public class OrderAddVo {
+    @Valid
+    @NotNull
+    private AddressVo address;
+}
+```
+
+### 4. `BindingResult` 与全局异常处理
+
+可以把 `BindingResult` 紧跟在被校验参数之后，手动读取错误：
+
+```java
+public R<?> add(@RequestBody @Valid EmployeeAddVo vo,
+                BindingResult result) {
+    // 手动判断 result.hasErrors()
+}
+```
+
+这种写法会让每个 Controller 重复相同代码。REST 项目通常不接收 `BindingResult`，让校验异常进入
+全局异常处理器：
+
+```java
+@ExceptionHandler(MethodArgumentNotValidException.class)
+public R<?> handleValidation(MethodArgumentNotValidException e) {
+    Map<String, String> errors = new LinkedHashMap<>();
+    for (FieldError error : e.getBindingResult().getFieldErrors()) {
+        errors.putIfAbsent(error.getField(), error.getDefaultMessage());
+    }
+    return R.error(400, "参数校验失败", errors);
+}
+```
+
+参数错误属于客户端请求问题，HTTP 状态通常应为 `400 Bad Request`。如果项目还使用业务码，HTTP
+状态与响应体中的业务码要分别设计，不要把所有失败都当成服务端 `500`。
+
+### 5. 自定义校验注解
+
+自定义约束由“注解 + 校验器”组成：
+
+```java
+@Documented
+@Constraint(validatedBy = GenderValidator.class)
+@Target({FIELD, PARAMETER, TYPE_USE})
+@Retention(RUNTIME)
+public @interface Gender {
+    String message() default "{gender.message}";
+    Class<?>[] groups() default {};
+    Class<? extends Payload>[] payload() default {};
+}
+```
+
+```java
+public class GenderValidator implements ConstraintValidator<Gender, String> {
+    @Override
+    public boolean isValid(String value, ConstraintValidatorContext context) {
+        return value == null || "男".equals(value) || "女".equals(value);
+    }
+}
+```
+
+消息可放在 `ValidationMessages.properties` 或项目约定的消息资源中：
+
+```properties
+gender.message=性别只能是男或女
+```
+
+自定义校验器只负责自身规则。上例允许 `null`，必填场景再组合 `@NotBlank`；更新场景中字段未提供时，
+则不会被错误地判为非法。
+
+### 6. 新增与更新的校验差异
+
+新增时姓名、年龄等字段可能必填；更新时通常只有 id 必填，其他字段“传了才校验”。常见方案有：
+
+- 分别定义 `EmployeeAddVo` 和 `EmployeeUpdateVo`。类型清晰，规则直观，适合大多数接口。
+- 使用 Validation Groups 在同一个类上区分新增组、更新组。字段很多且重复度很高时可以采用，但规则更隐蔽。
+
+独立 Request VO 的类型和规则更直观；校验分组则适合字段高度重合的场景。
+
+### 7. 校验的边界
+
+Bean Validation 主要检查输入的结构和格式，例如非空、长度、范围、格式。依赖数据库或业务状态的规则，
+例如“邮箱是否已注册”“员工是否存在”“当前状态能否删除”，应由 Service 判断并抛出业务异常。
+
+```text
+Controller / Request VO：输入格式是否合法
+Service：业务操作是否允许
+DAO / 数据库：唯一键、外键、非空等最终数据约束
+```
+
+三层校验不是重复：它们分别负责用户体验、业务正确性和数据最终一致性。
+
+## 三、DAO 数据访问层
+
+DAO 是 Data Access Object，职责是封装持久化细节，让 Service 不需要知道 SQL、表结构和具体访问技术。
+
+```java
+public interface EmployeeDao {
+    Employee getEmpById(Long id);
+    void addEmp(Employee employee);
+    void updateEmp(Employee employee);
+    void deleteById(Long id);
+    List<Employee> getList();
+}
+```
+
+DAO 应负责：
+
+- 编写和执行 SQL。
+- 绑定 SQL 参数。
+- 把数据库行映射为对象。
+- 返回查询结果或受影响行数。
+- 抛出数据访问异常，由上层转换为业务含义。
+
+DAO 不应负责：
+
+- 解析 HTTP 请求或生成 HTTP 响应。
+- 判断复杂业务流程。
+- 拼装面向前端的 VO。
+- 决定跨多个 DAO 的事务边界。
+
+### 1. `JdbcTemplate` 的关键点
+
+使用占位符绑定参数：
+
+```java
+String sql = "select id, name, age, email, gender, address, salary " +
+             "from employee where id = ?";
+return jdbcTemplate.queryForObject(
+        sql,
+        new BeanPropertyRowMapper<>(Employee.class),
+        id
+);
+```
+
+- `?` 参数绑定能避免把用户输入直接拼进 SQL，降低 SQL 注入风险。
+- 不建议长期使用 `select *`，明确列名能减少表结构变化带来的意外影响。
+- `BeanPropertyRowMapper` 依赖 JavaBean 属性，适合字段简单、列名与属性名规则一致的场景。
+- 映射复杂、类型需要转换或性能敏感时，应编写明确的 `RowMapper`。
+- `queryForObject` 查不到数据会抛 `EmptyResultDataAccessException`，多于一行会抛结果数量异常。
+
+### 2. 返回值设计
+
+增删改方法可以返回受影响行数：
+
+```java
+int deleteById(Long id);
+```
+
+Service 可以据此判断目标是否存在或是否发生并发修改。查询“可能不存在”的对象时，也可以约定返回
+`Optional<Employee>`；关键是接口契约要统一，不能一部分返回 `null`，另一部分抛异常。
+
+列表查询在数据量增长后应支持分页、排序和稳定的筛选条件，避免无条件加载整张表。
+
+### 3. `@Repository` 与依赖注入
+
+DAO 实现类使用 `@Repository` 比通用的 `@Component` 语义更明确。依赖推荐通过构造器注入：
+
+```java
+@Repository
+public class EmployeeDaoImpl implements EmployeeDao {
+    private final JdbcTemplate jdbcTemplate;
+
+    public EmployeeDaoImpl(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+}
+```
+
+构造器注入使依赖不可变、便于单元测试，也避免对象在依赖未设置时处于不完整状态。
+
+### 4. 事务属于 Service
+
+单条 SQL 通常由数据库保证原子性；一个业务动作包含多条 SQL 时，事务边界应放在 Service：
+
+```java
+@Transactional
+public void transfer(...) {
+    accountDao.decrease(...);
+    accountDao.increase(...);
+}
+```
+
+因为“哪些数据库操作组成一个完整业务动作”是业务层知识，不是单个 DAO 的职责。
+
+读取旧记录、在 Java 中合并字段、再全量更新可能产生并发覆盖。并发敏感场景应考虑乐观锁版本号、
+条件更新或明确的数据库锁策略。
+
+## 四、DO、DTO/TO 与 VO
+
+不同团队命名略有差异，先统一语义比争论缩写更重要。
+
+| 类型 | 常见含义 | 使用位置 | 示例 |
+|---|---|---|---|
+| DO / PO / Entity | 领域对象或持久化对象 | Service 与 DAO、数据库映射 | `Employee` |
+| DTO / TO | Data/Transfer Object，跨层或跨服务传输数据 | Service 调用、RPC、应用边界 | `EmployeeCommand` |
+| Request VO | 接收客户端输入 | Controller 入参 | `EmployeeAddVo` |
+| Response VO | 输出给客户端 | Controller 返回值 | `EmployeeRespVo` |
+| DAO | 数据访问对象，不是数据载体 | 持久化层组件 | `EmployeeDao` |
+
+“VO”还可能指领域驱动设计中的 Value Object，例如金额、地址。它与 Web 层的 View Object 不是同一概念，
+团队应在规范中写清楚。
+
+### 为什么请求和响应要分开
+
+- 新增与更新的必填字段不同。
+- 数据库字段不一定都允许客户端修改，直接接收 Entity 容易产生越权赋值。
+- 数据库字段不一定都能对外返回，Response VO 可以隐藏密码、成本、内部状态等敏感数据。
+- API 字段和数据库结构可以独立演进。
+- 校验注解只描述具体请求场景，不会污染持久化对象。
+
+### 对象转换
+
+小型示例可以使用 `BeanUtils.copyProperties`：
+
+```java
+Employee employee = new Employee();
+BeanUtils.copyProperties(vo, employee);
+```
+
+源对象必须有可读属性，目标对象必须有可写属性，也就是通常需要 getter/setter。
+`BeanUtils` 按同名兼容类型静默拷贝，字段改名、类型不同或嵌套转换时容易漏数据。项目变大后可以：
+
+- 写显式转换方法，最直接、可调试。
+- 提取 `EmployeeConverter` / `EmployeeAssembler`，避免 Controller 堆积转换代码。
+- 使用 MapStruct 在编译期生成转换代码，并通过编译检查映射遗漏。
+
+部分更新还要区分“字段没传”和“字段显式传 `null`”。普通 JavaBean 的 `null` 往往无法表达这两种状态，
+需要明确 PATCH 语义、字段包装类型或专门的更新命令设计。
+
+## 五、单一职责原则
+
+单一职责原则（Single Responsibility Principle，SRP）的核心不是“一个类只能有一个方法”，而是：
+
+> 一个模块应该只有一个主要的变化原因。
+
+在典型 Web 项目中可以这样理解：
+
+| 组件 | 主要职责 | 主要变化原因 |
+|---|---|---|
+| Controller | HTTP 参数与响应协调 | API 协议变化 |
+| Request VO | 接口输入结构和格式校验 | 请求契约变化 |
+| Response VO | 对外输出结构、字段筛选 | 响应契约变化 |
+| Service | 业务规则、流程和事务 | 业务规则变化 |
+| DAO | SQL 和持久化 | 数据存储变化 |
+| Validator | 一条可复用校验规则 | 校验规则变化 |
+| Exception Handler | 异常到统一响应的转换 | 错误协议变化 |
+| Converter | 不同层对象之间的映射 | 映射规则变化 |
+
+常见的职责混杂包括：
+
+- Controller 直接执行 SQL。
+- DAO 判断用户是否有业务权限。
+- Entity 同时承担新增入参、更新入参和对外响应。
+- 每个 Controller 手写相同的参数错误组装逻辑。
+- Service 返回带 HTTP 状态的 `ResponseEntity`。
+
+分层的目的不是增加目录，而是隔离变化。如果一个简单 CRUD 被拆成大量没有独立变化原因的空壳类，
+同样属于过度设计。
+
+## 六、项目最佳实践
+
+### 1. API 层
+
+- 使用独立的新增、更新 Request VO，并在边界处用 `@Valid` 校验。
+- 返回明确的 Response VO，避免直接暴露数据库对象。
+- Controller 只协调“接收 → 转换 → 调 Service → 返回”，不编写核心业务和 SQL。
+- 为 `R` 使用泛型，如 `R<EmployeeRespVo>`、`R<List<EmployeeRespVo>>`，减少强制类型转换。
+- 业务码和 HTTP 状态码分别设计；参数错误用 400，未认证用 401，无权限用 403，资源不存在用 404。
+
+### 2. Service 层
+
+- 在 Service 中处理跨 DAO 的业务规则和事务。
+- 将 `EmptyResultDataAccessException`、唯一键冲突等持久化异常转换成稳定的业务异常。
+- 不用返回 `null` 或静默 `return` 表示失败，应返回清晰结果或抛出语义明确的业务异常。
+- 更新操作要明确 PUT 与 PATCH 语义，并考虑并发更新和丢失修改。
+
+### 3. DAO 层
+
+- 使用参数绑定，不拼接外部输入。
+- 明确查询列、排序、分页和方法返回契约。
+- 根据需要返回受影响行数，检查更新或删除是否真正命中数据。
+- 使用 `@Repository` 和构造器注入；复杂映射使用明确的 `RowMapper`。
+
+### 4. 错误与日志
+
+- 全局处理参数异常、业务异常和未知异常，并按具体到通用的顺序组织。
+- 未知异常在服务端记录完整堆栈，对客户端只返回安全的通用提示和请求追踪号。
+- 不用 `System.out.println` 作为正式日志；使用日志框架并选择合适级别。
+- 不向客户端泄漏 SQL、数据库地址、堆栈或内部类名。
+
+### 5. 配置与安全
+
+- 数据库地址、用户名和密码通过环境变量或外部配置注入，不把真实密码提交到仓库。
+- 区分开发、测试、生产配置，使用 Spring Profile 或部署平台的配置管理能力。
+- CORS 不应长期无条件允许全部来源；生产环境只开放可信域名、方法和请求头。
+- 请求 VO 只暴露允许客户端控制的字段，防止批量赋值越权。
+
+### 6. 测试
+
+- Validator 单元测试：边界值、`null`、空串、合法值和非法值。
+- Controller 测试：正常请求、JSON 格式错误、字段校验失败和响应字段脱敏。
+- Service 单元测试：业务规则、异常转换、更新合并和事务边界。
+- DAO 集成测试：真实 SQL、行映射、空结果、唯一键和分页。
+- 测试不能依赖固定 id 后直接删除共享数据库数据；应准备独立测试数据并在测试后回滚。

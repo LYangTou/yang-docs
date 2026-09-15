@@ -1,0 +1,307 @@
+# Spring MVC 拦截器与异常处理
+
+本文整理 Spring MVC 拦截器和异常处理的核心知识。
+
+## 一、请求处理主流程
+
+一次进入 Spring MVC 的请求，大致会经过下面的流程：
+
+```text
+客户端请求
+   ↓
+Filter（Servlet 过滤器）
+   ↓
+DispatcherServlet
+   ↓
+Interceptor.preHandle
+   ↓
+Controller
+   ↓
+Interceptor.postHandle
+   ↓
+视图渲染或响应体写出
+   ↓
+Interceptor.afterCompletion
+```
+
+如果 Controller 或 `postHandle` 抛出异常，Spring MVC 会调用异常解析器，
+尝试交给 `@ExceptionHandler`、`@ControllerAdvice` 等机制处理，然后完成响应。
+
+过滤器和拦截器不是同一种组件：
+
+- Filter 属于 Servlet 规范，执行位置更靠外，可以处理几乎所有进入容器的请求。
+- Interceptor 属于 Spring MVC，围绕 Controller 的调用过程工作，可以获得本次请求对应的 Handler。
+- 登录校验、权限校验、请求日志、耗时统计等适合使用拦截器；编码、跨域、安全防护等也常由过滤器或 Spring Security 处理。
+
+## 二、定义与注册拦截器
+
+自定义拦截器需要实现 `HandlerInterceptor`：
+
+```java
+@Component
+public class MyHandlerInterceptor implements HandlerInterceptor {
+    // 实现三个回调方法
+}
+```
+
+仅添加 `@Component` 只是把对象放进 Spring 容器，还不会自动拦截请求，必须通过
+`WebMvcConfigurer#addInterceptors` 注册：
+
+```java
+@Configuration
+public class MySpringMVCConfig implements WebMvcConfigurer {
+    private final MyHandlerInterceptor myHandlerInterceptor;
+
+    public MySpringMVCConfig(MyHandlerInterceptor myHandlerInterceptor) {
+        this.myHandlerInterceptor = myHandlerInterceptor;
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(myHandlerInterceptor)
+                .addPathPatterns("/**")
+                .excludePathPatterns("/login", "/error");
+    }
+}
+```
+
+使用 `@Component` 标记配置类也能生效，不过表达配置用途时 `@Configuration` 更清晰。
+Spring Boot 项目通常不要额外添加 `@EnableWebMvc`，否则会接管并改变 Boot 提供的 MVC
+自动配置。
+
+### 路径配置
+
+- `addPathPatterns`：指定要拦截的路径。
+- `excludePathPatterns`：排除不需要拦截的路径。
+- `/**`：当前应用下的所有层级路径。
+- 若前端会发送 CORS 预检请求，认证类拦截器要正确处理 `OPTIONS` 请求，不能误拦截预检。
+- 如果鉴权失败，要返回合适的 HTTP 状态和响应体，并立即 `return false`。
+
+拦截器不应默认假设 `handler` 一定是 Controller 方法。若要读取方法或注解，应先判断：
+
+```java
+if (handler instanceof HandlerMethod handlerMethod) {
+    // handlerMethod.getMethod()、getBeanType() 等
+}
+```
+
+## 三、三个回调方法
+
+### 1. `preHandle`
+
+在目标 Controller 方法执行前调用，适合做登录、权限、请求参数前置检查和计时起点。
+
+```java
+@Override
+public boolean preHandle(HttpServletRequest request,
+                         HttpServletResponse response,
+                         Object handler) {
+    return true;
+}
+```
+
+- 返回 `true`：继续执行后续拦截器和 Controller。
+- 返回 `false`：中断后续处理。此时拦截器应自行写出响应或跳转，否则客户端可能收到空响应。
+- 当前拦截器若返回 `false`，它自己的 `postHandle` 和 `afterCompletion` 都不会执行；
+  但在它之前已经成功放行的拦截器仍会执行 `afterCompletion`。
+- 也可以直接抛出业务异常，交给统一异常处理机制生成响应。
+
+### 2. `postHandle`
+
+Controller 正常执行完成后、视图渲染前调用。传统 MVC 中可修改 `ModelAndView`。
+
+对于 `@RestController`，返回值通常会直接写入响应体，实际项目较少在这里修改结果。
+如果 Controller 抛出异常，`postHandle` 通常不会执行。
+
+### 3. `afterCompletion`
+
+请求完成后调用，适合清理线程变量、记录最终耗时等，作用类似 `finally`。
+
+- 只有对应拦截器的 `preHandle` 已返回 `true`，它才会进入完成回调。
+- 参数 `ex` 可能包含未处理异常；异常若已被异常解析器处理，`ex` 可能是 `null`。
+- 应把必须执行的清理工作放在这里，而不是 `postHandle`。
+- 不要指望在这里抛出的异常再由普通 `@ExceptionHandler` 转成业务响应；此时响应可能已经提交。
+
+## 四、多个拦截器的执行顺序
+
+假设按 A、B 的顺序注册：
+
+```text
+A.preHandle
+  B.preHandle
+    Controller
+  B.postHandle
+A.postHandle
+  B.afterCompletion
+A.afterCompletion
+```
+
+规律是：
+
+- `preHandle` 按注册顺序执行。
+- `postHandle` 和 `afterCompletion` 按注册顺序的逆序执行。
+- 可在注册时调用 `.order(...)` 明确优先级，数值越小越先进入。
+- 若 B 的 `preHandle` 返回 `false`，B 和 Controller 不再继续，只有已经放行的 A 执行 `afterCompletion`。
+
+## 五、局部异常处理
+
+`HelloController` 中的 `@ExceptionHandler` 只处理该 Controller 调用过程中出现的异常：
+
+```java
+@ExceptionHandler(ArithmeticException.class)
+public R<?> handleArithmeticException(ArithmeticException ex) {
+    return R.error(100, "执行异常：" + ex.getMessage());
+}
+```
+
+同一个异常同时匹配多个处理方法时，优先选择类型最具体、最接近实际异常的方法。
+因此 `ArithmeticException` 会由其专用方法处理，而不会交给 `Throwable` 方法。
+
+`@ExceptionHandler(Throwable.class)` 连 JVM 的 `Error` 也会捕获。兜底业务异常通常使用
+`Exception.class`，并在全局处理器中统一记录日志和返回结果。
+
+## 六、全局异常处理
+
+可以使用 `@RestControllerAdvice` 定义全局处理器：
+
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    @ExceptionHandler(BizException.class)
+    public R<?> handleBizException(BizException e) {
+        return R.error(e.getCode(), e.getMessage());
+    }
+}
+```
+
+相关注解的关系：
+
+- `@ControllerAdvice`：为多个 Controller 提供统一增强，返回值默认仍按 MVC 视图规则处理。
+- `@RestControllerAdvice`：相当于 `@ControllerAdvice + @ResponseBody`，返回对象会被序列化为 JSON。
+- `@ExceptionHandler`：声明方法能够处理的异常类型。
+
+异常处理的一般选择顺序是：
+
+1. 当前 Controller 中最匹配的局部 `@ExceptionHandler`。
+2. `@ControllerAdvice` / `@RestControllerAdvice` 中最匹配的处理方法。
+3. `@ResponseStatus`、`ResponseStatusException` 等状态异常处理。
+4. Spring MVC 对参数绑定、请求方法不支持等框架异常的默认处理。
+5. 都无法处理时，进入 Spring Boot 默认的 `/error` 处理。
+
+存在多个全局 Advice 时，可以结合 `@Order` 指定优先级。处理器应由具体异常到通用异常分层，
+避免一个过宽的规则吞掉本应精细处理的异常。
+
+## 七、自定义业务异常
+
+Service 发现业务无法继续时可以抛出 `BizException`，全局异常处理器再把它转换为统一的 `R`，
+Controller 不需要到处写 `try-catch`。
+
+```text
+Service 发现业务问题
+        ↓
+抛出 BizException
+        ↓
+GlobalExceptionHandler 捕获
+        ↓
+转换为 R 并返回 JSON
+```
+
+推荐让枚举集中管理稳定的业务码和提示：
+
+```java
+public enum BizExceptionEnum {
+    EMPLOYEE_NOT_FOUND(10001, "员工不存在"),
+    EMPLOYEE_ID_REQUIRED(10002, "员工 id 不能为空");
+}
+```
+
+`BizException` 应保证自定义字段和父类的异常消息一致：
+
+```java
+public class BizException extends RuntimeException {
+    private final Integer code;
+
+    public BizException(Integer code, String message) {
+        super(message);
+        this.code = code;
+    }
+
+    public BizException(BizExceptionEnum exceptionEnum) {
+        this(exceptionEnum.getCode(), exceptionEnum.getMsg());
+    }
+}
+```
+
+### 构造业务异常时的注意事项
+
+如果 `BizException(BizExceptionEnum)` 只给自定义的 `msg` 字段赋值，却没有调用
+`super(message)`，那么 `RuntimeException#getMessage()` 会得到 `null`。可以采用上面的
+构造器委托写法，保证父类消息和自定义字段一致。
+
+定义和使用业务异常时还应注意：
+
+- 业务码的名称、消息和抛出位置要属于同一业务场景，不能为了复用而抛出语义无关的异常。
+- 枚举名称应准确，避免把 `NOT_EXIST` 写成 `NOT_EXIT` 一类容易混淆的名称。
+- `JdbcTemplate#queryForObject` 查不到记录会抛出 `EmptyResultDataAccessException`，可在 Service
+  层将其转换为“资源不存在”之类的业务异常。
+
+## 八、业务状态码与 HTTP 状态码
+
+`R.code` 是前后端约定的业务状态码；HTTP 状态码是协议层状态，两者不是一回事。
+
+处理器直接返回 `R.error(...)` 时，HTTP 状态通常仍是 `200 OK`，只是 JSON 中的 `code`
+表示失败。也可以同时设置 HTTP 状态，例如：
+
+```java
+@ExceptionHandler(BizException.class)
+public ResponseEntity<R<?>> handleBizException(BizException e) {
+    return ResponseEntity.badRequest()
+            .body(R.error(e.getCode(), e.getMessage()));
+}
+```
+
+常见选择：
+
+- `400 Bad Request`：参数格式或业务输入不合法。
+- `401 Unauthorized`：尚未认证。
+- `403 Forbidden`：已认证但没有权限。
+- `404 Not Found`：资源不存在。
+- `409 Conflict`：资源状态冲突。
+- `500 Internal Server Error`：未预期的服务端错误。
+
+课程或旧项目可以统一返回 HTTP 200，但团队必须明确约定；生产 REST API 通常建议同时正确使用
+HTTP 状态码，便于网关、监控和客户端识别失败。
+
+## 九、常见异常分层
+
+全局处理器可以按以下类别逐步完善：
+
+```java
+// 1. 可预期的业务异常：返回稳定的业务码和安全提示
+@ExceptionHandler(BizException.class)
+
+// 2. 参数校验、JSON 格式、类型转换异常：返回 400
+@ExceptionHandler({MethodArgumentNotValidException.class,
+                   HttpMessageNotReadableException.class,
+                   MethodArgumentTypeMismatchException.class})
+
+// 3. 数据不存在、唯一键冲突等：转换成明确的业务含义
+@ExceptionHandler({EmptyResultDataAccessException.class,
+                   DataIntegrityViolationException.class})
+
+// 4. 未预期异常：服务端详细记录，客户端只返回通用提示
+@ExceptionHandler(Exception.class)
+```
+
+兜底处理器不要把堆栈、SQL、数据库地址或 `ex.getMessage()` 原样暴露给客户端；应使用日志框架
+记录完整异常，对外只返回通用错误信息和便于排查的请求编号。
+
+## 十、拦截器与异常处理配合
+
+- `preHandle` 中认证失败可以直接写响应并返回 `false`，也可以抛出统一的认证/业务异常。
+- Controller 或 `postHandle` 中抛出的异常可以进入 Spring MVC 异常解析流程。
+- `afterCompletion` 主要用于观察和清理，不适合再改变已经生成的响应。
+- 异常被全局处理器转换为响应后，拦截器的 `afterCompletion` 仍可能执行，但其 `ex` 参数不一定
+  保留原异常。若需要可靠记录异常，日志应同时放在异常处理器中。
+- 使用 ThreadLocal 保存登录用户、链路编号等上下文时，必须在 `afterCompletion` 中清理，避免
+  线程池复用造成数据串扰。

@@ -1,15 +1,15 @@
 # Spring JDBC 与事务学习笔记
 
-本文结合 `spring-tx` 项目的实体类、DAO、购买业务、测试代码以及学习过程中遇到的问题整理。重点包括数据库连接、`JdbcTemplate`、声明式事务、回滚规则、事务传播、隔离级别和真实并发场景。
+本文重点整理数据库连接、`JdbcTemplate`、声明式事务、回滚规则、事务传播、隔离级别和并发场景。
 
-## 1. 项目学习目标
+## 1. 事务业务示例
 
-当前项目围绕两张表展开：
+以图书购买业务中的两张表为例：
 
 - `book`：保存图书名称、价格和库存；
 - `account`：保存用户名、年龄和账户余额。
 
-项目完成了以下练习：
+可以围绕它们练习：
 
 1. 查询图书；
 2. 新增图书；
@@ -27,10 +27,10 @@
 
 这两个操作必须保持一致：不能只扣库存不扣余额，也不能只扣余额不扣库存。因此，它们应被放进同一个事务。
 
-## 2. 项目结构与职责
+## 2. 分层结构与职责
 
 ```text
-spring-tx
+应用
 ├── bean
 │   ├── Book.java                图书数据对象
 │   └── Account.java             账户数据对象
@@ -55,7 +55,7 @@ spring-tx
 
 ## 3. 数据库依赖
 
-项目使用的主要依赖是：
+常用的主要依赖是：
 
 ```xml
 <dependency>
@@ -85,7 +85,7 @@ spring-tx
 <artifactId>spring-boot-starter-jdbc</artifactId>
 ```
 
-当前项目使用 `spring-boot-starter-data-jdbc` 也没有问题，它包含所需的 JDBC 基础能力。
+`spring-boot-starter-data-jdbc` 也包含所需的 JDBC 基础能力，但会额外引入 Spring Data JDBC。
 
 ## 4. 数据源配置
 
@@ -109,7 +109,7 @@ spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 
 使用 MySQL Connector/J 时，Spring Boot 通常可以根据 `jdbc:mysql:` 自动推断驱动类，因此 `driver-class-name` 可以省略。
 
-### 4.1 本项目中遇到过的配置问题
+### 4.1 常见配置错误
 
 错误主机名：
 
@@ -149,7 +149,7 @@ MariaDB URL    -> mariadb-java-client -> org.mariadb.jdbc.Driver
 Connection connection = dataSource.getConnection();
 ```
 
-当前测试打印出的连接类型是：
+使用 Spring Boot 默认连接池时，常见连接包装类型是：
 
 ```text
 com.zaxxer.hikari.pool.HikariProxyConnection
@@ -200,7 +200,7 @@ Book book = jdbcTemplate.queryForObject(
 );
 ```
 
-`BeanPropertyRowMapper` 按列名和 JavaBean 属性名进行映射。当前实际表字段使用 `bookName`，所以新增 SQL 也必须使用真实字段名：
+`BeanPropertyRowMapper` 按列名和 JavaBean 属性名进行映射。如果表字段使用 `bookName`，新增 SQL 也必须使用真实字段名：
 
 ```sql
 insert into book(bookName, price, stock) values (?, ?, ?)
@@ -237,7 +237,7 @@ public BookDao(JdbcTemplate jdbcTemplate) {
 
 构造器注入能够保证对象创建完成后依赖一定存在，也更方便单元测试。
 
-## 6. 当前 DAO 操作
+## 6. DAO 操作示例
 
 ### 6.1 查询图书
 
@@ -446,13 +446,13 @@ sequenceDiagram
 
 ## 10. 为什么通常不用手写 @EnableTransactionManagement
 
-启动类中存在被注释的：
+传统 Spring 配置中可以显式添加：
 
 ```java
-//@EnableTransactionManagement
+@EnableTransactionManagement
 ```
 
-在当前 Spring Boot 项目中，只要事务相关依赖、数据源和事务管理器自动配置正常，Boot 会自动启用事务基础设施，因此 `@Transactional` 可以直接生效。
+在 Spring Boot 项目中，只要事务相关依赖、数据源和事务管理器自动配置正常，Boot 会自动启用事务基础设施，因此 `@Transactional` 可以直接生效。
 
 显式添加 `@EnableTransactionManagement` 通常不会破坏功能，但在常规 Spring Boot 单数据源项目中属于重复声明。
 
@@ -562,44 +562,229 @@ catch (Exception exception) {
 
 ## 13. 事务传播行为
 
-传播行为解决的问题是：一个带事务的方法调用另一个带事务的方法时，应该加入现有事务、创建新事务，还是拒绝执行。
+事务传播行为（Propagation）描述的是：一个事务方法调用另一个事务方法时，被调用方法应该加入当前事务、创建新事务，还是以非事务方式执行。
 
-### 13.1 REQUIRED
+传播行为讨论的是事务方法之间如何组合，不是多个用户并发访问时的数据可见性。两者区别如下：
 
-默认行为：
+```text
+传播行为：多个嵌套事务方法之间如何组合
+隔离级别：多个并发事务之间能够看到什么数据
+```
+
+例如：
+
+```java
+@Transactional
+public void purchaseBook() {
+    decreaseStock();
+    decreaseBalance();
+}
+```
+
+如果 `decreaseStock()` 和 `decreaseBalance()` 也带有 `@Transactional`，就需要决定这三个方法是共用一个事务，还是分别创建事务。这个决定由 `propagation` 控制。
+
+### 13.1 七种传播行为总览
+
+| 传播行为 | 当前存在事务 | 当前不存在事务 |
+| --- | --- | --- |
+| `REQUIRED` | 加入当前事务 | 创建新事务 |
+| `REQUIRES_NEW` | 挂起当前事务，创建独立新事务 | 创建新事务 |
+| `SUPPORTS` | 加入当前事务 | 以非事务方式执行 |
+| `NOT_SUPPORTED` | 挂起当前事务，以非事务方式执行 | 以非事务方式执行 |
+| `MANDATORY` | 加入当前事务 | 抛出异常 |
+| `NEVER` | 抛出异常 | 以非事务方式执行 |
+| `NESTED` | 创建嵌套事务或保存点 | 创建新事务 |
+
+### 13.2 REQUIRED
+
+`REQUIRED` 是默认传播行为：
 
 ```text
 外部已有事务 -> 加入外部事务
 外部没有事务 -> 创建新事务
 ```
 
-当前 `purchaseBook()` 使用的就是默认 `REQUIRED`。
+例如购买流程中的方法都采用 `REQUIRED`：
 
-### 13.2 REQUIRES_NEW
+```text
+purchaseBook 事务
+├── decreaseStock 加入 purchaseBook 事务
+└── decreaseBalance 加入 purchaseBook 事务
+```
+
+它们共用同一个事务：
+
+```text
+BEGIN
+  扣减库存
+  扣减余额
+COMMIT
+```
+
+任一步发生满足回滚规则的异常，整个事务一起回滚。这最符合“库存和余额必须同时成功”的购买业务。
+
+当前 `BookService.purchaseBook()` 没有显式指定 `propagation`，所以使用的就是 `REQUIRED`：
+
+```java
+@Transactional // propagation 默认为 Propagation.REQUIRED
+public void purchaseBook(String username, Integer bookId) {
+}
+```
+
+### 13.3 REQUIRES_NEW
 
 无论外部是否有事务，都创建独立新事务；有外部事务时先挂起外部事务。
 
-适合某些必须独立提交的记录，但也可能出现“外部业务回滚，独立事务已经提交”的结果，必须符合业务设计。
+例如希望购买失败时仍然保存一条失败日志：
 
-### 13.3 SUPPORTS
+```java
+@Transactional(propagation = Propagation.REQUIRES_NEW)
+public void saveFailureLog() {
+}
+```
+
+调用结构：
+
+```text
+购买事务
+├── 扣减库存
+├── 暂停购买事务
+│   └── 开启日志事务
+│       └── 保存日志并独立提交
+├── 恢复购买事务
+└── 购买事务回滚
+```
+
+最终可能出现：
+
+```text
+购买数据：回滚
+日志数据：已经提交
+```
+
+这适合确实需要独立提交的数据，但也会打破“所有操作一起回滚”的整体性，必须符合业务设计。
+
+### 13.4 REQUIRED 与 REQUIRES_NEW 对比
+
+`REQUIRED` 共用事务：
+
+```text
+外层事务
+├── 方法 A
+└── 方法 B
+```
+
+方法 B 失败，外层事务通常也需要回滚。
+
+`REQUIRES_NEW` 使用独立事务：
+
+```text
+外层事务
+├── 方法 A
+├── 暂停外层事务
+│   └── 方法 B 的独立事务
+└── 恢复外层事务
+```
+
+方法 B 可以独立提交或回滚，不直接依赖外层事务最终是否提交。
+
+### 13.5 SUPPORTS
 
 外部有事务就加入，没有事务就以非事务方式执行。
 
-### 13.4 NOT_SUPPORTED
+它适合能够参与事务但不强制要求事务的操作，例如某些普通查询。不过是否使用事务仍应根据一致性要求决定。
+
+### 13.6 NOT_SUPPORTED
 
 以非事务方式执行；如果外部存在事务，就先挂起外部事务。
 
-### 13.5 MANDATORY
+它与 `SUPPORTS` 不同：`SUPPORTS` 在有事务时会加入，而 `NOT_SUPPORTED` 即使外层有事务也会将其挂起。
+
+### 13.7 MANDATORY
 
 必须在已有事务中执行；外部没有事务时直接报错。
 
-### 13.6 NEVER
+它适合规定某个底层操作不能独立执行，必须属于一个上层完整事务的场景。
+
+### 13.8 NEVER
 
 要求当前不存在事务；如果外部已有事务则报错。
 
-### 13.7 NESTED
+它与 `NOT_SUPPORTED` 的区别是：
+
+```text
+NOT_SUPPORTED：有事务就暂时挂起
+NEVER：有事务直接拒绝执行
+```
+
+### 13.9 NESTED
 
 在支持保存点的事务管理器中创建嵌套事务。嵌套事务可以回滚到保存点，而不一定让整个外部事务立即回滚。它与 `REQUIRES_NEW` 的独立物理事务不同。
+
+```text
+外部事务
+├── 执行操作 A
+├── 创建保存点
+├── 执行嵌套操作 B
+├── B 失败时回滚到保存点
+└── 外部事务决定继续还是整体回滚
+```
+
+如果外部事务最终回滚，嵌套事务的操作也会一起回滚。`NESTED` 是否可用取决于事务管理器和数据库是否支持保存点。
+
+### 13.10 事务测试中的传播过程
+
+假设测试方法本身带有 `@Transactional`，而被调用的 `purchaseBook()` 使用默认的 `REQUIRED`：
+
+```text
+测试框架开启测试事务
+  ↓
+testPurchaseBook()
+  ↓
+purchaseBook() 加入已有测试事务
+  ↓
+BookDao 与 AccountDao 使用同一事务连接
+  ↓
+测试结束，测试框架默认回滚
+```
+
+因此测试执行期间可以查询到库存和余额已经变化，但测试结束后这些修改不会永久保留。
+
+### 13.11 回滚只读标记与 UnexpectedRollbackException
+
+当内部 `REQUIRED` 方法加入外部事务后，它们使用的是同一个事务。如果内部方法发生异常并把事务标记为 `rollback-only`，外层即使捕获异常并继续正常返回，最终提交时仍可能出现 `UnexpectedRollbackException`。
+
+```text
+内部方法：事务已标记为只能回滚
+外层方法：捕获异常后继续执行
+外层提交：发现 rollback-only，只能回滚并报告异常
+```
+
+所以不能简单认为“外层把异常 catch 住，事务就一定能提交”。共享事务一旦被标记为只能回滚，后续无法恢复成可提交状态。
+
+### 13.12 传播行为的代理限制
+
+传播行为必须经过 Spring 事务代理才能被解释。同一个类内部使用 `this` 调用时通常会绕过代理：
+
+```java
+public void outer() {
+    this.inner();
+}
+
+@Transactional(propagation = Propagation.REQUIRES_NEW)
+public void inner() {
+}
+```
+
+这里 `inner()` 的 `REQUIRES_NEW` 可能不会生效，因为调用没有进入 Spring 代理。常见做法是把 `inner()` 放入另一个 Spring Bean，再通过注入的 Bean 调用。
+
+### 13.13 选择要点
+
+- 普通完整业务流程优先使用默认的 `REQUIRED`；
+- 只有确实需要独立提交时才使用 `REQUIRES_NEW`；
+- 使用 `NESTED` 前确认事务管理器和数据库的保存点支持；
+- 不要为了“看起来安全”随意组合传播行为；
+- 先明确哪些操作必须一起成功，再决定它们应该共享还是拆分事务。
 
 ## 14. 事务隔离级别
 
@@ -681,7 +866,7 @@ Isolation.DEFAULT
 
 即使看不到未提交数据，也不代表业务判断不会基于过期数据。
 
-当前项目采用原子条件更新：
+采用原子条件更新：
 
 ```sql
 update book
@@ -809,7 +994,7 @@ purchaseBook 使用默认 REQUIRED，加入现有测试事务
 
 如果测试方法本身处在一个外层回滚事务中，需要注意它可能掩盖对 Service 自身提交行为的验证。验证提交边界时，可以设计独立集成测试或显式控制测试事务。
 
-## 19. 常见错误排查清单
+## 19. 常见故障与排查
 
 ### 数据源创建失败
 

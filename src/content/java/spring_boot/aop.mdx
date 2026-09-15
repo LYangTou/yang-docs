@@ -1,6 +1,6 @@
 # Spring AOP 学习笔记
 
-本文结合 `aspect/LogAspect.java`、`aspect/AroundAspect.java`、`AopTest.java` 和当前计算器示例整理，重点说明 Spring AOP 的核心概念、通知类型、切点表达式、多切面调用顺序、代理限制以及常见应用场景。
+本文重点说明 Spring AOP 的核心概念、通知类型、切点表达式、多切面调用顺序、代理限制以及常见应用场景。
 
 ## 1. AOP 是什么
 
@@ -32,7 +32,7 @@ Spring AOP 基于运行时代理，默认不会修改目标类的字节码。它
 
 ## 2. AOP 核心术语
 
-| 术语 | 含义 | 当前项目中的例子 |
+| 术语 | 含义 | 示例 |
 | --- | --- | --- |
 | Aspect（切面） | 组织横切逻辑的类 | `LogAspect`、`AroundAspect` |
 | Join point（连接点） | 可以被增强的位置 | `MathCalculator` 的方法执行 |
@@ -50,7 +50,7 @@ Spring AOP 基于运行时代理，默认不会修改目标类的字节码。它
 └── 通知 Advice：决定“何时执行、执行什么”
 ```
 
-## 3. 当前两个切面分别做了什么
+## 3. 通知类型与环绕通知
 
 ### 3.1 LogAspect
 
@@ -72,7 +72,7 @@ Spring AOP 基于运行时代理，默认不会修改目标类的字节码。它
 | `@AfterThrowing` | 目标方法抛出且异常继续向外传播时 | 目标方法内部吞掉异常时不会触发 |
 | `@After` | 正常或异常都会执行 | 类似 `finally`，执行它不代表业务成功 |
 
-当前命名切点：
+示例命名切点：
 
 ```java
 execution(int com.example.springaop.calculator.MathCalculator.*(int, int))
@@ -85,7 +85,7 @@ execution(int com.example.springaop.calculator.MathCalculator.*(int, int))
 - 方法名任意；
 - 参数必须是两个 `int`。
 
-因此会匹配当前接口中的 `add`、`sub`、`mul` 和 `div`。
+因此会匹配接口中的 `add`、`sub`、`mul` 和 `div`。
 
 `JoinPoint` 封装了本次调用的信息：
 
@@ -159,9 +159,7 @@ Object result = pjp.proceed(newArgs); // 使用新参数继续执行
 
 ## 5. 多切面的调用顺序
 
-当前项目中 `LogAspect` 的 `@Order(1)` 被注释，`AroundAspect` 也没有配置 `@Order`，所以不要依赖这两个切面当前的先后顺序。未声明顺序或顺序值相同时，跨切面的执行先后不应视为稳定契约。
-
-可以使用以下方式定义切面优先级：
+未声明顺序或顺序值相同时，跨切面的执行先后不应视为稳定契约。可以使用 `@Order` 定义切面优先级：
 
 ```java
 @Order(1) // 数字小，优先级高
@@ -260,7 +258,7 @@ AroundAspect finally 阶段
 
 1. `@Order` 数字越小，优先级越高，但不是“所有通知都永远先执行”。进入阶段按优先级从高到低，退出阶段顺序相反。
 2. 同一切面中如果存在多个相同类型、命中同一方法的通知，不应依赖它们的声明顺序。
-3. 当前 `LogAspect` 中 `logStart()` 和 `haha()` 都可能匹配计算器方法，它们都是 `@Before`，不要假设二者始终按源码上下顺序执行。
+3. 同一切面中的两个 `@Before` 若同时匹配同一方法，不要假设二者始终按源码上下顺序执行。
 4. 如果不同切面之间存在强顺序依赖，应该明确设置不同的 `@Order`，并用测试固定预期。
 
 ## 6. 常见切点表达式
@@ -334,7 +332,8 @@ public void save(User user) {
 @args(com.example.MyTypeMarker)
 ```
 
-当前项目中的 `MyAn` 使用 `ElementType.PARAMETER`，它表示形参注解，因此与 `@args(MyAn)` 的语义不一致。
+如果一个注解只允许用于 `ElementType.PARAMETER`，它表示形参注解，因此不能用 `@args`
+匹配；`@args` 需要的是实参运行时类型上的注解。
 
 ### 6.5 @annotation 和 @within
 
@@ -438,38 +437,7 @@ public class OrderService {
 
 切面具有“隐式执行”的特点。切面越多，调用链越难直接从业务源码看出，因此应保持职责单一、命名明确并配套测试。
 
-## 9. 当前示例需要特别注意的地方
-
-### 9.1 多切面顺序尚未固定
-
-当前两个切面没有同时启用不同的 `@Order`，所以现有输出顺序不能作为稳定结论。要学习固定顺序时，可以自行给两个切面设置不同的优先级，再观察正常与异常链路。
-
-### 9.2 两个 Before 通知可能同时命中
-
-`LogAspect` 中：
-
-```java
-@Before("pointCut()")
-@Before("args(int, int)")
-```
-
-对于计算器方法，这两个切点可能同时匹配，因此会执行两个前置通知。这不是重复代理，而是同一个代理增强器链中包含了两个通知。
-
-### 9.3 @args 与参数注解不是同一概念
-
-当前 `@args(MyAn)` 不表示“方法形参上有 `@MyAn`”。如果想按方法注解拦截，通常使用 `@annotation`；如果确实需要读取形参注解，可以先匹配目标方法，再通过 `MethodSignature` 和反射读取参数注解。
-
-### 9.4 test01 的异常路径
-
-`AopTest.test01()` 先调用 `add(1, 2)`，然后调用：
-
-```java
-mathCalculator.div(1, 0);
-```
-
-第二个调用一定会产生 `ArithmeticException`。这适合观察异常通知，但如果希望 JUnit 测试通过，应使用 `assertThrows` 声明这是预期异常，而不是直接让异常结束测试。
-
-## 10. 实践建议
+## 9. 实践要点
 
 - 多个通知复用同一规则时，优先定义命名切点。
 - 公共切点引用必须写成方法形式，例如 `pointCut()`。

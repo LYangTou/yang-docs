@@ -1,0 +1,763 @@
+# RESTful API 学习笔记
+
+本文总结 RESTful API、分层设计、参数校验、统一响应、PUT/PATCH 区别和测试方式。
+
+## 1. RESTful API 是什么
+
+RESTful 的核心思想是：把系统中的数据看成“资源”，使用 URL 定位资源，使用 HTTP 方法表达对资源的操作。
+
+员工资源的统一地址是：
+
+```text
+/api/employees
+```
+
+不要把动作写进 URL：
+
+```text
+/getEmployee
+/addEmployee
+/deleteEmployee
+```
+
+应该用 HTTP 方法表达动作：
+
+| HTTP 方法 | URL | 含义 | 成功状态码 |
+| --- | --- | --- | --- |
+| GET | `/api/employees` | 查询全部员工 | 200 |
+| GET | `/api/employees/{id}` | 查询一个员工 | 200 |
+| POST | `/api/employees` | 新增员工 | 201 |
+| PUT | `/api/employees/{id}` | 完整更新员工 | 200 |
+| PATCH | `/api/employees/{id}` | 部分更新员工 | 200 |
+| DELETE | `/api/employees/{id}` | 删除员工 | 200 |
+
+删除接口需要返回统一 JSON 时可以使用 `200`。如果不需要响应体，可以使用 `204 No Content`，
+但 204 响应不能携带 `{code, data, msg}`。
+
+## 2. 典型项目结构
+
+```text
+com.example.springmvcrestful
+├── bean
+│   └── Employee
+├── common
+│   └── ApiResponse
+├── controller
+│   └── EmployeeController
+├── dao
+│   ├── EmployeeDao
+│   └── impl
+│       └── EmployeeDaoImpl
+├── dto
+│   └── EmployeePatchRequest
+├── exception
+│   └── GlobalExceptionHandler
+├── service
+│   └── EmployeeServices
+└── SpringmvcRestfulApplication
+```
+
+所有业务包都放在启动类所在包的下面，`@SpringBootApplication` 才能默认扫描到 Controller、Service、DAO 和全局异常处理器。
+
+## 3. 各层的职责
+
+### Controller
+
+Controller 接收 HTTP 请求、读取路径参数和 JSON 请求体，然后返回 HTTP 响应。
+
+```java
+@RestController
+@RequestMapping("/api/employees")
+public class EmployeeController {
+}
+```
+
+Controller 不应该直接编写 SQL，也不应该承担复杂业务逻辑。
+
+### Service
+
+Service 负责业务规则，并连接 Controller 和 DAO。例如：
+
+- 新增时忽略客户端传入的 ID；
+- 更新时以 URL 中的 ID 为准；
+- PATCH 时把传入字段合并到原有数据；
+- 判断员工是否存在。
+
+### DAO
+
+DAO 是 Data Access Object，负责访问数据库。项目使用 `JdbcTemplate` 执行 SQL：
+
+```java
+jdbcTemplate.update("delete from employee where id = ?", id);
+```
+
+DAO 接口描述有哪些数据库操作，DAO 实现类提供具体 SQL。
+
+### Bean
+
+`Employee` 用来表示一条完整的员工数据：
+
+```java
+public class Employee {
+    private Long id;
+    private String name;
+    private Integer age;
+    private String email;
+    private String gender;
+    private String address;
+    private BigDecimal salary;
+}
+```
+
+用于承载完整持久化数据的 Bean 也经常命名为 `entity` 或 `model`。
+
+### DTO
+
+DTO 是 Data Transfer Object，用于描述接口需要传输的数据，不负责执行数据库操作，也不一定和数据库表字段完全相同。
+
+简单记忆：
+
+```text
+DTO：接口传什么
+Bean：数据长什么样
+DAO：怎么操作数据库
+```
+
+## 4. 一次请求的执行过程
+
+以查询员工详情为例：
+
+```text
+GET /api/employees/1
+        ↓
+EmployeeController
+        ↓
+EmployeeServices
+        ↓
+EmployeeDao
+        ↓
+JdbcTemplate 执行 SQL
+        ↓
+MySQL employee 表
+        ↓
+Employee → ApiResponse → JSON
+```
+
+这种分层可以让 HTTP、业务逻辑和数据库访问互不混杂。
+
+## 5. 查询接口和路径 ID
+
+查询详情：
+
+```java
+@GetMapping("/{id}")
+public ResponseEntity<ApiResponse<Employee>> getEmployee(
+        @PathVariable Long id) {
+    // ...
+}
+```
+
+`@PathVariable Long id` 表示从 URL 中读取 ID：
+
+```http
+GET /api/employees/1
+```
+
+ID 的“必填”由路由本身保证：
+
+- `/api/employees/1`：匹配详情接口；
+- `/api/employees`：匹配列表接口，不会进入详情接口；
+- `/api/employees/abc`：不能转换成 `Long`，返回 400；
+- `/api/employees/999`：格式正确但员工不存在，返回 404。
+
+如果还需要限制 ID 必须大于 0，可以进一步使用 `@Positive`。
+
+### 5.1 `@PathVariable` 的作用
+
+`@PathVariable` 用来读取 URL 路径中由 `{变量名}` 标记的动态部分。
+
+```java
+@GetMapping("/{id}")
+public ResponseEntity<ApiResponse<Employee>> getEmployee(
+        @PathVariable("id") Long id) {
+    // ...
+}
+```
+
+请求：
+
+```http
+GET /api/employees/10
+```
+
+绑定结果：
+
+```java
+id == 10L
+```
+
+其中三部分需要对应：
+
+```text
+@GetMapping("/{id}")
+               ↓
+@PathVariable("id")
+               ↓
+Long id
+```
+
+### 5.2 显式指定路径变量名称
+
+可以省略注解中的名称：
+
+```java
+@GetMapping("/{id}")
+public ApiResponse<Employee> getEmployee(@PathVariable Long id) {
+    // ...
+}
+```
+
+这种写法要求编译后的字节码能够保留参数名称。为了避免编译器没有启用 `-parameters` 时出现参数名称解析警告，更稳妥的写法是显式指定名称：
+
+```java
+@PathVariable("id") Long id
+```
+
+路径变量名称和 Java 参数名称也可以不同：
+
+```java
+@GetMapping("/{employeeId}")
+public ApiResponse<Employee> getEmployee(
+        @PathVariable("employeeId") Long id) {
+    // employeeId 会赋值给 Java 参数 id
+}
+```
+
+### 5.3 多个路径变量
+
+一个 URL 可以包含多个路径变量：
+
+```java
+@GetMapping("/departments/{departmentId}/employees/{employeeId}")
+public void getDepartmentEmployee(
+        @PathVariable("departmentId") Long departmentId,
+        @PathVariable("employeeId") Long employeeId) {
+    // ...
+}
+```
+
+对应请求：
+
+```http
+GET /departments/2/employees/10
+```
+
+得到：
+
+```text
+departmentId = 2
+employeeId = 10
+```
+
+### 5.4 类型转换
+
+Spring MVC 会根据 Java 参数类型自动转换路径中的文本：
+
+```java
+@PathVariable("id") Long id
+```
+
+| 请求路径 | 转换结果 |
+| --- | --- |
+| `/api/employees/10` | 转换为 `Long 10` |
+| `/api/employees/-1` | 转换为 `Long -1`，但仍需业务校验是否允许 |
+| `/api/employees/abc` | 转换失败，抛出类型不匹配异常并返回 400 |
+
+类型转换失败可以由 `GlobalExceptionHandler` 统一包装为：
+
+```json
+{
+  "code": 400,
+  "data": null,
+  "msg": "请求参数类型错误"
+}
+```
+
+### 5.5 `@PathVariable` 是否必填
+
+`@PathVariable` 默认是必填的：
+
+```java
+@PathVariable(required = true)
+```
+
+但对于 `/{id}` 这样的映射，缺少 ID 时通常不是进入方法后得到 `null`，而是根本无法匹配这个路由：
+
+```text
+GET /api/employees/10  → 匹配 /{id}
+GET /api/employees     → 匹配列表接口，不匹配 /{id}
+```
+
+所以查询详情和删除接口不需要再判断 `id == null`。如果业务要求 ID 必须为正数，还需要额外使用 `@Positive` 或在 Service 中判断。
+
+不建议把同一个接口设计成可传可不传 ID。列表查询和详情查询应该使用两个清晰的路由：
+
+```text
+GET /api/employees       查询列表
+GET /api/employees/{id}  查询详情
+```
+
+### 5.6 `@PathVariable` 和 `@RequestParam` 的区别
+
+`@PathVariable` 从路径中取值，通常用来定位某个资源：
+
+```http
+GET /api/employees/10
+```
+
+```java
+@PathVariable("id") Long id
+```
+
+`@RequestParam` 从查询字符串中取值，通常用于筛选、分页和排序：
+
+```http
+GET /api/employees?name=张三&page=1
+```
+
+```java
+@RequestParam String name,
+@RequestParam(defaultValue = "1") Integer page
+```
+
+选择原则：
+
+```text
+定位具体资源       → @PathVariable
+筛选、分页、排序   → @RequestParam
+接收 JSON 请求体  → @RequestBody
+```
+
+## 6. 新增接口为什么清空 ID
+
+新增接口调用 Service 时执行：
+
+```java
+employee.setId(null);
+```
+
+原因是 `employee.id` 是数据库自增主键，应由 MySQL 生成。即使客户端在新增请求中传入 ID，也不应该直接采用。
+
+DAO 使用 `GeneratedKeyHolder` 获取数据库生成的 ID，再写回 Employee：
+
+```java
+Number id = keyHolder.getKey();
+employee.setId(id.longValue());
+```
+
+新增成功返回：
+
+```http
+HTTP/1.1 201 Created
+Location: /api/employees/10
+```
+
+```json
+{
+  "code": 201,
+  "data": {
+    "id": 10,
+    "name": "张三"
+  },
+  "msg": "创建成功"
+}
+```
+
+## 7. 新增时校验名称必填
+
+实体字段使用 `@NotBlank`：
+
+```java
+@NotBlank(message = "员工名称不能为空")
+private String name;
+```
+
+Controller 的新增参数使用 `@Valid` 才会触发校验：
+
+```java
+public ResponseEntity<ApiResponse<Employee>> createEmployee(
+        @Valid @RequestBody Employee employee) {
+    // ...
+}
+```
+
+`@NotBlank` 会拒绝以下值：
+
+```json
+{}
+```
+
+```json
+{"name": null}
+```
+
+```json
+{"name": "   "}
+```
+
+校验失败由 `GlobalExceptionHandler` 统一转换成：
+
+```http
+HTTP/1.1 400 Bad Request
+```
+
+```json
+{
+  "code": 400,
+  "data": null,
+  "msg": "员工名称不能为空"
+}
+```
+
+## 8. PUT 和 PATCH 的区别
+
+### PUT：完整更新
+
+```http
+PUT /api/employees/3
+```
+
+PUT 表示使用请求体完整替换员工数据，调用方应该传入全部可修改字段。请求体没有传入的字段会被
+反序列化为 `null`；执行全字段更新时，对应数据库字段会被更新成 `NULL`。
+
+更新时执行：
+
+```java
+employee.setId(id);
+```
+
+这里的 ID 来自 URL。即使请求体传入了另一个 ID，也应以 URL 表示的目标资源为准。
+
+### PATCH：部分更新
+
+```http
+PATCH /api/employees/3
+```
+
+PATCH 只修改请求体中出现的字段：
+
+```json
+{
+  "name": "新名称"
+}
+```
+
+只更新 `name`，其他字段保持不变。
+
+如果明确传入 `null`：
+
+```json
+{
+  "email": null
+}
+```
+
+表示主动把邮箱清空为数据库的 `NULL`。
+
+## 9. PATCH 为什么需要专用 DTO
+
+如果 PATCH 直接使用 `Employee`，下面两种请求得到的 `employee.getEmail()` 都是 `null`：
+
+```json
+{}
+```
+
+```json
+{"email": null}
+```
+
+程序无法判断客户端是“没有传 email”还是“明确要求清空 email”。
+
+`EmployeePatchRequest` 在 setter 被调用时记录字段是否出现：
+
+```java
+public void setEmail(String email) {
+    this.email = email;
+    this.emailPresent = true;
+}
+```
+
+Service 根据存在标记合并字段：
+
+```java
+if (request.isEmailPresent()) {
+    employee.setEmail(request.getEmail());
+}
+```
+
+因此可以区分：
+
+| JSON 情况 | `isEmailPresent()` | `getEmail()` | 结果 |
+| --- | --- | --- | --- |
+| 没有 `email` | false | null | 保留原值 |
+| `"email": null` | true | null | 清空邮箱 |
+| `"email": "a@b.com"` | true | `a@b.com` | 更新邮箱 |
+
+## 10. 统一响应格式
+
+项目所有接口统一返回：
+
+```json
+{
+  "code": 200,
+  "data": {},
+  "msg": "操作成功"
+}
+```
+
+对应的泛型记录类：
+
+```java
+public record ApiResponse<T>(int code, T data, String msg) {
+}
+```
+
+使用泛型后，查询详情可以使用 `ApiResponse<Employee>`，查询列表可以使用 `ApiResponse<List<Employee>>`，删除可以使用 `ApiResponse<Void>`。
+
+## 11. ApiResponse 和 ResponseEntity 的区别
+
+`ApiResponse` 控制 JSON 响应体：
+
+```json
+{
+  "code": 404,
+  "data": null,
+  "msg": "员工不存在"
+}
+```
+
+`ResponseEntity` 控制真正的 HTTP 响应，包括：
+
+- HTTP 状态码；
+- HTTP 响应头；
+- HTTP 响应体。
+
+成功快捷写法：
+
+```java
+ResponseEntity.ok(ApiResponse.success(employee));
+```
+
+它等价于：
+
+```java
+ResponseEntity
+        .status(HttpStatus.OK)
+        .body(ApiResponse.success(employee));
+```
+
+资源不存在：
+
+```java
+ResponseEntity
+        .status(HttpStatus.NOT_FOUND)
+        .body(ApiResponse.error(404, "员工不存在"));
+```
+
+如果只返回 `ApiResponse.error(404, ...)` 而不使用 `ResponseEntity` 或 `@ResponseStatus`，JSON 中虽然是 404，但真正的 HTTP 状态通常仍然是 `200 OK`。这会影响前端错误处理、网关监控和日志统计。
+
+## 12. 常用 HTTP 状态码
+
+| 状态码 | 含义 | 适用场景 |
+| --- | --- | --- |
+| 200 | 请求成功 | 查询、修改、删除成功 |
+| 201 | 资源创建成功 | 新增员工成功 |
+| 400 | 请求参数错误 | ID 类型错误、JSON 错误、名称为空 |
+| 404 | 资源不存在 | 根据 ID 找不到员工 |
+| 500 | 服务器内部错误 | 未预期异常 |
+
+业务响应中的 `code` 与 HTTP 状态码保持一致，客户端既可以判断 HTTP 状态，也可以读取统一 JSON。
+
+## 13. 全局异常处理
+
+`@RestControllerAdvice` 可以集中处理 Controller 抛出的异常：
+
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+}
+```
+
+全局异常处理器通常处理：
+
+- `MethodArgumentNotValidException`：Bean Validation 校验失败；
+- `MethodArgumentTypeMismatchException`：路径或请求参数类型错误；
+- `HttpMessageNotReadableException`：JSON 请求体格式错误；
+- `Exception`：其他未处理异常。
+
+集中处理异常可以避免每个 Controller 重复编写错误响应。
+
+更进一步可以定义 `EmployeeNotFoundException`，由 Service 在找不到员工时抛出，再由全局异常处理器统一返回 404。这样 Controller 可以只保留正常流程。
+
+## 14. JdbcTemplate 的 CRUD
+
+### 查询列表
+
+```java
+jdbcTemplate.query(
+        "select id, name, age, email, gender, address, salary "
+                + "from employee order by id",
+        BeanPropertyRowMapper.newInstance(Employee.class)
+);
+```
+
+### 查询详情
+
+查询结果可能为空，可以转换为 `null`：
+
+```java
+.stream().findFirst().orElse(null);
+```
+
+### 新增
+
+使用占位符传参，避免拼接用户输入：
+
+```sql
+insert into employee(name, age, email, gender, address, salary)
+values (?, ?, ?, ?, ?, ?)
+```
+
+### 修改
+
+```sql
+update employee
+set name = ?, age = ?, email = ?, gender = ?, address = ?, salary = ?
+where id = ?
+```
+
+### 删除
+
+```sql
+delete from employee where id = ?
+```
+
+`JdbcTemplate.update(...)` 返回受影响行数。返回值大于 0，说明修改或删除成功；返回 0，通常说明该 ID 不存在。
+
+## 15. 调用示例
+
+### 查询全部
+
+```bash
+curl http://localhost:8080/api/employees
+```
+
+### 查询详情
+
+```bash
+curl http://localhost:8080/api/employees/1
+```
+
+### 新增
+
+```bash
+curl -X POST http://localhost:8080/api/employees \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "张三",
+    "age": 20,
+    "email": "zhangsan@example.com",
+    "gender": "男",
+    "address": "上海",
+    "salary": 8000.00
+  }'
+```
+
+### 完整更新
+
+```bash
+curl -X PUT http://localhost:8080/api/employees/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "李四",
+    "age": 25,
+    "email": "lisi@example.com",
+    "gender": "男",
+    "address": "北京",
+    "salary": 9000.00
+  }'
+```
+
+### 部分更新
+
+```bash
+curl -X PATCH http://localhost:8080/api/employees/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"只修改名称"}'
+```
+
+### 删除
+
+```bash
+curl -X DELETE http://localhost:8080/api/employees/1
+```
+
+## 16. 单元测试和集成测试
+
+### Controller 单元测试
+
+`EmployeeControllerTests` 使用：
+
+- `@WebMvcTest`：只加载 Web 层；
+- `MockMvc`：模拟 HTTP 请求；
+- `@MockBean`：模拟 Service，不访问真实数据库；
+- `jsonPath`：检查 `{code, data, msg}`。
+
+它主要验证：
+
+- URL 和 HTTP 方法是否正确；
+- HTTP 状态码是否正确；
+- JSON 返回结构是否正确；
+- 参数校验和 404 分支是否正确。
+
+### DAO 集成测试
+
+`EmployeeDaoIntegrationTests` 使用 `@SpringBootTest`，连接真实 MySQL，验证真实 SQL 和字段映射。
+
+DAO 集成测试如果没有使用 `@Transactional`，就不会自动回滚：
+
+- 新增、查询、修改、PATCH 测试产生的数据会留在数据库；
+- 删除测试产生的数据会被真实删除；
+- 每次运行测试都可能增加测试记录。
+
+集成测试一般使用独立测试数据库，并在测试结束后回滚或清理数据，避免污染开发和生产数据。
+
+## 17. 数据库配置
+
+数据源可以配置在 `application.properties`：
+
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/employee
+spring.datasource.username=root
+spring.datasource.password=******
+```
+
+真实密码不应写入文档或提交到代码仓库，可以改为环境变量：
+
+```properties
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+```
+
+## 18. 核心要点
+
+1. URL 表示资源，HTTP 方法表示操作。
+2. Controller、Service、DAO 各自承担不同职责。
+3. Bean 表示完整数据，DTO 表示接口需要传输的数据。
+4. POST 的自增 ID 应由数据库生成。
+5. PUT 是完整更新，PATCH 是部分更新。
+6. PATCH 必须区分“字段没传”和“字段明确传 null”。
+7. `@Valid` 负责触发参数校验，约束注解负责定义规则。
+8. `ApiResponse` 统一 JSON，`ResponseEntity` 控制真正的 HTTP 响应。
+9. 参数错误返回 400，资源不存在返回 404，创建成功返回 201。
+10. 单元测试验证 Web 层行为，集成测试验证真实数据库操作。
