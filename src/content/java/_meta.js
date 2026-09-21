@@ -30,6 +30,7 @@ export default {
     'day_29': '事务基础',
     'day_30': 'JDBC',
     'day_31': 'Maven补充',
-    'spring_boot': 'Spring Boot'
+    'spring_boot': 'Spring Boot',
+    'sql': '数据库'
 }
   

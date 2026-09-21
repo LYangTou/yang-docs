@@ -1,0 +1,246 @@
+# MySQL DML：数据的新增、修改与删除
+
+> DML 用于操作数据库表中的记录，核心命令包括新增数据的 `INSERT`、修改数据的 `UPDATE` 和删除数据的 `DELETE`。
+
+## 先看结论
+
+- `INSERT` 用于新增一条或多条记录，字段顺序必须和值的顺序一一对应。
+- `UPDATE` 用于修改已有记录，可以在一条语句中更新多个字段。
+- `DELETE` 用于删除符合条件的整条记录，不能只删除某个字段。
+- `UPDATE` 或 `DELETE` 如果没有 `WHERE` 条件，会影响表中的全部记录。
+- 执行修改或删除前，建议先用相同的 `WHERE` 条件执行 `SELECT`，确认影响范围。
+
+## 什么是 DML
+
+DML 的英文全称是 `Data Manipulation Language`，即数据操作语言。它操作的是表中的数据记录，而不是数据库或表的结构。
+
+| 命令 | 作用 |
+| --- | --- |
+| `INSERT` | 添加数据 |
+| `UPDATE` | 修改数据 |
+| `DELETE` | 删除数据 |
+
+下面的示例均基于员工表 `employee`：
+
+```text
+employee(id, workno, name, gender, age, idcard, entrydate)
+```
+
+## 添加数据：INSERT
+
+### 给指定字段添加数据
+
+基本语法：
+
+```sql
+INSERT INTO 表名 (字段名1, 字段名2, ...)
+VALUES (值1, 值2, ...);
+```
+
+例如，添加一名员工：
+
+```sql
+INSERT INTO employee (id, workno, name, gender, age, entrydate)
+VALUES (1, '10001', '张三', '男', 25, '2026-09-16');
+```
+
+没有出现在字段列表中的字段，将使用字段默认值；如果没有默认值且允许为空，则使用 `NULL`。
+
+### 给全部字段添加数据
+
+省略字段列表时，必须按照表结构中字段的定义顺序提供所有值：
+
+```sql
+INSERT INTO employee
+VALUES (2, '10002', '李四', '女', 23, '110101200301010000', '2026-09-16');
+```
+
+这种写法依赖表的字段顺序。表结构发生变化后，SQL 可能失效，因此实际开发中通常建议明确写出字段列表。
+
+### 批量添加数据
+
+一条 `INSERT` 可以添加多条记录：
+
+```sql
+INSERT INTO employee (id, workno, name, gender, age, entrydate)
+VALUES
+    (3, '10003', '王五', '男', 28, '2026-09-16'),
+    (4, '10004', '赵六', '女', 26, '2026-09-16'),
+    (5, '10005', '钱七', '男', 30, '2026-09-16');
+```
+
+批量插入通常比逐条执行多条 `INSERT` 更高效，也能减少应用程序与数据库之间的通信次数。
+
+### 插入数据的注意事项
+
+- 字段列表和 `VALUES` 中的值必须在数量、顺序和类型上对应。
+- 字符串和日期通常使用单引号包裹，例如 `'张三'`、`'2026-09-16'`。
+- 数值一般不需要引号，例如 `25`。
+- 插入值必须符合字段的数据类型、长度和约束。
+- SQL 中的空值使用 `NULL`，而不是字符串 `'NULL'`。
+- 如果主键或唯一字段的值已经存在，插入通常会失败。
+
+例如，显式插入空值：
+
+```sql
+INSERT INTO employee (id, workno, name, idcard)
+VALUES (6, '10006', '孙八', NULL);
+```
+
+## 修改数据：UPDATE
+
+基本语法：
+
+```sql
+UPDATE 表名
+SET 字段名1 = 值1,
+    字段名2 = 值2,
+    ...
+[WHERE 条件];
+```
+
+### 修改一条记录
+
+```sql
+UPDATE employee
+SET age = 26
+WHERE id = 1;
+```
+
+### 同时修改多个字段
+
+```sql
+UPDATE employee
+SET name = '张小三',
+    age = 27,
+    entrydate = '2026-09-01'
+WHERE id = 1;
+```
+
+### 根据原值计算新值
+
+`SET` 后不仅可以使用固定值，也可以引用字段当前的值：
+
+```sql
+UPDATE employee
+SET age = age + 1
+WHERE id = 1;
+```
+
+### 更新全部记录
+
+省略 `WHERE` 会修改表中的所有记录：
+
+```sql
+UPDATE employee
+SET entrydate = '2026-09-16';
+```
+
+全表更新只有在业务确实需要时才应执行。一般情况下，可以先查询目标数据：
+
+```sql
+SELECT *
+FROM employee
+WHERE id = 1;
+```
+
+确认查询结果后，再使用相同条件执行 `UPDATE`。
+
+## 删除数据：DELETE
+
+基本语法：
+
+```sql
+DELETE FROM 表名
+[WHERE 条件];
+```
+
+### 删除指定记录
+
+```sql
+DELETE FROM employee
+WHERE id = 5;
+```
+
+条件可能匹配多条记录。例如，删除年龄小于 18 岁的所有记录：
+
+```sql
+DELETE FROM employee
+WHERE age < 18;
+```
+
+### 删除全部记录
+
+省略 `WHERE` 会删除表中的全部记录，但保留表结构：
+
+```sql
+DELETE FROM employee;
+```
+
+执行前应先确认影响范围：
+
+```sql
+SELECT *
+FROM employee
+WHERE age < 18;
+```
+
+### 清空字段值
+
+`DELETE` 删除的是整条记录，不能只删除某个字段的值。需要清空字段时，应使用 `UPDATE`：
+
+```sql
+UPDATE employee
+SET idcard = NULL
+WHERE id = 1;
+```
+
+前提是该字段允许保存 `NULL`。如果业务上使用空字符串，还可以设置为 `''`，但空字符串和 `NULL` 的含义不同。
+
+## DELETE、TRUNCATE 与 DROP 的区别
+
+| 命令 | 作用 | 保留表结构 | 支持 `WHERE` | 所属类别 |
+| --- | --- | --- | --- | --- |
+| `DELETE` | 删除一条、多条或全部记录 | 是 | 是 | DML |
+| `TRUNCATE` | 快速清空整张表 | 是 | 否 | DDL |
+| `DROP TABLE` | 删除表及其中的数据 | 否 | 否 | DDL |
+
+如果只需要删除部分数据，应使用带条件的 `DELETE`；如果需要清空整张表，可以根据事务、触发器和自增值等实际要求选择 `DELETE` 或 `TRUNCATE`。
+
+## 安全操作建议
+
+修改和删除属于高风险操作，可以遵循以下步骤：
+
+1. 使用 `SELECT` 和相同的 `WHERE` 条件检查目标记录。
+2. 确认条件能够准确限定所需数据。
+3. 在重要环境中使用事务，并在确认结果后提交。
+4. 检查 SQL 影响的记录数是否符合预期。
+
+事务示例：
+
+```sql
+START TRANSACTION;
+
+UPDATE employee
+SET age = 27
+WHERE id = 1;
+
+-- 确认结果正确后提交
+COMMIT;
+
+-- 如果结果不正确，可以在提交前回滚
+-- ROLLBACK;
+```
+
+## 容易混淆的点
+
+- DML 修改表中的数据，DDL 修改数据库对象的结构。
+- `INSERT` 省略字段列表并不表示字段顺序可以随意填写。
+- `NULL` 表示没有值，`''` 表示长度为零的字符串。
+- `UPDATE` 和 `DELETE` 的 `WHERE` 条件不是必填项，但省略后会影响全部记录。
+- `DELETE` 删除整条记录；清空单个字段应使用 `UPDATE`。
+- `DELETE FROM 表名` 与 `DROP TABLE 表名` 的结果不同，前者保留表结构，后者删除表结构。
+
+## 总结
+
+DML 负责表中数据的新增、修改和删除。使用 `INSERT` 时应明确字段和值的对应关系；使用 `UPDATE` 和 `DELETE` 时应重点检查 `WHERE` 条件。对于重要数据，执行变更前先查询目标记录，并配合事务控制，可以显著降低误操作风险。

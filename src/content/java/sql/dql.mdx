@@ -1,0 +1,465 @@
+# MySQL DQL：数据查询
+
+> DQL 用于从数据库表中读取数据。一个完整的查询可以包含字段选择、条件过滤、分组聚合、分组后过滤、排序和分页等步骤。
+
+## 先看结论
+
+- `SELECT` 用于指定需要查询的字段，`FROM` 用于指定数据来源。
+- `WHERE` 在分组前过滤原始记录，`HAVING` 在分组后过滤聚合结果。
+- 聚合函数用于统计一组数据，常用函数包括 `COUNT`、`MAX`、`MIN`、`AVG` 和 `SUM`。
+- `ORDER BY` 用于排序；没有明确排序时，数据库不保证结果顺序。
+- `LIMIT` 用于限制返回数量，也可以配合偏移量实现分页。
+- SQL 的书写顺序和逻辑执行顺序不同，理解执行顺序有助于编写复杂查询。
+
+## 什么是 DQL
+
+DQL 的英文全称是 `Data Query Language`，即数据查询语言，用于查询数据库表中的记录。
+
+DQL 的核心关键字是：
+
+```sql
+SELECT
+```
+
+本文示例使用员工表 `employee`：
+
+```text
+employee(id, workno, name, gender, age, idcard, entrydate)
+```
+
+## SELECT 完整语法
+
+一个查询可以由以下子句组成：
+
+```sql
+SELECT [DISTINCT] 字段列表
+FROM 表名
+[WHERE 条件]
+[GROUP BY 分组字段]
+[HAVING 分组后条件]
+[ORDER BY 排序字段 [ASC | DESC]]
+[LIMIT 偏移量, 返回数量];
+```
+
+各部分必须按照规定顺序书写。实际查询不需要包含所有子句，可以根据需求选择使用。
+
+## 基本查询
+
+### 查询指定字段
+
+```sql
+SELECT name, age, entrydate
+FROM employee;
+```
+
+明确列出字段可以让查询目的更清晰，也能避免读取不需要的数据。
+
+### 查询全部字段
+
+```sql
+SELECT *
+FROM employee;
+```
+
+`*` 表示所有字段，适合临时查看数据。正式代码通常建议明确写出字段列表，以减少无关数据传输，并避免表结构变化影响查询结果。
+
+### 设置字段别名
+
+可以使用 `AS` 为字段或表达式设置别名：
+
+```sql
+SELECT
+    workno AS employee_no,
+    name AS employee_name,
+    age AS employee_age
+FROM employee;
+```
+
+`AS` 可以省略：
+
+```sql
+SELECT name employee_name
+FROM employee;
+```
+
+如果别名包含空格或特殊字符，可以使用反引号包裹：
+
+```sql
+SELECT name AS `员工姓名`
+FROM employee;
+```
+
+### 去除重复记录
+
+`DISTINCT` 用于去除查询结果中完全相同的记录：
+
+```sql
+SELECT DISTINCT gender
+FROM employee;
+```
+
+当查询多个字段时，只有这些字段的组合完全相同才会被视为重复：
+
+```sql
+SELECT DISTINCT gender, age
+FROM employee;
+```
+
+## 条件查询：WHERE
+
+`WHERE` 用于筛选满足条件的记录：
+
+```sql
+SELECT 字段列表
+FROM 表名
+WHERE 条件;
+```
+
+例如，查询年龄大于等于 30 岁的员工：
+
+```sql
+SELECT id, name, age
+FROM employee
+WHERE age >= 30;
+```
+
+### 比较运算符
+
+| 运算符 | 作用 | 示例 |
+| --- | --- | --- |
+| `=` | 等于 | `age = 30` |
+| `<>` 或 `!=` | 不等于 | `gender <> '男'` |
+| `>` | 大于 | `age > 30` |
+| `>=` | 大于等于 | `age >= 30` |
+| `<` | 小于 | `age < 30` |
+| `<=` | 小于等于 | `age <= 30` |
+| `BETWEEN ... AND ...` | 在闭区间内 | `age BETWEEN 20 AND 30` |
+| `IN (...)` | 匹配列表中的任意值 | `age IN (20, 25, 30)` |
+| `LIKE` | 按模式进行模糊匹配 | `name LIKE '张%'` |
+| `IS NULL` | 判断是否为 `NULL` | `idcard IS NULL` |
+
+`BETWEEN` 包含两端的边界值：
+
+```sql
+SELECT name, age
+FROM employee
+WHERE age BETWEEN 20 AND 30;
+```
+
+`IN` 适合判断字段是否属于一组离散值：
+
+```sql
+SELECT name, age
+FROM employee
+WHERE age IN (20, 25, 30);
+```
+
+### 逻辑运算符
+
+| 运算符 | 作用 |
+| --- | --- |
+| `AND` 或 `&&` | 所有条件同时成立 |
+| `OR` 或 `\|\|` | 任意一个条件成立 |
+| `NOT` 或 `!` | 对条件结果取反 |
+
+为了提高可移植性和可读性，建议优先使用标准写法 `AND`、`OR` 和 `NOT`。
+
+查询年龄在 20～30 岁之间的女员工：
+
+```sql
+SELECT id, name, gender, age
+FROM employee
+WHERE gender = '女'
+  AND age BETWEEN 20 AND 30;
+```
+
+`AND` 的优先级高于 `OR`。组合多个条件时，建议使用括号明确逻辑关系：
+
+```sql
+SELECT id, name, gender, age
+FROM employee
+WHERE (gender = '女' OR age >= 40)
+  AND entrydate >= '2020-01-01';
+```
+
+### 模糊查询
+
+`LIKE` 使用以下通配符：
+
+| 通配符 | 作用 |
+| --- | --- |
+| `%` | 匹配任意数量的字符，包括零个字符 |
+| `_` | 匹配一个字符 |
+
+查询姓张的员工：
+
+```sql
+SELECT id, name
+FROM employee
+WHERE name LIKE '张%';
+```
+
+查询姓名为两个字符，且第二个字符是“明”的员工：
+
+```sql
+SELECT id, name
+FROM employee
+WHERE name LIKE '_明';
+```
+
+### NULL 判断
+
+`NULL` 表示未知或没有值，不能使用 `= NULL` 或 `!= NULL` 判断。
+
+查询身份证号为空的员工：
+
+```sql
+SELECT id, name, idcard
+FROM employee
+WHERE idcard IS NULL;
+```
+
+查询身份证号不为空的员工：
+
+```sql
+SELECT id, name, idcard
+FROM employee
+WHERE idcard IS NOT NULL;
+```
+
+`NULL` 与空字符串 `''` 不相同。如果两种情况都需要匹配，应明确写出：
+
+```sql
+SELECT id, name, idcard
+FROM employee
+WHERE idcard IS NULL
+   OR idcard = '';
+```
+
+## 聚合函数
+
+聚合函数对一组数据进行计算，并返回一个结果。
+
+| 函数 | 作用 |
+| --- | --- |
+| `COUNT` | 统计数量 |
+| `MAX` | 求最大值 |
+| `MIN` | 求最小值 |
+| `AVG` | 求平均值 |
+| `SUM` | 求总和 |
+
+查询员工数量及年龄统计信息：
+
+```sql
+SELECT
+    COUNT(*) AS employee_count,
+    MAX(age) AS max_age,
+    MIN(age) AS min_age,
+    AVG(age) AS avg_age,
+    SUM(age) AS total_age
+FROM employee;
+```
+
+### COUNT 的区别
+
+```sql
+SELECT
+    COUNT(*) AS row_count,
+    COUNT(idcard) AS idcard_count,
+    COUNT(DISTINCT age) AS distinct_age_count
+FROM employee;
+```
+
+- `COUNT(*)` 统计结果中的记录数。
+- `COUNT(字段)` 只统计该字段不为 `NULL` 的记录数。
+- `COUNT(DISTINCT 字段)` 统计去重后的非空值数量。
+- `SUM`、`AVG`、`MAX` 和 `MIN` 通常也会忽略 `NULL`。
+
+## 分组查询：GROUP BY
+
+`GROUP BY` 按一个或多个字段对记录分组，通常配合聚合函数使用。
+
+统计不同性别的员工人数和平均年龄：
+
+```sql
+SELECT
+    gender,
+    COUNT(*) AS employee_count,
+    AVG(age) AS avg_age
+FROM employee
+GROUP BY gender;
+```
+
+分组后，每个性别返回一条汇总记录。
+
+### WHERE 与 HAVING
+
+`WHERE` 和 `HAVING` 都可以过滤数据，但处理阶段不同：
+
+| 子句 | 过滤对象 | 执行阶段 | 能否直接使用聚合函数 |
+| --- | --- | --- | --- |
+| `WHERE` | 原始记录 | 分组前 | 否 |
+| `HAVING` | 分组结果 | 分组后 | 是 |
+
+查询 2015 年以后入职，并且人数不少于 3 人的性别分组：
+
+```sql
+SELECT
+    gender,
+    COUNT(*) AS employee_count
+FROM employee
+WHERE entrydate >= '2015-01-01'
+GROUP BY gender
+HAVING COUNT(*) >= 3;
+```
+
+处理过程是：
+
+1. `WHERE` 先过滤入职日期不符合要求的记录。
+2. `GROUP BY` 按性别分组。
+3. `COUNT(*)` 计算每组人数。
+4. `HAVING` 保留人数不少于 3 的分组。
+
+在启用 `ONLY_FULL_GROUP_BY` 的情况下，`SELECT` 中未参与聚合的普通字段通常必须出现在 `GROUP BY` 中。
+
+## 排序查询：ORDER BY
+
+基本语法：
+
+```sql
+SELECT 字段列表
+FROM 表名
+ORDER BY 字段1 [ASC | DESC], 字段2 [ASC | DESC];
+```
+
+排序方式：
+
+- `ASC`：升序，默认值。
+- `DESC`：降序。
+
+按年龄从小到大排序：
+
+```sql
+SELECT id, name, age
+FROM employee
+ORDER BY age ASC;
+```
+
+先按年龄从大到小排序，年龄相同时再按入职日期从早到晚排序：
+
+```sql
+SELECT id, name, age, entrydate
+FROM employee
+ORDER BY age DESC, entrydate ASC;
+```
+
+多字段排序会依次比较字段。只有前一个字段的值相同时，才会使用后一个字段继续排序。
+
+## 分页查询：LIMIT
+
+MySQL 使用 `LIMIT` 限制返回的记录数量。
+
+只查询前 10 条记录：
+
+```sql
+SELECT id, name, age
+FROM employee
+ORDER BY id
+LIMIT 10;
+```
+
+从指定偏移量开始查询：
+
+```sql
+SELECT id, name, age
+FROM employee
+ORDER BY id
+LIMIT 20, 10;
+```
+
+`LIMIT 20, 10` 表示跳过前 20 条记录，再返回 10 条。偏移量从 `0` 开始。
+
+如果每页显示 `pageSize` 条数据，第 `page` 页的偏移量为：
+
+```text
+offset = (page - 1) × pageSize
+```
+
+例如，每页 10 条，查询第 3 页：
+
+```sql
+SELECT id, name, age
+FROM employee
+ORDER BY id
+LIMIT 20, 10;
+```
+
+分页时应配合稳定的 `ORDER BY`。否则，不同查询之间返回记录的顺序可能不一致。
+
+## 综合查询示例
+
+查询 2015 年以后入职的员工，按性别分组，保留平均年龄大于 25 岁的分组，再按平均年龄降序排列：
+
+```sql
+SELECT
+    gender,
+    COUNT(*) AS employee_count,
+    ROUND(AVG(age), 2) AS avg_age
+FROM employee
+WHERE entrydate >= '2015-01-01'
+GROUP BY gender
+HAVING AVG(age) > 25
+ORDER BY avg_age DESC;
+```
+
+查询年龄在 20～40 岁之间的员工，按入职时间倒序排列并返回第一页的 10 条数据：
+
+```sql
+SELECT
+    id,
+    workno,
+    name,
+    age,
+    entrydate
+FROM employee
+WHERE age BETWEEN 20 AND 40
+ORDER BY entrydate DESC, id ASC
+LIMIT 0, 10;
+```
+
+## SQL 的逻辑执行顺序
+
+SQL 的书写顺序是：
+
+```text
+SELECT → FROM → WHERE → GROUP BY → HAVING → ORDER BY → LIMIT
+```
+
+常见的逻辑执行顺序可以理解为：
+
+```text
+FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT
+```
+
+这可以解释以下现象：
+
+- `WHERE` 执行时还没有完成分组，因此不能直接使用聚合函数。
+- `HAVING` 在分组之后执行，因此可以筛选聚合结果。
+- `ORDER BY` 通常可以使用 `SELECT` 中定义的别名。
+- `LIMIT` 最后执行，从已经过滤并排序的结果中截取记录。
+
+## 容易混淆的点
+
+- `SELECT *` 会查询全部字段；正式代码通常更适合明确列出需要的字段。
+- `DISTINCT` 针对所选字段的组合去重，不是只对紧邻它的一个字段去重。
+- `BETWEEN ... AND ...` 包含两个边界值。
+- `%` 匹配任意数量的字符，`_` 只匹配一个字符。
+- 判断空值应使用 `IS NULL` 或 `IS NOT NULL`，不能使用 `= NULL`。
+- `COUNT(*)` 统计记录数，`COUNT(字段)` 不统计该字段为 `NULL` 的记录。
+- `WHERE` 过滤原始数据，`HAVING` 过滤分组后的结果。
+- `ORDER BY` 不仅要指定字段，还要根据需求选择 `ASC` 或 `DESC`。
+- `LIMIT` 的偏移量从 `0` 开始，分页时应搭配稳定排序。
+
+## 总结
+
+DQL 的核心是按照业务需求逐步构造查询：先通过 `FROM` 确定数据来源，使用 `WHERE` 过滤原始记录，再通过 `GROUP BY` 和聚合函数完成统计，使用 `HAVING` 过滤统计结果，最后通过 `ORDER BY` 和 `LIMIT` 控制结果的顺序与数量。理解这些子句的职责和执行顺序，是编写正确 SQL 查询的基础。
