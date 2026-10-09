@@ -1,0 +1,240 @@
+# MySQL 约束：字段规则与外键行为
+
+约束是加在表字段上的规则，用来限制可存入的数据，保证数据的正确性、有效性和完整性。学习时分两步：先让单表字段满足要求，再让关联表之间的数据保持一致。
+
+## 先看结论
+
+| 需求 | 约束或属性 | 关键字 |
+| --- | --- | --- |
+| 字段必须有值 | 非空约束 | `NOT NULL` |
+| 字段值不能重复 | 唯一约束 | `UNIQUE` |
+| 唯一标识一行，且不能为 `NULL` | 主键约束 | `PRIMARY KEY` |
+| 插入时未指定字段值，使用预设值 | 默认约束 | `DEFAULT` |
+| 字段值必须满足条件 | 检查约束 | `CHECK` |
+| 子表的关联值必须指向父表中的有效记录 | 外键约束 | `FOREIGN KEY` |
+
+`AUTO_INCREMENT` 用来生成递增编号，常与整数主键搭配，但它本身不是上述六种约束之一。约束可以在建表时指定，也可以在修改表结构时添加。
+
+## 一、先练习单表约束
+
+以下操作使用独立练习库，避免改动已有的 `itcast` 等数据库。使用具有建库、建表权限的账号执行；如果练习库已存在，先确认里面没有同名表。
+
+```sql
+CREATE DATABASE IF NOT EXISTS constraint_practice
+    DEFAULT CHARACTER SET utf8mb4;
+USE constraint_practice;
+SELECT VERSION();
+```
+
+### 1. 创建用户表
+
+```sql
+CREATE TABLE tb_user (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+    name VARCHAR(10) NOT NULL UNIQUE COMMENT '姓名',
+    age INT CHECK (age > 0 AND age <= 120) COMMENT '年龄',
+    status CHAR(1) DEFAULT '1' COMMENT '状态',
+    gender CHAR(1) COMMENT '性别'
+) COMMENT '用户表';
+
+SHOW CREATE TABLE tb_user;
+```
+
+逐列理解建表语句：
+
+| 字段 | 要求 | 应观察的结果 |
+| --- | --- | --- |
+| `id` | 主键、自动增长 | 插入时不提供 `id`，数据库生成编号；编号不能重复，也不能为 `NULL` |
+| `name` | 非空且唯一 | 既不能不填，也不能与已有姓名重复 |
+| `age` | 大于 0 且不超过 120 | 不符合条件的年龄不能插入 |
+| `status` | 默认值为 `'1'` | 插入时省略该列，就使用 `'1'` |
+| `gender` | 未设置本节演示的约束 | 可以按业务需要填写 |
+
+**重点：**一个字段可以同时有多个要求。`name` 同时使用 `NOT NULL` 和 `UNIQUE`；`id` 同时使用 `PRIMARY KEY` 和 `AUTO_INCREMENT`。`CHECK` 在 MySQL 8.0.16 及之后的版本中才会实际执行，先用 `SELECT VERSION()` 确认练习环境的版本。
+
+**补充：**`age` 没有加 `NOT NULL`，所以这里的范围检查不等于“年龄必须填写”。若业务要求年龄必填，需要再加非空约束。
+
+### 2. 插入正常数据并观察默认值与自增值
+
+```sql
+INSERT INTO tb_user (name, age, gender)
+VALUES ('Tom1', 20, '男');
+
+INSERT INTO tb_user (name, age, status, gender)
+VALUES ('Tom2', 30, '0', '女');
+
+SELECT id, name, age, status, gender
+FROM tb_user;
+```
+
+第一条语句省略了 `id` 和 `status`：`id` 由数据库生成，`status` 使用默认值 `'1'`。第二条显式指定 `status = '0'`，应保存显式给出的值。
+
+### 3. 分别验证约束
+
+下面的语句是**预期失败的练习**。建议一次只执行一条，观察错误，再执行下一条。
+
+```sql
+-- name 违反非空约束
+INSERT INTO tb_user (name, age) VALUES (NULL, 25);
+
+-- Tom1 已存在，违反唯一约束
+INSERT INTO tb_user (name, age) VALUES ('Tom1', 25);
+
+-- 年龄超出 CHECK 指定的范围
+INSERT INTO tb_user (name, age) VALUES ('Tom3', 130);
+```
+
+再插入符合条件的数据并检查：
+
+```sql
+INSERT INTO tb_user (name, age) VALUES ('Tom3', 80);
+SELECT id, name, age, status FROM tb_user;
+```
+
+**重点：**不要用“自增编号必须连续”判断数据是否正确。演示中失败的插入也可能占用自动增长编号，后一次成功插入的 `id` 可能跳号。主键要保证唯一，不负责保证连续。
+
+若使用 DataGrip 的图形化表结构界面，也可以为字段勾选或填写对应约束；提交后仍用 `SHOW CREATE TABLE` 核对实际生成的定义。
+
+## 二、理解外键要解决的问题
+
+假设有 `dept`（部门）和 `emp`（员工）两张表，`emp.dept_id` 存放部门编号。`dept` 是父表，`emp` 是带有外键字段的子表。仅在员工表中保存编号，只建立了业务上的关联；如果没有外键约束，数据库不会阻止子表出现无效的部门编号，也不会阻止被员工引用的部门被删掉。
+
+在同一个练习库中建两张简化的表：
+
+```sql
+CREATE TABLE dept (
+    id INT PRIMARY KEY,
+    name VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE emp (
+    id INT PRIMARY KEY,
+    name VARCHAR(20) NOT NULL,
+    dept_id INT
+);
+
+INSERT INTO dept (id, name)
+VALUES (1, '研发部'), (2, '市场部');
+
+INSERT INTO emp (id, name, dept_id)
+VALUES (1, '张三', 1), (2, '李四', 1), (3, '王五', 2);
+```
+
+此时 `emp.dept_id` 还只是普通字段。可在练习库中观察“删了部门，员工还保留原编号”的问题：
+
+```sql
+DELETE FROM dept WHERE id = 1;
+SELECT id, name, dept_id FROM emp;
+
+-- 添加外键前恢复被引用的部门
+INSERT INTO dept (id, name) VALUES (1, '研发部');
+```
+
+**重点：**外键关联的是子表字段与父表中可被引用的键。本例是 `emp.dept_id` 指向 `dept.id`。在现有表上添加外键前，先检查子表里是否已有找不到对应父表记录的值，否则添加约束会失败。
+
+## 三、添加、验证和删除外键
+
+建表时可以直接声明外键：
+
+```sql
+CREATE TABLE 子表名 (
+    字段名 数据类型,
+    CONSTRAINT 外键名 FOREIGN KEY (外键字段名)
+        REFERENCES 父表名 (父表字段名)
+);
+```
+
+已有表则使用 `ALTER TABLE`。继续使用刚创建的 `emp` 和 `dept`：
+
+```sql
+ALTER TABLE emp
+ADD CONSTRAINT fk_emp_dept_id
+FOREIGN KEY (dept_id) REFERENCES dept(id);
+
+SHOW CREATE TABLE emp;
+```
+
+此时尝试把员工指向不存在的部门，或直接删除仍被员工引用的部门，都会受到外键约束：
+
+```sql
+-- 预期失败：没有 999 号部门
+INSERT INTO emp (id, name, dept_id) VALUES (4, '赵六', 999);
+
+-- 预期失败：1 号部门仍被员工引用
+DELETE FROM dept WHERE id = 1;
+```
+
+删除外键约束使用**约束名**，不是字段名：
+
+```sql
+ALTER TABLE emp DROP FOREIGN KEY fk_emp_dept_id;
+SHOW CREATE TABLE emp;
+```
+
+**重点：**`DROP FOREIGN KEY` 只移除外键规则，不会删除 `emp.dept_id` 字段。重新查看建表语句，可核对外键规则是否还在。
+
+## 四、父表更新或删除时，子表怎么办
+
+外键的删除行为由 `ON DELETE` 指定，更新行为由 `ON UPDATE` 指定。选择行为前先想清楚：当父表的一条记录仍被子表引用时，业务希望拒绝操作、同步修改子表，还是把子表的关联值清空？
+
+| 行为 | 父表记录被引用时的处理 |
+| --- | --- |
+| `NO ACTION`、`RESTRICT` | 拒绝删除或更新被引用的父表记录；本节演示中两者效果一致，也是未指定行为时的默认处理 |
+| `CASCADE` | 父表更新键值时同步更新子表外键值；父表删除记录时同步删除关联的子表记录 |
+| `SET NULL` | 把关联的子表外键值设为 `NULL`；子表外键列必须允许 `NULL` |
+| `SET DEFAULT` | 理论上将子表外键设为默认值；本节所用的 InnoDB 不支持此行为 |
+
+### 1. 练习 `CASCADE`
+
+上一步已删除原外键。重新添加外键，并分别指定更新、删除时级联处理：
+
+```sql
+ALTER TABLE emp
+ADD CONSTRAINT fk_emp_dept_id
+FOREIGN KEY (dept_id) REFERENCES dept(id)
+ON UPDATE CASCADE
+ON DELETE CASCADE;
+
+UPDATE dept SET id = 6 WHERE id = 1;
+SELECT id, name, dept_id FROM emp;
+```
+
+原来指向 1 号部门的员工，其 `dept_id` 应跟着变为 6。再删除 6 号部门：
+
+```sql
+DELETE FROM dept WHERE id = 6;
+SELECT id, name, dept_id FROM emp;
+```
+
+这些员工记录会随父表记录一起删除。**难点：**`ON DELETE CASCADE` 删除的是子表中的整条关联记录，影响范围可能超过预期。执行前先查询有哪些子表记录引用目标父表记录。
+
+### 2. 练习 `SET NULL`
+
+前一步的级联删除已移除原来引用 1 号部门的员工。先补充练习数据，再更换外键行为：
+
+```sql
+INSERT INTO dept (id, name) VALUES (1, '研发部');
+INSERT INTO emp (id, name, dept_id)
+VALUES (4, '赵六', 1), (5, '孙七', 1);
+
+ALTER TABLE emp DROP FOREIGN KEY fk_emp_dept_id;
+ALTER TABLE emp
+ADD CONSTRAINT fk_emp_dept_id
+FOREIGN KEY (dept_id) REFERENCES dept(id)
+ON UPDATE SET NULL
+ON DELETE SET NULL;
+
+DELETE FROM dept WHERE id = 1;
+SELECT id, name, dept_id FROM emp;
+```
+
+应观察到：赵六、孙七的员工记录仍在，`dept_id` 变为 `NULL`。**重点：**如果 `emp.dept_id` 被定义为 `NOT NULL`，就不能使用 `SET NULL` 实现这种效果。
+
+## 五、做完练习后检查什么
+
+1. `SHOW CREATE TABLE tb_user;`：确认单表各字段的约束。
+2. `SELECT id, name, age, status FROM tb_user;`：核对自动增长、默认值和成功插入的数据。
+3. `SHOW CREATE TABLE emp;`：核对外键指向及 `ON UPDATE`、`ON DELETE` 行为。
+4. `SELECT id, name FROM dept;` 与 `SELECT id, name, dept_id FROM emp;`：对照父表变化和子表结果。
+
+若操作结果与预期不同，先确认当前数据库是否是 `constraint_practice`、外键是否已按对应步骤更换，以及之前的预期失败语句是否被 SQL 客户端当作整段脚本继续执行。

@@ -1,0 +1,159 @@
+# MySQL DCL：用户与权限操作笔记
+
+## 先看结论
+
+- DCL 用来管理数据库用户及其访问权限。
+- **用户由用户名和主机名共同确定。**`'itcast'@'localhost'` 限定本机；`'heima'@'%'` 中 `%` 表示任意主机。
+- **创建用户只解决登录问题。**能登录 MySQL，不代表已经能访问 `itcast` 等业务数据库。
+- 权限操作按 **查询 → 授予 → 再查询 → 以目标用户验证 → 撤销 → 再查询** 的顺序练习。
+
+## 一、先弄清用户与权限
+
+DCL 即 Data Control Language（数据控制语言），处理用户管理和权限控制。一个用户能否连接，以及连接后能操作哪些数据，是两个需要分别检查的问题。
+
+以下使用两个练习用户：
+
+| 用户 | 主机范围 | 用途 |
+| --- | --- | --- |
+| `'itcast'@'localhost'` | 本机 | 练习创建、登录、删除用户 |
+| `'heima'@'%'` | 任意主机 | 练习修改密码、授予和撤销权限 |
+
+**重点：**执行用户管理或授权语句时，用户名与 `@` 后面的主机名都要对上。可以在 `mysql.user` 表中分别查看 `Host` 和 `User` 两列。
+
+## 二、练习用户管理
+
+以下管理语句应在拥有相应权限的账号下执行。可以使用 SQL 客户端运行语句，再通过 MySQL 命令行验证普通账号的登录效果。`123456`、`1234` 仅为练习密码，实际使用时应更换。
+
+### 第 1 步：查看现有用户
+
+```sql
+USE mysql;
+SELECT * FROM user;
+```
+
+**观察结果：**找到 `Host`、`User` 列；结果中还能看到 `Select_priv`、`Insert_priv` 等权限列。先记住已有用户，后面便于对比新建和删除后的变化。
+
+### 第 2 步：创建仅能从本机连接的用户
+
+```sql
+CREATE USER 'itcast'@'localhost' IDENTIFIED BY '123456';
+```
+
+再执行一次 `SELECT * FROM mysql.user;`，确认新增 `Host = localhost`、`User = itcast` 的记录。然后在命令行登录：
+
+```bash
+mysql -u itcast -p
+```
+
+输入刚设置的密码。登录成功后，执行：
+
+```sql
+SHOW DATABASES;
+```
+
+**重点：**此时能够登录服务器，但尚未给这个新用户授予业务库权限。不要把“登录成功”当成“已有所有数据库的操作权限”。
+
+### 第 3 步：创建允许任意主机连接的用户
+
+```sql
+CREATE USER 'heima'@'%' IDENTIFIED BY '123456';
+```
+
+重新查询 `mysql.user`，核对 `heima` 对应的 `Host` 是 `%`。这里的 `%` 表示可从任意主机连接。
+
+### 第 4 步：修改密码
+
+```sql
+ALTER USER 'heima'@'%' IDENTIFIED WITH mysql_native_password BY '1234';
+```
+
+这条语句将 `heima@%` 的密码由 `123456` 改为 `1234`。修改后用新密码连接验证；`BY` 后是新密码。
+
+### 第 5 步：删除练习用户
+
+```sql
+DROP USER 'itcast'@'localhost';
+```
+
+刷新或重新查询 `mysql.user`，确认 `itcast@localhost` 不再出现。删除前核对目标账号，避免误删其他用户。
+
+## 三、认识权限，再练习授权与撤销
+
+常见权限包括：
+
+| 权限 | 含义 |
+| --- | --- |
+| `ALL` / `ALL PRIVILEGES` | 指定范围内的所有权限 |
+| `SELECT`、`INSERT`、`UPDATE`、`DELETE` | 查询、插入、修改、删除数据 |
+| `ALTER` | 修改表 |
+| `DROP` | 删除数据库、表或视图 |
+| `CREATE` | 创建数据库或表 |
+
+权限控制的三个主要动作：
+
+```sql
+SHOW GRANTS FOR '用户名'@'主机名';
+GRANT 权限列表 ON 数据库名.表名 TO '用户名'@'主机名';
+REVOKE 权限列表 ON 数据库名.表名 FROM '用户名'@'主机名';
+```
+
+### 第 1 步：先查 `heima` 当前有什么权限
+
+```sql
+SHOW GRANTS FOR 'heima'@'%';
+```
+
+**观察结果：**先记录当前授权。创建用户后可以连接 MySQL，但尚未获得 `itcast` 业务库的操作权限。
+
+### 第 2 步：授予 `itcast` 库权限
+
+```sql
+GRANT ALL ON itcast.* TO 'heima'@'%';
+SHOW GRANTS FOR 'heima'@'%';
+```
+
+`itcast.*` 是 **`itcast` 数据库中的所有表**。第二次查询授权时，应能看到新增的 `itcast.*` 权限记录。练习前需已有 `itcast` 数据库和 `heima@%` 用户。
+
+### 第 3 步：以 `heima` 登录检查效果
+
+在命令行退出原会话，再以 `heima` 连接：
+
+```bash
+mysql -u heima -p
+```
+
+在 MySQL 提示符执行：
+
+```sql
+SHOW DATABASES;
+```
+
+**观察结果：**将可见数据库与授权前比较，验证 `itcast` 的访问权限已经生效。
+
+### 第 4 步：撤销并复查
+
+回到有管理权限的账号执行：
+
+```sql
+REVOKE ALL ON itcast.* FROM 'heima'@'%';
+SHOW GRANTS FOR 'heima'@'%';
+```
+
+**观察结果：**检查前面授予的 `itcast.*` 权限已从授权结果中消失。
+
+### 两处易错点
+
+1. 多个权限之间用逗号分隔，例如 `SELECT, INSERT`。
+2. `*` 放在**数据库名**位置表示所有数据库；放在**表名**位置表示所有表。本例 `itcast.*` 只限定 `itcast` 这个数据库。
+
+## 四、跟练时的核对清单
+
+| 操作后 | 应核对什么 |
+| --- | --- |
+| `CREATE USER` | `mysql.user` 中的 `Host` 与 `User` 是否正确；该用户能否登录 |
+| `ALTER USER` | 能否用新密码连接 |
+| `DROP USER` | `mysql.user` 中目标账号是否消失 |
+| `GRANT` | `SHOW GRANTS` 是否多出预期范围；目标用户实际连接后能否访问 |
+| `REVOKE` | `SHOW GRANTS` 中对应授权是否消失 |
+
+练习时记住：**先确定具体用户，再确定权限，最后确定数据库和表的范围；每一步都用查询或实际登录检查结果。**

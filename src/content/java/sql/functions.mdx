@@ -1,0 +1,235 @@
+# MySQL 常用函数：字符串、数值、日期与流程控制
+
+MySQL 函数可以直接写在 `SELECT`、`UPDATE` 等 SQL 语句中，用来处理字段值或计算结果。本篇按四类函数组织：先用不依赖数据表的语句理解函数，再看员工表和成绩表中的应用。
+
+## 先看结论
+
+| 需求 | 常用函数或表达式 |
+| --- | --- |
+| 拼接、大小写转换、补齐、去空格、截取字符串 | `CONCAT`、`LOWER`、`UPPER`、`LPAD`、`RPAD`、`TRIM`、`SUBSTRING` |
+| 取整、取模、随机数、四舍五入 | `CEIL`、`FLOOR`、`MOD`、`RAND`、`ROUND` |
+| 获取当前日期时间、提取年月日、日期计算 | `CURDATE`、`CURTIME`、`NOW`、`YEAR`、`MONTH`、`DAY`、`DATE_ADD`、`DATEDIFF` |
+| 根据条件返回不同结果 | `IF`、`IFNULL`、两种写法的 `CASE` |
+
+不需要数据表也能试函数，例如：
+
+```sql
+SELECT UPPER('mysql');
+SELECT ROUND(2.344, 2);
+SELECT CURDATE();
+SELECT IF(1 > 0, '是', '否');
+```
+
+## 一、字符串函数
+
+### 函数与效果
+
+| 函数 | 用途 | 示例及结果 |
+| --- | --- | --- |
+| `CONCAT(s1, s2, ...)` | 按顺序拼接字符串 | `CONCAT('Hello', ' ', 'MySQL')` → `Hello MySQL` |
+| `LOWER(str)` | 转成小写 | `LOWER('Hello')` → `hello` |
+| `UPPER(str)` | 转成大写 | `UPPER('Hello')` → `HELLO` |
+| `LPAD(str, n, pad)` | 在左侧填充到长度 `n` | `LPAD('01', 5, '-')` → `---01` |
+| `RPAD(str, n, pad)` | 在右侧填充到长度 `n` | `RPAD('01', 5, '-')` → `01---` |
+| `TRIM(str)` | 去掉首尾空格 | `TRIM('  Hello MySQL  ')` → `Hello MySQL` |
+| `SUBSTRING(str, start, len)` | 从指定位置截取指定长度 | `SUBSTRING('Hello MySQL', 1, 5)` → `Hello` |
+
+可以逐条运行下面的 SQL 对照结果：
+
+```sql
+SELECT CONCAT('Hello', ' ', 'MySQL');
+SELECT LOWER('Hello');
+SELECT UPPER('Hello');
+SELECT LPAD('01', 5, '-');
+SELECT RPAD('01', 5, '-');
+SELECT TRIM('  Hello MySQL  ');
+SELECT SUBSTRING('Hello MySQL', 1, 5);
+```
+
+**重点：**
+
+- `LPAD` 和 `RPAD` 的第二个参数是**结果的总长度**，不是要填充的字符个数。`'01'` 长度为 2，补齐到 5 就要填充 3 个字符。
+- `TRIM` 只清除字符串**开头和结尾**的空格，中间的空格仍保留。
+- `SUBSTRING` 的起始位置从 **1** 开始计数；第三个参数是要截取的长度。
+
+### 应用：把员工工号补齐为五位
+
+假设 `emp.workno` 存在 `1`、`10` 等不足五位的工号，希望得到 `00001`、`00010`。先预览计算结果：
+
+```sql
+SELECT workno, LPAD(workno, 5, '0') AS new_workno
+FROM emp;
+```
+
+确认结果后，才在练习表上执行整表更新：
+
+```sql
+UPDATE emp
+SET workno = LPAD(workno, 5, '0');
+```
+
+再查询 `workno` 核对结果。**注意：**这条 `UPDATE` 没有 `WHERE`，会修改表中所有行；需要真实数据时先确认目标表及更新范围。
+
+## 二、数值函数
+
+| 函数 | 用途 | 示例及结果 |
+| --- | --- | --- |
+| `CEIL(x)` | 向上取整 | `CEIL(1.5)` → `2` |
+| `FLOOR(x)` | 向下取整 | `FLOOR(1.5)` → `1` |
+| `MOD(x, y)` | 取余数 | `MOD(6, 4)` → `2` |
+| `RAND()` | 生成 `[0, 1)` 范围内的随机数 | 每次运行结果可能不同 |
+| `ROUND(x, y)` | 将 `x` 四舍五入，保留 `y` 位小数 | `ROUND(2.344, 2)` → `2.34` |
+
+```sql
+SELECT CEIL(1.5), FLOOR(1.5), MOD(6, 4);
+SELECT RAND(), ROUND(2.344, 2);
+```
+
+**重点：**`CEIL` 与 `FLOOR` 取整方向相反；`ROUND` 的第二个参数控制保留的小数位数；`RAND()` 每次调用通常得到不同结果。
+
+### 应用：拼出六位数字串
+
+函数可以嵌套使用：先生成随机数，再扩大范围并取整，最后左侧补零到六位。
+
+```sql
+SELECT LPAD(ROUND(RAND() * 1000000, 0), 6, '0') AS code;
+```
+
+从内向外读这条语句：
+
+1. `RAND()` 生成 0 到 1 之间的随机数。
+2. 乘以 `1000000`，再由 `ROUND(..., 0)` 四舍五入为整数。
+3. `LPAD(..., 6, '0')` 在不足六位时从左侧补零。
+
+这适合练习**函数嵌套**。若要求结果始终是六位，使用 `FLOOR` 避免四舍五入到 `1000000` 的边界情况：
+
+```sql
+SELECT LPAD(FLOOR(RAND() * 1000000), 6, '0') AS code;
+```
+
+## 三、日期函数
+
+### 获取与拆分日期时间
+
+| 函数 | 返回内容 |
+| --- | --- |
+| `CURDATE()` | 当前日期，例如 `2026-10-09` |
+| `CURTIME()` | 当前时间，例如 `14:30:00` |
+| `NOW()` | 当前日期和时间 |
+| `YEAR(date)` | 日期中的年份 |
+| `MONTH(date)` | 日期中的月份 |
+| `DAY(date)` | 日期中的日 |
+
+```sql
+SELECT CURDATE(), CURTIME(), NOW();
+SELECT YEAR(NOW()), MONTH(NOW()), DAY(NOW());
+```
+
+**重点：**`CURDATE()` 只有日期，`CURTIME()` 只有时间，`NOW()` 同时包含日期和时间。要取其中某一部分，再用 `YEAR`、`MONTH`、`DAY`。
+
+### 增加时间间隔
+
+```sql
+SELECT DATE_ADD('2021-11-01', INTERVAL 70 DAY);
+SELECT DATE_ADD(NOW(), INTERVAL 70 YEAR);
+```
+
+`DATE_ADD(date, INTERVAL expr type)` 以第一个日期为基础，增加指定数值和时间单位。`DAY`、`MONTH`、`YEAR` 是常见单位；这里的 `70` 和单位一起决定增加的间隔。
+
+### 计算两个日期相差几天
+
+```sql
+SELECT DATEDIFF('2021-12-01', '2021-11-01'); -- 30
+```
+
+`DATEDIFF(date1, date2)` 计算的是 **第一个日期减第二个日期**，返回相差的天数。交换两个参数，结果的正负号也会改变。
+
+### 应用：按入职天数排序
+
+假设员工表 `emp` 有 `name`、`entrydate` 两列，要计算每名员工入职至今的天数，并让入职时间更久的排前面：
+
+```sql
+SELECT
+    name,
+    DATEDIFF(CURDATE(), entrydate) AS entrydays
+FROM emp
+ORDER BY entrydays DESC;
+```
+
+先用 `CURDATE()` 取得今天，再减去 `entrydate`；入职天数越多，`entrydays` 越大，所以使用 `DESC` 降序排序。
+
+## 四、流程函数
+
+流程函数用于在查询中根据条件返回不同的值。
+
+### `IF`：两种结果选一种
+
+```sql
+SELECT IF(1 > 0, '正确', '错误'); -- 正确
+```
+
+`IF(条件, 条件为真时的值, 条件为假时的值)` 适合简单的二选一判断。
+
+### `IFNULL`：仅在值为 `NULL` 时使用替代值
+
+```sql
+SELECT IFNULL('ok', '默认值'); -- ok
+SELECT IFNULL(NULL, '默认值'); -- 默认值
+SELECT IFNULL('', '默认值'); -- 空字符串，不是默认值
+```
+
+**重点：**`IFNULL` 判断的是 `NULL`，空字符串 `''` 不等于 `NULL`。
+
+### `CASE`：按某个字段的值分类
+
+```sql
+SELECT
+    name,
+    CASE workaddress
+        WHEN '北京' THEN '一线城市'
+        WHEN '上海' THEN '一线城市'
+        ELSE '二线城市'
+    END AS 工作地址
+FROM emp;
+```
+
+这种写法把 `workaddress` 与各个 `WHEN` 后面的值逐一比较。匹配到哪一项，就返回该项的 `THEN`；都不匹配则返回 `ELSE`。
+
+### `CASE WHEN`：按条件范围分类
+
+当分支依据是“是否达到某个分数”时，需要在每个 `WHEN` 后写完整条件。假设 `score` 表有 `id`、`name`、`math`、`english`、`chinese`：
+
+```sql
+SELECT
+    id,
+    name,
+    CASE
+        WHEN math >= 85 THEN '优秀'
+        WHEN math >= 60 THEN '及格'
+        ELSE '不及格'
+    END AS 数学,
+    CASE
+        WHEN english >= 85 THEN '优秀'
+        WHEN english >= 60 THEN '及格'
+        ELSE '不及格'
+    END AS 英语,
+    CASE
+        WHEN chinese >= 85 THEN '优秀'
+        WHEN chinese >= 60 THEN '及格'
+        ELSE '不及格'
+    END AS 语文
+FROM score;
+```
+
+**重点：**`CASE` 从上到下判断，命中第一个满足条件的 `WHEN` 就返回相应结果。因此先判断 `>= 85`，再判断 `>= 60`；反过来写，85 分以上也会先落入“及格”。所有分支写完后用 `END` 结束表达式。
+
+## 练习与自查
+
+先独立写，再对照上面的示例：
+
+1. 把 `'7'` 左侧补零到五位，并说明结果长度是多少。
+2. 计算今天与 `2021-11-01` 相差多少天；尝试交换 `DATEDIFF` 的两个参数，观察符号变化。
+3. 用 `CASE WHEN` 将分数 `88` 标为“优秀”、`72` 标为“及格”、`49` 标为“不及格”。
+4. 如果有 `emp` 表，先用 `SELECT` 预览五位工号，再决定是否运行 `UPDATE`。
+
+判断应使用哪类函数时，先说清楚想得到的结果：**处理文字用字符串函数，处理数字用数值函数，计算日期用日期函数，需要按条件返回不同值用流程函数。**
