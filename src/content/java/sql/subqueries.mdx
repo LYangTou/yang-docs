@@ -1,0 +1,261 @@
+# MySQL 子查询：标量、列、行与表子查询
+
+本篇对应课程基础篇第 43～47 节，承接[多表查询：连接与联合](./multi-table-joins)。子查询是把一条 `SELECT` 放进另一条 SQL 中，先取得中间结果，再用它完成外层查询。本篇按**子查询返回结果的形状**组织：一个值、一列、一行、多行多列。
+
+## 先看结论
+
+| 子查询类型 | 返回结果 | 视频中的典型用法 |
+| --- | --- | --- |
+| 标量子查询 | 单行单列，即一个值 | `dept_id = (SELECT id ...)` |
+| 列子查询 | 单列，可有多行 | `dept_id IN (SELECT id ...)`、`salary > ALL (...)` |
+| 行子查询 | 单行，可有多列 | `(salary, managerid) = (SELECT salary, managerid ...)` |
+| 表子查询 | 多行多列 | 多列组合 `IN`；放在 `FROM` 中当作临时结果集 |
+
+例如：
+
+```sql
+SELECT *
+FROM emp
+WHERE dept_id = (SELECT id FROM dept WHERE name = '销售部');
+```
+
+括号内的 `SELECT` 是子查询，外面的 `SELECT` 是主查询。课程说明子查询也可以嵌在 `INSERT`、`UPDATE`、`DELETE` 等语句中；这五节的操作演示集中在 `SELECT`。按位置又可以分为 `WHERE` 后、`FROM` 后、`SELECT` 后的子查询，本篇实际练习前两种。
+
+**先判断返回形状，再选比较方式。**`=` 适合与一个值或一行对应；返回多个候选值时用 `IN`，要和其中任意值或全部值比较时用 `ANY`、`ALL`；需要把多行多列当成数据源时，可放在 `FROM` 后并给结果起别名。
+
+## 一、准备可跟做的数据
+
+视频使用 `itheima` 库的 `emp`、`dept` 表。下面是为了跟做而整理的**独立练习数据**，并非视频原始数据。字段名沿用视频中的 `entrydate`、`managerid`、`dept_id`。这些语句会新建数据库、表并插入记录；请在有建库权限的练习环境中执行，若同名数据库已存在，先确认用途，不要覆盖已有数据。
+
+```sql
+CREATE DATABASE mysql_subquery_practice DEFAULT CHARACTER SET utf8mb4;
+USE mysql_subquery_practice;
+
+CREATE TABLE dept (
+    id INT PRIMARY KEY,
+    name VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE emp (
+    id INT PRIMARY KEY,
+    name VARCHAR(20) NOT NULL,
+    job VARCHAR(20),
+    salary DECIMAL(10, 2),
+    entrydate DATE,
+    managerid INT,
+    dept_id INT
+);
+
+INSERT INTO dept (id, name) VALUES
+    (1, '研发部'), (2, '销售部'), (3, '财务部'),
+    (4, '市场部'), (5, '人事部');
+
+INSERT INTO emp (id, name, job, salary, entrydate, managerid, dept_id) VALUES
+    (1,  '张总',   '总裁',     20000, '2000-01-01', NULL, 5),
+    (2,  '张无忌', '项目经理', 12500, '2005-12-05', 1,    1),
+    (3,  '赵敏',   '项目经理', 12500, '2004-10-12', 1,    2),
+    (4,  '方东白', '职员',      5000, '2009-02-12', 2,    1),
+    (5,  '小昭',   '职员',      6600, '2004-10-12', 2,    1),
+    (6,  '鹿杖客', '职员',      3750, '2006-06-06', 2,    2),
+    (7,  '宋远桥', '销售',      4600, '2004-02-01', 1,    4),
+    (8,  '杨逍',   '销售',      4600, '2010-01-01', 2,    4),
+    (9,  '周芷若', '会计',      8500, '2006-06-02', 1,    3),
+    (10, '王强',   '会计',      4800, '2011-01-01', 1,    3),
+    (11, '李明',   '会计',      5250, '2004-01-01', 1,    3),
+    (12, '陈友谅', '职员',      3750, '2008-01-01', 2, NULL),
+    (13, '郭靖',   '开发',     11000, '2003-01-01', 2,    1);
+
+SELECT id, name FROM dept ORDER BY id;
+SELECT id, name, job, salary, entrydate, managerid, dept_id
+FROM emp ORDER BY id;
+```
+
+后面的查询都只读取这套练习数据，不会再修改表。`陈友谅` 没有部门，便于最后观察左连接如何保留员工。
+
+## 二、标量子查询：先得到一个值
+
+标量子查询返回一个数字、字符串、日期等**单个值**。课程列出的常见比较符有 `=`、`<>`、`>`、`>=`、`<`、`<=`。
+
+### 查询销售部员工
+
+先独立执行内层查询，确认销售部的编号：
+
+```sql
+SELECT id FROM dept WHERE name = '销售部';
+```
+
+练习数据返回 `2`。把这个编号代入外层查询，得到销售部员工：
+
+```sql
+SELECT name, dept_id
+FROM emp
+WHERE dept_id = (SELECT id FROM dept WHERE name = '销售部')
+ORDER BY id;
+```
+
+应返回赵敏和鹿杖客。视频也是先查部门 ID、再按 `dept_id` 查员工，最后把两步合成一条 SQL。这里能用 `=`，前提是内层查询只产生一个部门 ID。
+
+### 查询方东白之后入职的员工
+
+先查看参照日期，再放进外层的 `>` 条件：
+
+```sql
+SELECT entrydate FROM emp WHERE name = '方东白';
+
+SELECT name, entrydate
+FROM emp
+WHERE entrydate > (SELECT entrydate FROM emp WHERE name = '方东白')
+ORDER BY entrydate;
+```
+
+练习数据中参照日期为 `2009-02-12`，结果是杨逍和王强。`>` 表示**严格晚于**，当天入职的记录不会被选中。
+
+**易错点：**如果内层查询可能返回多行，就不能直接用 `=` 或 `>` 把它当一个值比较。应先单独运行内层查询，确认行数；确实需要多个候选值时，改用下一节的列子查询写法。
+
+## 三、列子查询：拿一列中的多个值比较
+
+列子查询返回一列，可以包含多行。视频列出的常用操作符有 `IN`、`NOT IN`、`ANY`、`SOME`、`ALL`：
+
+| 操作符 | 判断方式 |
+| --- | --- |
+| `IN` | 值属于子查询结果集 |
+| `NOT IN` | 值不属于子查询结果集 |
+| `ANY` / `SOME` | 与子查询结果中的**任意一个**值比较成立即可 |
+| `ALL` | 与子查询结果中的**每一个**值比较都要成立 |
+
+### 同时查询销售部和市场部员工：`IN`
+
+```sql
+SELECT id FROM dept WHERE name = '销售部' OR name = '市场部';
+
+SELECT name, dept_id
+FROM emp
+WHERE dept_id IN (
+    SELECT id FROM dept
+    WHERE name = '销售部' OR name = '市场部'
+)
+ORDER BY id;
+```
+
+内层查询返回 `2`、`4`。外层应返回赵敏、鹿杖客、宋远桥、杨逍。视频也是先看到两个部门 ID，再用 `IN` 把“部门编号属于这组 ID”的员工找出来。若用 `dept_id = (SELECT ...)`，内层的两行结果就不符合单值比较的要求。
+
+### 比财务部所有人工资都高：`> ALL`
+
+```sql
+SELECT salary FROM emp WHERE dept_id = 3;
+
+SELECT name, salary
+FROM emp
+WHERE salary > ALL (
+    SELECT salary FROM emp
+    WHERE dept_id = (SELECT id FROM dept WHERE name = '财务部')
+)
+ORDER BY salary DESC, id;
+```
+
+练习数据中财务部工资为 `8500`、`4800`、`5250`。`> ALL` 必须高于其中**每一个**值，因此等价于在这组非空工资中高于最高的 `8500`；结果为张总、张无忌、赵敏、郭靖，共 4 人。这里的内层又嵌了一层标量子查询：先找财务部 ID，再找该部门的工资集合。
+
+### 比研发部任意一人工资高：`> ANY`
+
+```sql
+SELECT name, salary
+FROM emp
+WHERE salary > ANY (
+    SELECT salary FROM emp
+    WHERE dept_id = (SELECT id FROM dept WHERE name = '研发部')
+)
+ORDER BY salary DESC, id;
+```
+
+练习数据中研发部工资为 `12500`、`5000`、`6600`、`11000`。只要高于其中**至少一个**值即可；这里相当于高于最低的 `5000`，应返回 7 人。`SOME` 在视频中与 `ANY` 并列介绍，含义相同。
+
+**重点：**`> ALL` 与 `> ANY` 的比较方向相同，量词不同；前者要超过所有值，后者超过其中一个即可。这里用“最高值/最低值”理解，仅针对本例中**非空且非空集合**的工资数据；读实际数据时，先确认内层返回了哪些值。
+
+## 四、行子查询：把一行中的多个字段一起比较
+
+行子查询返回一行，可以包含多列。视频用“与张无忌的薪资和直属领导相同”演示，先看他的两个字段：
+
+```sql
+SELECT salary, managerid
+FROM emp
+WHERE name = '张无忌';
+```
+
+练习数据返回 `(12500, 1)`。把外层两个字段按同样顺序组成一行：
+
+```sql
+SELECT name, salary, managerid
+FROM emp
+WHERE (salary, managerid) = (
+    SELECT salary, managerid
+    FROM emp
+    WHERE name = '张无忌'
+)
+ORDER BY id;
+```
+
+应返回张无忌和赵敏；参照员工本人也满足条件，因此会出现在结果中。视频先用 `salary = 12500 AND managerid = 1` 查询，再改成 `(salary, managerid) = (12500, 1)`，最后把右边的固定值换成子查询。
+
+**易错点：**比较两侧必须有相同数量、相同顺序的字段；`(salary, managerid)` 要对应内层的 `SELECT salary, managerid`。只比 `salary` 会把“直属领导相同”这个条件丢掉。课程还列出 `<>`、`IN`、`NOT IN` 等行比较操作符，本节演示的是 `=`。
+
+## 五、表子查询：使用多行多列的结果
+
+表子查询返回多行多列。课程展示了两种用途：在 `WHERE` 中匹配多列组合，以及在 `FROM` 中把结果当作一张临时表。
+
+### 匹配“职位 + 薪资”的组合
+
+先查鹿杖客和宋远桥各自的职位与薪资：
+
+```sql
+SELECT job, salary
+FROM emp
+WHERE name = '鹿杖客' OR name = '宋远桥';
+```
+
+练习数据得到 `(职员, 3750)` 和 `(销售, 4600)`。再找与**任一整组组合**相同的员工：
+
+```sql
+SELECT name, job, salary
+FROM emp
+WHERE (job, salary) IN (
+    SELECT job, salary
+    FROM emp
+    WHERE name = '鹿杖客' OR name = '宋远桥'
+)
+ORDER BY id;
+```
+
+应返回鹿杖客、宋远桥、杨逍、陈友谅，共 4 人。宋远桥和杨逍同为“销售、4600”，鹿杖客和陈友谅同为“职员、3750”。**难点：**`(job, salary) IN (...)` 比的是同一行内的一对值；把职位和工资分别写成两个互不相关的 `IN` 条件，可能拼出子查询中根本不存在的组合。视频也没有额外排除鹿杖客和宋远桥本人。
+
+### 把筛选出的员工当作临时表，再关联部门
+
+先筛选 `2006-01-01` 之后入职的员工：
+
+```sql
+SELECT id, name, entrydate, dept_id
+FROM emp
+WHERE entrydate > '2006-01-01'
+ORDER BY id;
+```
+
+练习数据应有 6 人。接着把同一筛选结果放在 `FROM` 后，取别名 `e`，再与部门表关联：
+
+```sql
+SELECT e.id, e.name, e.entrydate, d.name AS department_name
+FROM (
+    SELECT * FROM emp WHERE entrydate > '2006-01-01'
+) AS e
+LEFT JOIN dept AS d ON e.dept_id = d.id
+ORDER BY e.id;
+```
+
+应仍返回 6 人；陈友谅的 `department_name` 为 `NULL`。视频使用左连接，因此筛选出的员工即使没有匹配部门，也会保留在结果中。`FROM (SELECT ...) AS e` 相当于先得到一张临时结果表；后续用 `e.dept_id` 与 `d.id` 建立关联。**别忘记给 `FROM` 后的子查询起别名**，再通过别名引用它的字段。
+
+## 六、练完后核对
+
+1. 销售部的标量子查询返回一个部门 ID；销售部员工有 2 人。方东白之后入职的员工有 2 人。
+2. 销售部和市场部的列子查询返回两个部门 ID；员工有 4 人。`> ALL` 财务部工资返回 4 人，`> ANY` 研发部工资返回 7 人。
+3. 张无忌的 `(salary, managerid)` 为 `(12500, 1)`；行子查询匹配 2 人。
+4. 职位与薪资组合的表子查询匹配 4 人；`2006-01-01` 之后入职的临时表有 6 人，左连接后仍为 6 人。
+
+这些数字只适用于本页独立练习数据。使用课程的 `itheima` 数据时，以实际查询结果为准。若结果不符，先单独执行括号里的 `SELECT`，看它返回的是一个值、一列、一行还是多行多列，再检查外层的比较符、字段顺序和连接条件。

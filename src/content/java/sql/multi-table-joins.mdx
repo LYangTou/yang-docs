@@ -1,0 +1,259 @@
+# MySQL 多表查询：表关系、连接与联合查询
+
+多表查询用于从相互关联的表中取出数据。本篇对应课程基础篇第 37～42 节：表关系、多表查询概述、内连接、外连接、自连接和联合查询。视频演示使用 `itheima` 库中的 `emp`、`dept` 等表；下文另备一套小型练习数据，方便没有课程配套数据库时跟做。子查询从第 43 节开始。
+
+## 先看结论
+
+| 需求 | 写法 | 结果范围 |
+| --- | --- | --- |
+| 只要两表中能关联上的记录 | `INNER JOIN ... ON ...` | 匹配成功的行 |
+| 保留左表全部记录 | `LEFT JOIN ... ON ...` | 左表全部行，右表无匹配时为 `NULL` |
+| 保留右表全部记录 | `RIGHT JOIN ... ON ...` | 右表全部行，左表无匹配时为 `NULL` |
+| 查询同一表中的上下级等关系 | 给同一表取两个别名再连接 | 取决于使用内连接还是外连接 |
+| 把两个查询结果纵向合并 | `UNION ALL` 或 `UNION` | 前者保留重复行，后者去重 |
+
+连接把**不同表的列横向组合**；联合查询把**多个查询的行纵向合并**。先分清业务要哪一种，再写 SQL。
+
+## 一、先看懂表之间的关系
+
+表结构设计通常按业务实体之间的关系确定外键放在哪里。
+
+| 关系 | 例子 | 常见实现 |
+| --- | --- | --- |
+| 一对多（反过来是多对一） | 一个部门有多名员工，一名员工属于一个部门 | 在“多”的员工表中保存 `dept_id`，指向部门主键 |
+| 多对多 | 一名学生选多门课，一门课被多名学生选 | 增加选课中间表，分别保存学生 ID 和课程 ID |
+| 一对一 | 用户与用户详情 | 在其中一张表保存指向另一张表主键的外键，并对该外键加 `UNIQUE` |
+
+可以把这三种结构读作：
+
+```text
+dept(id)          1 ── 多 emp(dept_id)
+student(id)       1 ── 多 student_course(studentid, courseid) 多 ── 1 course(id)
+tb_user(id)       1 ── 1 tb_user_edu(userid UNIQUE)
+```
+
+视频先用部门与员工说明一对多，再用学生、课程和选课中间表说明多对多，最后用用户基本信息与教育经历说明一对一。一对一可以把外键放在任意一侧，但外键必须唯一，才能保证一条记录至多对应另一侧的一条记录。拆表的作用之一是减少查询基本信息时需要处理的字段。
+
+视频在 DataGrip 中的操作顺序是：创建并填充 `student`、`course`，再创建含 `studentid`、`courseid` 两个外键的 `student_course` 并插入选课记录；打开中间表核对编号，再用关系图查看三表关联。一对一演示则创建 `tb_user` 与 `tb_user_edu`，在教育信息表的 `userid` 上同时设置外键和唯一约束，插入记录后核对每条教育信息对应的用户。
+
+如果使用下面的独立练习库，也可以用精简表结构复现这两种关系：
+
+```sql
+CREATE TABLE student (id INT PRIMARY KEY, name VARCHAR(20) NOT NULL);
+CREATE TABLE course (id INT PRIMARY KEY, name VARCHAR(20) NOT NULL);
+CREATE TABLE student_course (
+    id INT PRIMARY KEY,
+    studentid INT NOT NULL,
+    courseid INT NOT NULL,
+    FOREIGN KEY (studentid) REFERENCES student(id),
+    FOREIGN KEY (courseid) REFERENCES course(id)
+);
+
+CREATE TABLE tb_user (id INT PRIMARY KEY, name VARCHAR(20) NOT NULL);
+CREATE TABLE tb_user_edu (
+    id INT PRIMARY KEY,
+    degree VARCHAR(20),
+    userid INT UNIQUE,
+    FOREIGN KEY (userid) REFERENCES tb_user(id)
+);
+```
+
+先运行下一节的 `CREATE DATABASE` 和 `USE`，再运行这里的建表语句。向 `student_course` 插入记录时，`studentid`、`courseid` 必须引用已存在的学生和课程；向 `tb_user_edu` 插入记录时，同一个非空 `userid` 只能出现一次。这两组 DDL 是为了跟做而写的精简练习，不是视频逐字 SQL。
+
+**重点：**“字段中存着另一个表的编号”表达的是业务关联；是否由数据库强制保证编号有效，取决于是否建立了外键约束。前一篇[约束笔记](./constraints)介绍了外键的创建与删除。多表查询仍需要在 SQL 中写清楚关联条件。
+
+## 二、准备一套可跟做的练习数据
+
+下面是用于复现这些查询场景的**独立练习数据**，不是对视频画面的逐字转录。它包含没有部门的员工、没有员工的部门，以及没有上级的员工，便于观察不同连接的结果。
+
+在有建库权限的 MySQL 练习环境中执行。`CREATE DATABASE` 会新建数据库；如果同名库已存在，先确认用途，不要在已有业务库中直接运行后续建表与插入语句。
+
+```sql
+CREATE DATABASE mysql_join_practice DEFAULT CHARACTER SET utf8mb4;
+USE mysql_join_practice;
+
+CREATE TABLE dept (
+    id INT PRIMARY KEY,
+    name VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE emp (
+    id INT PRIMARY KEY,
+    name VARCHAR(20) NOT NULL,
+    age INT,
+    salary DECIMAL(10, 2),
+    dept_id INT,
+    managerid INT
+);
+
+INSERT INTO dept (id, name) VALUES
+    (1, '研发部'),
+    (2, '销售部'),
+    (3, '财务部'),
+    (4, '行政部');
+
+INSERT INTO emp (id, name, age, salary, dept_id, managerid) VALUES
+    (1, '张总', 52, 12000, NULL, NULL),
+    (2, '李经理', 45, 9000, 1, 1),
+    (3, '王强', 28, 6000, 1, 2),
+    (4, '赵敏', 53, 4800, 1, 2),
+    (5, '孙丽', 53, 7000, 2, 1),
+    (6, '周明', 25, 4500, NULL, 2);
+
+SELECT * FROM dept ORDER BY id;
+SELECT * FROM emp ORDER BY id;
+```
+
+这里的 `emp.dept_id` 表示所属部门，`emp.managerid` 表示直属上级的员工 ID。`managerid` 沿用视频中的字段拼写。练习表没有声明外键，以便专注观察查询结果；实际业务表应根据数据完整性要求决定是否添加外键。
+
+## 三、多表查询与笛卡尔积
+
+视频先对 `itheima.emp` 和 `itheima.dept` 执行 `SELECT * FROM emp, dept;`：17 名员工与 6 个部门形成 **17 × 6 = 102 行**。没有关联条件时，每名员工都会与每个部门组合一次：
+
+```sql
+SELECT COUNT(*) AS combination_count
+FROM emp, dept;
+```
+
+本例有 6 名员工、4 个部门，结果为 `6 × 4 = 24` 行。这种所有可能组合称为**笛卡尔积**。其中大部分组合并不表示真实的所属关系。
+
+视频接着加 `WHERE emp.dept_id = dept.id`，结果缩为 **16 行**。员工陈友谅的 `dept_id` 为 `NULL`，没有匹配部门，因而不在结果中。练习数据可用同样的关联条件观察：
+
+```sql
+SELECT e.name AS employee_name, d.name AS department_name
+FROM emp AS e, dept AS d
+WHERE e.dept_id = d.id
+ORDER BY e.id;
+```
+
+应得到李经理、王强、赵敏、孙丽及其部门，共 4 行。张总和周明的 `dept_id` 为 `NULL`，不能与部门主键匹配。
+
+这一节还给出多表查询的分类：连接查询（内连接、外连接、自连接）与子查询；后面的第 42 节继续讲联合查询。
+
+**易错点：**查询多张表时漏写关联条件，结果可能突然膨胀。先找出表之间对应的字段，再决定需要哪种连接。
+
+## 四、内连接：只取匹配上的数据
+
+上一节的逗号分隔表名加 `WHERE` 条件，是**隐式内连接**。视频要求查询每位员工的姓名及所属部门名称，先写隐式形式：
+
+```sql
+SELECT e.name, d.name
+FROM emp e, dept d
+WHERE e.dept_id = d.id;
+```
+
+再改成显式内连接，结果范围相同：
+
+```sql
+SELECT e.name AS employee_name, d.name AS department_name
+FROM emp AS e
+INNER JOIN dept AS d ON e.dept_id = d.id
+ORDER BY e.id;
+```
+
+`INNER` 可以省略，写成 `JOIN`。`ON` 指明两表如何对应。本例结果仍为 4 行：只有 `emp.dept_id = dept.id` 成立的员工和部门组合会返回。
+
+**重点：**表取了别名后，在这条查询中应使用别名引用字段。视频演示过取别名后还写原表名导致的“未知列”错误。两张表都有 `id`、`name` 时，要写 `e.id`、`d.name` 这样的限定名。
+
+## 五、外连接：保留某一侧的全部数据
+
+### 左外连接
+
+如果要查询**所有员工**，包括尚未关联部门的员工，以员工表为左表：
+
+```sql
+SELECT e.id, e.name AS employee_name, d.name AS department_name
+FROM emp AS e
+LEFT OUTER JOIN dept AS d ON e.dept_id = d.id
+ORDER BY e.id;
+```
+
+`OUTER` 可以省略。视频对课程数据执行 `SELECT e.*, d.name FROM emp e LEFT OUTER JOIN dept d ON e.dept_id = d.id;`，返回全部 **17** 名员工，陈友谅的部门名称为 `NULL`。上面的练习数据则返回全部 6 名员工；张总和周明没有匹配部门，因此 `department_name` 为 `NULL`。`NULL` 表示这一侧没有匹配记录，不是部门名称真的写成了字符串 `NULL`。
+
+### 右外连接
+
+如果要查询**所有部门**，包括没有员工的部门，可以把部门表放在右侧：
+
+```sql
+SELECT d.id AS department_id, d.name AS department_name,
+       e.name AS employee_name
+FROM emp AS e
+RIGHT JOIN dept AS d ON e.dept_id = d.id
+ORDER BY d.id, e.id;
+```
+
+视频使用 `SELECT d.*, e.* FROM emp e RIGHT OUTER JOIN dept d ON e.dept_id = d.id;` 保留全部部门；其中人事部没有员工，对应员工列为 `NULL`。上面的练习数据中，研发部对应 3 名员工，销售部对应 1 名员工；财务部、行政部没有员工，也会各返回一行，员工姓名为 `NULL`。结果共 6 行，**不是**“右表有 4 行，结果就一定只有 4 行”：右表一行可能匹配左表多行。
+
+同一需求也可以交换表的左右位置，改用 `LEFT JOIN`：
+
+```sql
+SELECT d.id AS department_id, d.name AS department_name,
+       e.name AS employee_name
+FROM dept AS d
+LEFT JOIN emp AS e ON e.dept_id = d.id
+ORDER BY d.id, e.id;
+```
+
+**易错点：**左连接保留 `JOIN` 左边表的全部记录，右连接保留右边表的全部记录。判断结果范围时看 SQL 里的表位置，不看表的业务主次。
+
+## 六、自连接：同一张表扮演两个角色
+
+员工和上级都存放在 `emp` 表中。把同一张表用两次，并分别起别名：`e` 表示员工，`m` 表示上级。匹配条件是员工的 `managerid` 等于上级的 `id`。视频先执行 `SELECT * FROM emp a, emp b WHERE a.managerid = b.id;`，再只取 `a.name`、`b.name`；下面用显式写法表达相同关系。
+
+先查询**有上级的员工**：
+
+```sql
+SELECT e.name AS employee_name, m.name AS manager_name
+FROM emp AS e
+JOIN emp AS m ON e.managerid = m.id
+ORDER BY e.id;
+```
+
+练习数据应返回 5 行；张总的 `managerid` 为 `NULL`，无法匹配上级，所以不在内连接结果里。
+
+再查询**所有员工及其上级**：
+
+```sql
+SELECT e.name AS employee_name, m.name AS manager_name
+FROM emp AS e
+LEFT JOIN emp AS m ON e.managerid = m.id
+ORDER BY e.id;
+```
+
+应返回 6 行，张总对应的 `manager_name` 为 `NULL`。这说明自连接描述的是“表和自身关联”，**并不限定连接类型**；是否保留没有上级的员工，仍由内连接或左外连接决定。
+
+视频还在结果列上加了“员工”“上级”别名，便于辨认两个 `name`。**难点：**自连接时两个别名必不可少。`e.managerid = m.id` 表示“员工记录上的上级编号，去匹配另一份员工记录的主键”；把两个角色的字段写反，查询含义就变了。
+
+## 七、联合查询：合并两次查询的结果
+
+视频的任务是找“薪资**低于** 5000 **或** 年龄**大于** 50”的员工。先分别写两次查询，再用 `UNION ALL` 合并。课程数据的两个查询分别得到 5 行和 4 行，合并后得到 9 行，其中一名员工在两边都出现：
+
+```sql
+SELECT * FROM emp WHERE salary < 5000
+UNION ALL
+SELECT * FROM emp WHERE age > 50;
+```
+
+`UNION ALL` 直接合并并保留重复行。使用本页练习数据执行时，第一部分返回赵敏、周明；第二部分返回张总、赵敏、孙丽。赵敏同时满足两个条件，所以结果有 **5 行**。
+
+如果同一员工只需要出现一次，改用 `UNION`：
+
+```sql
+SELECT * FROM emp WHERE salary < 5000
+UNION
+SELECT * FROM emp WHERE age > 50;
+```
+
+`UNION` 对**整行结果**去重。视频中的 9 行变为 **8 行**；本页练习数据的 5 行变为 **4 行**。每个 `SELECT` 的列数必须相同，对应位置的字段类型也应一致或可兼容。视频还把第二个 `SELECT *` 改为 `SELECT name`，现场出现列数不同的错误，说明不能把一边的全部列与另一边的单个列直接联合。
+
+**易错点：**`UNION` 合并的是两个查询的结果行，不是按关联字段把两张表的列拼在一起。`UNION ALL` 会保留重复行；`UNION` 去重时比较所选的整行。联合结果没有天然的稳定顺序，需要排序时显式使用 `ORDER BY`。
+
+## 八、练完后核对
+
+1. `SELECT COUNT(*) FROM emp, dept;` 应返回 24，确认理解没有关联条件时的笛卡尔积。
+2. 内连接员工与部门应返回 4 行；左连接保留员工应返回 6 行。
+3. 保留所有部门的外连接应返回 6 行，其中财务部、行政部的员工字段为 `NULL`。
+4. 员工与上级的内连接应返回 5 行，左连接应返回 6 行。
+5. 按薪资低于 5000、年龄大于 50 的条件联合时，`UNION ALL` 返回 5 行，`UNION` 返回 4 行。
+
+如果行数不同，先确认当前数据库是 `mysql_join_practice`、示例数据只插入了一次，并检查连接条件是否写成了 `e.dept_id = d.id` 或 `e.managerid = m.id`。上述核对数字只适用于本页练习数据；使用课程的 `itheima` 数据时，以前文注明的视频结果为准。
