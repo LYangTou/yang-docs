@@ -1,0 +1,379 @@
+# 第 8 节：用 IService 开发基础业务接口
+
+本节把上一节的 Service 接到 HTTP 层，完成用户管理的四个基础接口。继续使用第 2 节创建的 `mp-demo`、第 3–4 节的 `tb_user` 映射与自增配置，以及第 7 节的 `IUserService`、`UserServiceImpl`。
+
+视频从讲义复制依赖、配置，从课前素材复制 DTO 和 VO。下面按同样的开发顺序补齐可直接创建的文件；项目准备与 HTTP 验收是为了没有素材也能跟做的补充。接口名称、路径、对象转换和调用关系以课堂演示为主。
+
+## 1. 确定本节接口范围
+
+| 功能 | 请求方式与路径 | 入参位置 | 返回值 | 调用的 Service 方法 |
+| --- | --- | --- | --- | --- |
+| 新增用户 | `POST /users` | JSON 请求体 | 无响应业务数据 | `save(user)` |
+| 删除用户 | `DELETE /users/{id}` | 路径变量 `id` | 无响应业务数据 | `removeById(id)` |
+| 按 ID 查询 | `GET /users/{id}` | 路径变量 `id` | `UserVO` | `getById(id)` |
+| 按 ID 集合查询 | `GET /users?ids=1,2,4` | 查询参数 `ids` | `List<UserVO>` | `listByIds(ids)` |
+
+课堂同时列出了 `PUT /users/{id}/deduction/{money}`，但**这一节只实现前四个**；带业务逻辑的扣款接口留到第 9 节。不要把第 6 节的批量扣款测试误认为第 8 节已经完成的 HTTP 接口。
+
+本节没有创建统一 `Result` 响应封装：查询直接返回 VO，新增、删除方法返回 `void`。这里保留课程的接口形状。
+
+## 2. 补齐依赖，升级为 Web 应用
+
+第 2 节的最小工程只引入普通 Boot Starter；现在需要 Web、接口文档与对象拷贝工具。打开工程根目录 `pom.xml`，在已有的 `<dependencies>` 中加入以下内容，已存在的不要重复添加：
+
+```xml
+<!-- Spring MVC、JSON 序列化、内嵌 Web 服务 -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+
+<!-- 课程使用 OpenAPI2 Starter，与本页 io.swagger.annotations 注解配套 -->
+<dependency>
+    <groupId>com.github.xiaoymin</groupId>
+    <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
+    <version>4.1.0</version>
+</dependency>
+
+<!-- 课堂 BeanUtil 对象转换工具 -->
+<dependency>
+    <groupId>cn.hutool</groupId>
+    <artifactId>hutool-all</artifactId>
+    <version>5.8.11</version>
+</dependency>
+```
+
+这三个依赖及两个显式版本可在课堂 POM 画面中核对。保留原有 MP `3.5.3.1`、MySQL 驱动、Lombok 和测试依赖。沿用前面为复现固定的 Spring Boot `2.7.12` / JDK 11 环境；不要将 Boot 3 的 Jakarta / OpenAPI3 Starter 与本页组合混用。
+
+在 IDEA Maven 窗口执行 Reload All Maven Projects。验收点是 `@RestController`、`@Api`、`BeanUtil` 均能解析。
+
+## 3. 配置接口文档与扫描包
+
+在 `src/main/resources/application.yaml` 保留原有数据源、日志、MP 配置，新增以下顶层配置：
+
+```yaml
+knife4j:
+  enable: true
+  openapi:
+    title: 用户管理接口文档
+    description: "用户管理接口文档"
+    version: v1.0.0
+    group:
+      default:
+        group-name: default
+        api-rule: package
+        api-rule-resources:
+          - com.itheima.mp.controller
+```
+
+这是课堂模板的必要配置部分，省略了只用于展示的作者联系信息。**扫描包必须与稍后创建的 Controller 包一致**。它控制文档扫描，不能替代 Spring 的组件扫描。
+
+沿用第 4 节的数据库自增策略：
+
+```yaml
+mybatis-plus:
+  type-aliases-package: com.itheima.mp.domain.po
+  mapper-locations: "classpath*:/mapper/**/*.xml"
+  global-config:
+    db-config:
+      id-type: auto
+```
+
+上面只是确认原配置，不是要求追加第二个 `mybatis-plus` 块。`User` 保留 `@TableName("tb_user")`；如果 ID 字段上另有局部策略，确保与数据库自增一致。
+
+未额外设置端口和上下文路径时，启动后通过 `http://localhost:8080/doc.html` 访问 Knife4j。若自己改过端口或 context path，地址也要相应调整。
+
+## 4. 准备 DTO、PO、VO，明确数据流
+
+| 类型 | 本项目位置 | 职责 |
+| --- | --- | --- |
+| DTO | `domain/dto/UserFormDTO.java` | 接收客户端提交的用户表单 |
+| PO | 已有 `domain/po/User.java` | 与数据库表对应，交给 Mapper 操作 |
+| VO | `domain/vo/UserVO.java` | 定义接口向客户端返回哪些属性 |
+
+新增时走 **DTO → PO → Service 保存**；查询时走 **Service 查出 PO → VO → JSON 响应**。
+
+课堂 DTO 没有状态和时间字段，因为表中的 `status`、`create_time`、`update_time` 有默认值；本目录第 2 节提供的 SQL 也已补上这些默认值。VO 不包含密码和手机号，避免查询接口直接暴露完整 PO。
+
+### 创建 UserFormDTO
+
+文件：`src/main/java/com/itheima/mp/domain/dto/UserFormDTO.java`。
+
+```java
+package com.itheima.mp.domain.dto;
+
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+
+@Data
+@ApiModel(description = "用户表单实体")
+public class UserFormDTO {
+    @ApiModelProperty("用户id")
+    private Long id;
+
+    @ApiModelProperty("用户名")
+    private String username;
+
+    @ApiModelProperty("密码")
+    private String password;
+
+    @ApiModelProperty("注册手机号")
+    private String phone;
+
+    @ApiModelProperty("详细信息，JSON格式")
+    private String info;
+
+    @ApiModelProperty("账户余额")
+    private int balance;
+}
+```
+
+新增练习时不提交 `id`，让数据库生成主键。课堂表单类虽然包含该字段，并不意味着每次新增都要手工填写。
+
+**易错点：本阶段 `info` 是 String。** 在 JSON 请求体中，应传“内容为合法 JSON 的字符串”，不是直接传一个嵌套对象；JSON 类型处理器是后续内容。
+
+`@ApiModelProperty` 描述接口文档字段，不等于参数校验。本节没有引入 `@Valid` 校验链路，不应把这些描述注解当作必填校验。
+
+### 创建 UserVO
+
+文件：`src/main/java/com/itheima/mp/domain/vo/UserVO.java`。
+
+```java
+package com.itheima.mp.domain.vo;
+
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+
+@Data
+@ApiModel(description = "用户VO实体")
+public class UserVO {
+    @ApiModelProperty("用户id")
+    private Long id;
+
+    @ApiModelProperty("用户名")
+    private String username;
+
+    @ApiModelProperty("详细信息")
+    private String info;
+
+    @ApiModelProperty("使用状态：1正常，2冻结")
+    private Integer status;
+
+    @ApiModelProperty("账户余额")
+    private Integer balance;
+}
+```
+
+课堂 VO 只保留 `id`、`username`、`info`、`status`、`balance`；这里没有 `password`、`phone`，因此把 `User` 拷贝为 `UserVO` 后，响应不会输出这两个属性。拷贝是按同名属性转换，不会自行理解含义或自动计算业务值。
+
+## 5. 创建 UserController
+
+新建包 `com.itheima.mp.controller`，创建 `src/main/java/com/itheima/mp/controller/UserController.java`：
+
+```java
+package com.itheima.mp.controller;
+
+import cn.hutool.core.bean.BeanUtil;
+import com.itheima.mp.domain.dto.UserFormDTO;
+import com.itheima.mp.domain.po.User;
+import com.itheima.mp.domain.vo.UserVO;
+import com.itheima.mp.service.IUserService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/users")
+@RequiredArgsConstructor
+@Api(tags = "用户管理接口")
+public class UserController {
+    private final IUserService userService;
+
+    @PostMapping
+    @ApiOperation("新增用户接口")
+    public void saveUser(@RequestBody UserFormDTO userDTO) {
+        // DTO 转 PO，再调用已有的通用保存方法
+        User user = BeanUtil.copyProperties(userDTO, User.class);
+        userService.save(user);
+    }
+
+    @DeleteMapping("/{id}")
+    @ApiOperation("删除用户接口")
+    public void deleteUserById(
+            @ApiParam("用户id") @PathVariable("id") Long id) {
+        userService.removeById(id);
+    }
+
+    @GetMapping("/{id}")
+    @ApiOperation("根据id查询用户接口")
+    public UserVO queryUserById(
+            @ApiParam("用户id") @PathVariable("id") Long id) {
+        User user = userService.getById(id);
+        return BeanUtil.copyProperties(user, UserVO.class);
+    }
+
+    @GetMapping
+    @ApiOperation("根据id批量查询用户接口")
+    public List<UserVO> queryUserByIds(
+            @ApiParam("用户id集合") @RequestParam("ids") List<Long> ids) {
+        List<User> users = userService.listByIds(ids);
+        return BeanUtil.copyToList(users, UserVO.class);
+    }
+}
+```
+
+### 构造器注入为什么这样写
+
+`private final IUserService userService` 配合 Lombok `@RequiredArgsConstructor`，会生成接收该依赖的构造器；Spring 使用这个构造器注入上一节的 `UserServiceImpl`。
+
+`final` 表示引用不能在赋值后改指向，不表示整个 Service 对象成为不可变对象。这里只把需要构造器初始化的依赖声明为 `final`。如果遗漏 `final`，该字段不会因这个注解自动获得所需的构造器参数。
+
+### 请求参数为什么使用不同注解
+
+- `@RequestBody`：从 JSON 请求体反序列化 DTO。新增请求应带 `Content-Type: application/json`。
+- `@PathVariable("id")`：读取 `/users/1` 中的 `1`。
+- `@RequestParam("ids")`：读取 `?ids=1,2,4`，绑定为多个 Long 值。
+
+类上已经写了 `/users`，方法上只写剩余路径。不要重复写成 `/users/users/{id}`。只写 `GET /users` 而不传 `ids`，并不是查询所有用户；本例的 `ids` 参数是必需的。练习时传入非空 ID 集合。
+
+### BeanUtil 为什么有两种调用
+
+`copyProperties(source, Target.class)` 转换单个对象；`copyToList(collection, Target.class)` 把集合中每个元素转换为目标类型。
+
+不能把 `List<User>` 强制转换成 `List<UserVO>`，也不能用一次单对象拷贝代替整个集合转换。工具类必须导入 `cn.hutool.core.bean.BeanUtil`，不要误导入其他同名工具。
+
+## 6. 确认此时的工程结构
+
+下面列出本阶段涉及的主要文件；启动类、实体、Mapper 和配置来自前面几节：
+
+```text
+mp-demo/
+├─ pom.xml
+└─ src/
+   ├─ main/
+   │  ├─ java/com/itheima/mp/
+   │  │  ├─ MpDemoApplication.java
+   │  │  ├─ controller/UserController.java
+   │  │  ├─ domain/
+   │  │  │  ├─ dto/UserFormDTO.java
+   │  │  │  ├─ po/User.java
+   │  │  │  └─ vo/UserVO.java
+   │  │  ├─ mapper/UserMapper.java
+   │  │  └─ service/
+   │  │     ├─ IUserService.java
+   │  │     └─ impl/UserServiceImpl.java
+   │  └─ resources/
+   │     ├─ application.yaml
+   │     └─ mapper/UserMapper.xml
+   └─ test/java/com/itheima/mp/
+      ├─ mapper/UserMapperTest.java
+      └─ service/IUserServiceTest.java
+```
+
+**这里没有新增 Service 业务方法，也没有新增 Mapper SQL。** 四个接口只做表单转换、单表保存/删除/查询，已有通用 Service 方法足够使用。
+
+## 7. 启动与 HTTP 验收（跟做补充）
+
+视频本节重点是编写四个接口，没有展示完整的四接口联调。以下给出自己的验收顺序，不把它当作视频已经执行过的测试结果。
+
+先在 IDEA 运行 `MpDemoApplication.main`，或在工程根目录执行：
+
+```powershell
+mvn spring-boot:run
+```
+
+应看到内嵌 Web 服务启动并监听端口。普通 Boot Starter 的数据库测试可以正常结束；引入 Web Starter 后，应用启动后持续运行、等待请求是正常现象。
+
+打开 `http://localhost:8080/doc.html`，在“用户管理接口”下检查四个接口。若页面能打开但接口列表为空，先检查 Knife4j 扫描包和 Controller 包名。
+
+### 第一步：先验证只读接口
+
+浏览器或 Knife4j 调用：
+
+```http
+GET http://localhost:8080/users/1
+GET http://localhost:8080/users?ids=1,2,4
+```
+
+PowerShell 也可以调用：
+
+```powershell
+Invoke-RestMethod -Method Get -Uri 'http://localhost:8080/users/1'
+Invoke-RestMethod -Method Get -Uri 'http://localhost:8080/users?ids=1,2,4'
+```
+
+验收点：第一条返回一个用户对象，第二条返回数组；已有的 1、2、4 应被查到。返回属性不包含密码、手机号。批量查询不承诺按入参 ID 的顺序返回，检查记录是否齐全即可。
+
+### 第二步：新增一条专用练习数据
+
+只对自己的练习数据库执行。先确认用户名 `Practice08` 未被占用；已存在时更换用户名。新增请求体：
+
+```json
+{
+  "username": "Practice08",
+  "password": "123",
+  "phone": "18600000008",
+  "info": "{\"age\":24,\"intro\":\"接口练习\",\"gender\":\"male\"}",
+  "balance": 200
+}
+```
+
+在 Knife4j 的 `POST /users` 中粘贴上述 JSON 发送。没有传 `id`、`status`、时间；主键由自增生成，其他默认值来自数据库。
+
+**验收点**：成功响应没有业务数据，这是 `void` 的设计；不能因为响应体为空就认定失败。再查数据库：
+
+```sql
+SELECT id, username, status, balance, create_time, update_time
+FROM mp.tb_user
+WHERE username = 'Practice08';
+```
+
+记下实际 ID，确认用户名、余额和默认状态/时间正确，再用 `GET /users/实际ID` 验证。不要猜 ID 为 `5`：之前的自增新增、删除和 Service 测试都可能推进主键序列。
+
+### 第三步：只删除刚创建的记录
+
+在 Knife4j 的 `DELETE /users/{id}` 填入刚查到的实际 ID，先核对该 ID 的用户名确实为 `Practice08`，再发送删除请求。该接口此时执行物理删除，本节尚未启用逻辑删除。
+
+验收点：数据库中这条练习记录消失，ID 1–4 的原始用户仍然存在。接口返回 `void`，并不意味着它会向客户端报告具体影响行数。
+
+### 当前接口边界
+
+本节没有实现未找到用户时的统一 404 响应、删除失败提示、表单校验和统一异常响应。不要凭一次没有响应体的请求判断数据是否成功变化，应同时核对数据库；这些边界也不能凭空宣称已经由 MP 自动解决。
+
+## 8. 排错与最终教学验收
+
+| 现象 | 检查方向 |
+| --- | --- |
+| 应用启动后立即结束 | Web Starter 是否引入并刷新；是否运行了测试而非启动类 |
+| 端口被占用 | 是否已有一个实例运行；停止自己的旧实例或修改练习应用端口 |
+| `/doc.html` 为 404 | Starter 是否为本页版本；端口、context path 是否一致 |
+| 文档页没有接口 | `knife4j.openapi.group.default.api-rule-resources` 是否为 Controller 包；Controller 是否被 Spring 扫描 |
+| 接口为 404 / 405 | 路径是否重复；请求方式是否对应 POST、DELETE、GET |
+| JSON 无法绑定 DTO | 是否有 `@RequestBody` 与正确 Content-Type；`info` 是否误传为嵌套对象 |
+| 构造器或 getter 报错 | Lombok、注解处理、`final` 和 `@RequiredArgsConstructor` 是否齐全 |
+| `BeanUtil.copyToList` 找不到 | 是否使用 Hutool 5.8.11 与正确的 BeanUtil 包 |
+| 新增违反非空约束 | 用户名、密码、合法 JSON info 是否提供；表结构和默认值是否与前面的准备一致 |
+| 查询泄露 password / phone | 方法是否误返回了 `User`，而非转换后的 `UserVO` |
+
+最终能独立完成以下讲解，才算掌握本节：
+
+1. 根据接口表创建四个方法，说出每个参数从请求的哪里来。
+2. 解释 DTO、PO、VO 的职责，说明密码为什么不会出现在查询响应中。
+3. 写出 Service 接口与实现类的继承关系，说明 Controller 为什么调用 Service。
+4. 从空工程沿第 2–8 节复现，先只读查询，再新增、查实际 ID、删除专用练习记录。
+5. 解释当前四个接口为什么无需自定义 Service 方法；需要校验状态、判断余额等业务逻辑时，再进入下一节的业务层实现。
+
+配置核对补充：[Knife4j 官方快速开始（Spring Boot 2 / OpenAPI2）](https://doc.xiaominfo.com/docs/quick-start)。本页保留课堂版本，不跟随网页中的其他版本示例升级。

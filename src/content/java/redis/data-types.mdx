@@ -1,0 +1,959 @@
+# Redis 数据类型与常用命令
+
+Redis 根据值的数据结构提供 String、Hash、List、Set 和 SortedSet 等类型。数据类型的选择取决于对象是否需要按字段修改、元素是否允许重复、是否保留位置顺序，以及是否需要按分数排名。
+
+以下整理各类型的数据模型、命令参数、返回值与典型示例，包含对象存储、双客户端阻塞读取、好友集合查询和学生成绩排行。
+
+## 知识结构
+
+| 模块 | 核心内容 | 典型用途 |
+| --- | --- | --- |
+| 通用命令 | 查询、删除、存在判断、有效期与 TTL | 管理键的生命周期 |
+| String | 单个与批量读写、数值增减、条件写入 | 文本、计数、验证码、JSON |
+| Key 命名 | 项目、业务、类型和唯一标识 | 避免键冲突，区分业务数据 |
+| Hash | 字段读写、字段增量、条件新增 | 独立修改对象属性 |
+| List | 左右插入与弹出、下标范围、阻塞读取 | 有序列表、栈与队列 |
+| Set | 去重、成员判断、交并差 | 好友与关注关系 |
+| SortedSet | 分数、排名、增量和范围查询 | 成绩与热度排行榜 |
+
+## 命令执行环境
+
+### 1. 环境与连接参数
+
+| 项目 | 示例配置 |
+| --- | --- |
+| 服务端 | Linux 虚拟机中的 Redis 6.2.6 |
+| 服务端端口 | `6379` |
+| 命令行客户端 | Linux 中的 `redis-cli`，通过 SSH 终端操作 |
+| 图形客户端 | Windows 上的 RDM 2021.9 |
+| 数据库 | DB0，各案例在同一个逻辑库中操作 |
+| 虚拟机 IP 示例 | `192.168.150.101`，连接时替换为实际虚拟机 IP |
+| 示例密码 | `123321`，替换为实际配置的密码 |
+| 终端数量 | 平常一个；阻塞列表实验同时打开两个客户端 |
+
+虚拟机准备、源码安装、服务管理和客户端配置详见 [Redis 基础与环境搭建](/docs/java/redis/)。Redis 已安装时，可直接连接服务并初始化示例数据。
+
+### 2. 安装与配置
+
+安装命令在 **Linux Shell** 中执行；数据操作命令在 `redis-cli` 的 Redis 提示符中执行。以下为 Redis 6.2.6 的源码安装与配置步骤。
+
+通过 SSH 登录 Linux 虚拟机，使用有安装权限的管理员账号。以下包管理命令适用于 CentOS 7；软件源失效时按环境搭建文档修复，其他发行版需使用相应的包管理工具。
+
+```bash
+yum install -y gcc tcl make
+mkdir -p /usr/local/src
+cd /usr/local/src
+```
+
+已有 `redis-6.2.6.tar.gz` 时，将其放入源码目录并从解压步骤开始；没有安装包时，先从官方发行目录下载。文件已存在时应先核对，避免重复覆盖。
+
+```bash
+curl -fLO https://download.redis.io/releases/redis-6.2.6.tar.gz
+tar -zxf redis-6.2.6.tar.gz
+cd /usr/local/src/redis-6.2.6
+make
+make install
+/usr/local/bin/redis-server --version
+/usr/local/bin/redis-cli --version
+```
+
+**结果检查：** 两个程序都显示 `6.2.6`，编译过程没有失败。前一条命令报错时，先处理错误，再执行下一条。
+
+随后备份并编辑配置：
+
+```bash
+cd /usr/local/src/redis-6.2.6
+cp -n redis.conf redis.conf.bck
+vi redis.conf
+```
+
+在原文件中修改对应配置项，避免留下重复且冲突的有效定义：
+
+```conf
+bind 127.0.0.1 192.168.150.101
+protected-mode yes
+port 6379
+daemonize yes
+requirepass 123321
+databases 16
+dir /usr/local/src/redis-6.2.6
+logfile "redis.log"
+```
+
+这里的第二个监听地址必须换成 **虚拟机实际拥有的 IP**。保留回环地址是为了虚拟机内的 `redis-cli` 连接；监听虚拟机地址是为了 Windows 上的 RDM 连接。若只做本机命令实验，可先只保留 `bind 127.0.0.1`。
+
+IP 和密码均为隔离实验环境的示例值，应替换为实际配置。Windows 无法连接时，应核对虚拟机网络及到目标端口的访问条件，不要通过取消认证或关闭全部防火墙来排错。
+
+### 3. 启动、连接与认证
+
+若此前已经创建 `redis.service`，在 Linux Shell 执行：
+
+```bash
+systemctl start redis
+systemctl status redis --no-pager
+```
+
+若尚未注册系统服务，使用刚才的配置直接启动即可：
+
+```bash
+/usr/local/bin/redis-server /usr/local/src/redis-6.2.6/redis.conf
+```
+
+**以上两种启动方式选一种。** 同一端口已有服务时，不再重复启动另一个实例。
+
+启动后，在 Linux Shell 打开客户端：
+
+```bash
+/usr/local/bin/redis-cli -h 127.0.0.1 -p 6379
+```
+
+看到类似 `127.0.0.1:6379>` 的提示符后，再逐条输入：
+
+```redis
+AUTH 123321
+PING
+SELECT 0
+```
+
+依次应返回 `OK`、`PONG`、`OK`。若没有配置密码，则不需要执行 `AUTH`。
+
+> **命令执行位置：** `redis-cli`、`systemctl` 和 `vi` 在 Linux Shell 执行；`AUTH`、`SELECT`、`SET` 等在 Redis 提示符后执行。后文的 Redis 命令代码块都省略提示符，只复制命令本身，不复制返回结果。
+
+### 4. 创建 RDM 连接
+
+1. 打开 RDM，选择创建 Redis 连接。
+2. 连接名称填写便于识别的名称，如 `redis-lab`。
+3. 主机填写虚拟机 IP，示例为 `192.168.150.101`；端口填写 `6379`。
+4. 认证信息填写服务端实际密码，示例为 `123321`。
+5. 测试连接成功后保存，打开连接并选中 **DB0**。
+6. 在命令行修改数据后，回到 RDM 刷新；已经打开的值页也可能需要刷新或重新打开。
+
+**结果检查：** 命令行中新增一个键后，RDM 的 DB0 中可以看到同一个键。Windows 上的 `127.0.0.1` 指向 Windows 本身，不是 Linux 虚拟机。
+
+### 5. 示例数据初始化
+
+示例使用以下键名：`name`、`age`、`k1`～`k3`、`heima:*`、`users`、`users2`、`s1`、`zs`、`ls`、`stus` 等。每个案例开头给出 **只清理该案例指定键** 的 `DEL`，用于建立确定初始状态。
+
+这些命令会修改或删除当前实例、当前数据库中的同名键。操作前应确认目标为隔离练习库，且同名内容可以重建；若有需要保留的同名数据，换一个空闲逻辑库，并让两个终端和 RDM 都切换到同一库。不要用全库清空来替代初始化。
+
+`KEYS *` 仅用于数据量很小的练习库。Hash 与 Set 的结果不保证显示顺序，应核对字段或成员及其对应值。
+
+## 通用命令与键的生命周期
+
+通用命令作用于整个键，String、Hash、List、Set、SortedSet 都能使用。例如，对 Hash 执行 `DEL`，删除的是整个 Hash 键，不是其中某个字段。
+
+### 1. 用帮助查语法
+
+```redis
+HELP @generic
+HELP KEYS
+HELP DEL
+HELP EXPIRE
+```
+
+`HELP @generic` 查看通用命令组；`HELP 命令名` 查看某条命令的参数、用途等信息。帮助中的方括号通常表示可选参数，省略号表示可以继续追加参数；输入真实命令时不输入这些语法标记。
+
+`redis-cli` 支持 Tab 补全和参数提示。结合帮助中的参数定义和命令返回值，可以检查输入是否正确。
+
+### 2. 查询键：KEYS
+
+先准备少量数据：
+
+```redis
+DEL name age k1 k2 k3 k4
+SET name jack
+SET age 18
+KEYS *
+KEYS a*
+```
+
+`KEYS *` 返回当前数据库中所有匹配的键；`KEYS a*` 返回以 `a` 开头的键，此处至少包含 `age`。若还有其他历史数据，结果会更多。
+
+| 模式 | 含义 | 例子 |
+| --- | --- | --- |
+| `*` | 匹配任意数量的字符 | `a*` 匹配以 `a` 开头的键 |
+| `?` | 匹配一个字符 | `k?` 可以匹配 `k1`，不能据此匹配 `k10` |
+
+这是 glob 风格匹配，不是正则表达式。
+
+**性能注意：`KEYS` 可能阻塞服务。** 它需要遍历数据库中的键，数据量大时会占用命令执行时间，影响其他请求。不能把小实验里执行很快，推导成生产库也适合随意执行。
+
+> **使用边界：** 官方提示谨慎在大数据库中使用 `KEYS`。需要按需遍历键时，可以使用 `SCAN`。副本同样有执行成本，不能把“在副本运行”当作一定无影响的保证。参见 [KEYS 官方说明](https://redis.io/docs/latest/commands/keys/)。
+
+### 3. 删除键：DEL
+
+```redis
+DEL name
+EXISTS name
+MSET k1 v1 k2 v2 k3 v3
+DEL k1 k2 k3 k4
+```
+
+在上面的初始状态下：
+
+- `DEL name` 返回 `1`，表示实际删除了一个键。
+- `EXISTS name` 返回 `0`，表示这个键已经不存在。
+- `MSET` 一次批量建立三个 String 键。
+- 最后的 `DEL` 虽然传入四个键，但 `k4` 不存在，所以返回 **`3`**。
+
+**删除返回值是实际删除数量，不是参数数量。** 对不存在的键执行 `DEL` 不会因此报错。
+
+### 4. 判断存在：EXISTS
+
+```redis
+EXISTS age
+EXISTS name
+EXISTS age name
+```
+
+依次返回 `1`、`0`、`1`。单键查询时可理解为“存在 / 不存在”；传多个键时，结果是存在键的数量。
+
+### 5. 设置和查看有效期：EXPIRE、TTL
+
+```redis
+EXPIRE age 20
+TTL age
+```
+
+`EXPIRE age 20` 给 `age` 设置 **20 秒** 有效期，设置成功返回 `1`。随后多次执行 `TTL age`，应看到剩余秒数逐渐减少。
+
+等到超过 20 秒后，再执行：
+
+```redis
+TTL age
+EXISTS age
+```
+
+应分别返回 `-2` 和 `0`。这里已经无法再读取到这个键。
+
+再建立一个没有显式有效期的键：
+
+```redis
+SET name jack
+TTL name
+```
+
+`TTL name` 返回 `-1`。
+
+| TTL 返回值 | 含义 |
+| --- | --- |
+| `0` 或正整数 | 键存在，剩余有效期以秒表示；`0` 表示已不足一秒 |
+| `-1` | 键存在，但没有设置过期时间 |
+| `-2` | 键不存在，可能已过期，也可能从未创建或被主动删除 |
+
+**易错点：`-1` 不代表还剩负一秒，`-2` 也不专门表示“刚刚过期”。** 过期、主动删除或查询未创建的键，都可能得到 `-2`。
+
+验证码等临时数据适合设置与业务要求一致的有效期：既使数据及时失效，也避免只增不减地占用内存。有效期长短由业务决定，不是所有数据统一设置 20 秒。
+
+## String：从普通值到计数与带有效期的数据
+
+### 1. 数据模型与命令分组
+
+String 的结构是 `key → 一个字符串值`。普通文本、整数字符串和浮点数字符串都属于 String，并不是三种独立的 Redis 类型。
+
+| 表现形式 | 示例 | 可以做什么 |
+| --- | --- | --- |
+| 普通文本 | `hello world`、`jack` | 保存、覆盖、读取 |
+| 整数形式 | `18` | 在合法整数范围内自增、自减 |
+| 浮点数形式 | `10.1` | 按给定步长进行浮点数增减 |
+
+String 能保存字节数据，单个值有 **512 MB** 的上限，但不建议因此把大图片直接塞进去；通常保存图片地址即可。底层编码可能优化整数的存储，不应将这里的入门类比理解为所有数字字符串都采用相同内部编码。
+
+| 分组 | 命令 | 含义 |
+| --- | --- | --- |
+| 单个读写 | `SET key value`、`GET key` | 新增 / 覆盖一个值，读取一个值 |
+| 批量读写 | `MSET key value [key value ...]`、`MGET key [key ...]` | 操作多个独立键 |
+| 整数操作 | `INCR key`、`INCRBY key increment` | 加一或按步长增减 |
+| 浮点数操作 | `INCRBYFLOAT key increment` | 按指定浮点步长增减 |
+| 条件新增 | `SETNX key value` | 键不存在时才写入 |
+| 写入并设置有效期 | `SETEX key seconds value` | 同一条命令内写入并设定秒级有效期 |
+
+### 2. 单个与批量读写
+
+```redis
+DEL name name2 age score k1 k2 k3
+SET name Rose
+GET name
+SET name Jack
+GET name
+MSET age 18 k1 v1 k2 v2 k3 v3
+MGET name age k1 k2 k3
+```
+
+两次 `GET name` 分别得到 `Rose`、`Jack`。说明 `SET` 既可以新增，也会覆盖已有值。
+
+最后一次批量查询按传入键的顺序返回：
+
+```text
+1) "Jack"
+2) "18"
+3) "v1"
+4) "v2"
+5) "v3"
+```
+
+`MSET` 必须按“键、值、键、值”成对填写；`MGET` 则只传多个键。不存在的键在 `MGET` 对应位置返回 `(nil)`。
+
+### 3. 整数自增与自减
+
+```redis
+GET age
+INCR age
+INCRBY age 2
+INCRBY age -1
+GET age
+```
+
+按这组命令执行，值依次是：`18 → 19 → 21 → 20`，最后得到 `"20"`。重复执行自增命令会继续改变值，核对结果时需要考虑执行次数。
+
+`INCRBY` 的第二个参数是 **本次变化量**，不是最终值。传 `-1` 就是减少一。`DECR` 是专门的减一命令，负步长也可以表达自减。
+
+如果对 `name=Jack` 执行 `INCR name`，会因值不是合法整数而报错。这说明“属于 String”并不意味着任意字符串都能参与数字运算。
+
+### 4. 浮点数自增
+
+```redis
+SET score 10.1
+INCRBYFLOAT score 0.5
+INCRBYFLOAT score 0.5
+INCRBYFLOAT score 0.5
+GET score
+```
+
+依次得到 `10.6`、`11.1`、`11.6`，最后读取到 `"11.6"`。浮点操作使用 `INCRBYFLOAT`，必须给出步长；不要把小数步长传给整数命令 `INCRBY`。
+
+### 5. 仅在键不存在时新增
+
+此时 `name` 仍为 `Jack`，`name2` 尚未创建：
+
+```redis
+SETNX name LiSi
+GET name
+SETNX name2 LiSi
+GET name2
+SET name WangWu NX
+GET name
+```
+
+| 操作 | 结果 | 原因 |
+| --- | --- | --- |
+| `SETNX name LiSi` | `0` | `name` 已存在，不写入 |
+| `GET name` | `Jack` | 原值保留 |
+| `SETNX name2 LiSi` | `1` | `name2` 不存在，新增成功 |
+| `GET name2` | `LiSi` | 可读到新值 |
+| `SET name WangWu NX` | `(nil)` | `NX` 条件不成立，不写入 |
+
+**`SET key value NX` 与 `SETNX key value` 的条件相同，返回形式不同。** 前者成功时返回 `OK`、条件不成立返回 `(nil)`；后者返回 `1` 或 `0`。
+
+### 6. 写入时直接设置有效期
+
+```redis
+SETEX name 10 Jack
+TTL name
+```
+
+`SETEX` 参数顺序是 **键、秒数、值**。写入成功返回 `OK`，`TTL` 应看到不超过 10 的非负秒数；若操作较慢，键可能已经过期。
+
+同样的目的也可以写成：
+
+```redis
+SET name Jack EX 10
+TTL name
+```
+
+两种写法是替代关系；连续执行会重新写入并重新开始有效期。
+
+**重点：带有效期的写入是一条命令。** 不能把 `SET` 后再执行 `EXPIRE` 的两条独立命令，无条件看成与它完全等价的执行过程。
+
+> **有效期覆盖：** 普通 `SET key value` 成功覆盖时，原有有效期会被清除；需要过期时，写入时明确带上 `EX` 等选项。`NX` 控制条件写入，`EX` 设置秒级有效期，其他选项可通过帮助查询。参见 [SET 官方说明](https://redis.io/docs/latest/commands/set/)。
+
+## 设计 Key 层级并保存对象
+
+### 1. 为什么不能只用业务 ID 当键
+
+同一数据库中的键名必须唯一。用户 ID 为 `1`，商品 ID 也可能为 `1`；若都以 `1` 为键，后一次写入就可能覆盖前一次数据。
+
+一种常见的键名结构是：
+
+```text
+项目名:业务名:类型:唯一标识
+```
+
+这是一种设计约定，不是 Redis 强制语法。省略业务层时，可以使用以下结构：
+
+```text
+heima:user:1
+heima:user:2
+heima:product:1
+heima:product:2
+```
+
+这样既区分用户与商品，也能看出数据所属项目。团队已有键名规范时按团队规范执行。
+
+### 2. 将对象序列化成 JSON 字符串
+
+保存 Java 对象时，可以先将对象序列化为 JSON 字符串，再通过 String 类型存储。读取时由应用程序完成反序列化。
+
+以下直接使用两个用户和两个商品的 JSON 示例，命令行中无需创建 Java 类：
+
+```redis
+DEL heima:user:1 heima:user:2 heima:product:1 heima:product:2
+SET heima:user:1 '{"id":1,"name":"Jack","age":21}'
+SET heima:user:2 '{"id":2,"name":"Rose","age":18}'
+SET heima:product:1 '{"id":1,"name":"小米11","price":4999}'
+SET heima:product:2 '{"id":2,"name":"荣耀6","price":2999}'
+GET heima:user:1
+GET heima:product:1
+KEYS heima:*
+```
+
+**命令行引号：** 外层单引号让整个 JSON 作为一个参数传入，内部 JSON 字段名和文本值仍使用双引号。将几段没有包住的 JSON 直接粘进命令，会被错误地拆成多个参数。
+
+若终端编码影响中文显示，可在 RDM 中用 JSON 视图查看。显示为转义字节与数据损坏不是同一回事。
+
+### 3. 在 RDM 中核对结构
+
+刷新 DB0，应能依次展开：
+
+```text
+heima
+├─ user
+│  ├─ 1    → 用户 JSON
+│  └─ 2    → 用户 JSON
+└─ product
+   ├─ 1    → 商品 JSON
+   └─ 2    → 商品 JSON
+```
+
+**这个树是客户端根据冒号分组显示的。** Redis 实际保存的仍然是四个完整键，不会额外创建名为 `heima` 的父键。
+
+**JSON 字符串仍是 String。** `GET heima:user:1` 返回的是一个整体字符串，不能仅因为里面有 `name` 字段，就直接用 Hash 命令修改它。Hash 示例使用不同的用户 ID，避免与已有 String 键发生类型冲突。
+
+## Hash：让对象的每个字段可以独立操作
+
+### 1. 区分 key、field、value
+
+Hash 可先类比 Java 的 `HashMap`。在一个 Redis 键内部，又保存多组字段和值：
+
+```text
+heima:user:3
+├─ name → Lucy
+└─ age  → 21
+```
+
+- `heima:user:3` 是 Redis 的 **key**。
+- `name`、`age` 是这个 Hash 的 **field**。
+- `Lucy`、`21` 是对应字段的 **value**。
+
+与保存整段 JSON 相比，Hash 能直接更新 `age`，而不必由应用取出、解析并重写整个对象字符串。字段可按需增减，不要求每个 Hash 都有完全相同的字段。
+
+### 2. 单字段新增、修改与读取
+
+```redis
+DEL heima:user:3 heima:user:4
+HSET heima:user:3 name Lucy
+HSET heima:user:3 age 21
+HSET heima:user:3 age 17
+HGET heima:user:3 name
+HGET heima:user:3 age
+```
+
+三个 `HSET` 的返回值依次为 `1`、`1`、`0`；最终两个 `HGET` 返回 `Lucy` 和 `17`。
+
+**易错重点：第三次返回 `0`，不是修改失败。** `HSET` 统计的是本次新增字段数；`age` 已经存在，这次只是覆盖值，没有新增字段，所以返回 `0`。可通过 `HGET` 或刷新 RDM 来确认修改已生效。参见 [HSET 返回值说明](https://redis.io/docs/latest/commands/hset/)。
+
+### 3. 批量写入与按字段批量读取
+
+使用旧接口 `HMSET` 批量写入字段：
+
+```redis
+HMSET heima:user:4 name HanMeiMei
+HMSET heima:user:4 name LiLei age 20 sex man
+HMGET heima:user:4 name age sex
+```
+
+`HMSET` 返回 `OK`。最后一次查询依次返回 `LiLei`、`20`、`man`。这里批量写入的是 **同一个 key 内的多个字段**，不是创建三个 Redis 键。
+
+> **版本说明：** `HMSET` 已被官方标记为弃用，推荐使用可接收多组字段值对的 `HSET`。Redis 6.2.6 支持 `HSET heima:user:4 name LiLei age 20 sex man`，可以完成相同的批量写入。注意两者返回值不同，不能因改用 `HSET` 就仍期待 `OK`。参见 [HMSET 官方说明](https://redis.io/docs/latest/commands/hmset/)。
+
+### 4. 获取所有字段和值
+
+```redis
+HGETALL heima:user:4
+HKEYS heima:user:4
+HVALS heima:user:4
+```
+
+| 命令 | 获取内容 | 理解方式 |
+| --- | --- | --- |
+| `HMGET key field ...` | 指定字段的值 | 调用方明确列出字段，按请求顺序返回值 |
+| `HGETALL key` | 全部字段及对应值 | 命令行以“字段、值、字段、值”交替显示 |
+| `HKEYS key` | 全部字段名 | 类似 Map 的键集合 |
+| `HVALS key` | 全部字段值 | 类似 Map 的值集合 |
+
+Hash 不提供业务上的字段排序保证。不要把 `HGETALL` 的显示顺序当作字段定义顺序；核对时按字段和值的对应关系判断。
+
+### 5. 字段自增
+
+```redis
+HINCRBY heima:user:4 age 2
+HGET heima:user:4 age
+HINCRBY heima:user:4 age -2
+HGET heima:user:4 age
+```
+
+以上命令使年龄从 `20 → 22 → 20`。每次执行都会在当前值上累加或递减，结果取决于初始值和执行次数。
+
+**与 String 对照：** String 的 `INCRBY` 接受“键、步长”；Hash 的 `HINCRBY` 要额外给出“字段”，完整顺序为 **键、字段、步长**。
+
+### 6. 按字段判断是否新增
+
+当前用户 4 已有 `sex=man`，用户 3 还没有 `sex` 字段：
+
+```redis
+HSETNX heima:user:4 sex woman
+HGET heima:user:4 sex
+HSETNX heima:user:3 sex woman
+HGETALL heima:user:3
+```
+
+第一次 `HSETNX` 返回 `0`，用户 4 的 `sex` 仍为 `man`；第二次返回 `1`，用户 3 新增 `sex=woman`。
+
+**`HSETNX` 判断字段是否存在，`SETNX` 判断整个键是否存在。** 即使 Hash 键早已存在，只要指定字段不存在，`HSETNX` 仍可写入。
+
+**存储方式对比：** `heima:user:1`、`heima:user:2` 保存整个 JSON 字符串；`heima:user:3`、`heima:user:4` 使用 Hash，修改 `age` 不会影响 `name`。
+
+## List：掌握顺序、两端操作与阻塞取数
+
+### 1. 数据模型
+
+List 可以先类比 Java 的 `LinkedList`，从左右两端理解其行为：
+
+```text
+左端 / 队头                         右端 / 队尾
+       [ 元素 0 ][ 元素 1 ][ 元素 2 ]
+```
+
+它保留位置顺序，允许重复元素，适合保存有顺序要求的数据。点赞列表、评论列表等有顺序要求的数据可以使用 List；若业务还要求去重，需要另行处理。
+
+“有序”是元素在列表中有位置，不是 Redis 自动按数值或字母排序。这里用双向链表帮助理解两端读写，不把类比当作完整的底层实现说明。
+
+| 命令 | 作用 |
+| --- | --- |
+| `LPUSH key element [element ...]` | 从左端插入一个或多个元素 |
+| `RPUSH key element [element ...]` | 从右端插入一个或多个元素 |
+| `LPOP key [count]` | 从左端移除并返回元素 |
+| `RPOP key [count]` | 从右端移除并返回元素 |
+| `LRANGE key start stop` | 查询下标范围内的元素，不移除 |
+| `BLPOP key [key ...] timeout` | 从左端阻塞弹出；无元素时等待 |
+| `BRPOP key [key ...] timeout` | 从右端阻塞弹出；无元素时等待 |
+
+### 2. 左右插入、弹出与范围查询
+
+按顺序执行：
+
+```redis
+DEL users users2
+LPUSH users 1 2 3
+LRANGE users 0 -1
+RPUSH users 4 5 6
+LRANGE users 0 -1
+LPOP users 1
+RPOP users 1
+LRANGE users 0 -1
+LRANGE users 1 2
+```
+
+每次操作后的逻辑状态如下：
+
+| 步骤 | 从左到右的列表 | 命令返回的重点 |
+| --- | --- | --- |
+| `LPUSH users 1 2 3` | `3、2、1` | 返回列表长度 `3` |
+| `RPUSH users 4 5 6` | `3、2、1、4、5、6` | 返回列表长度 `6` |
+| `LPOP users 1` | `2、1、4、5、6` | 返回并删除 `3` |
+| `RPOP users 1` | `2、1、4、5` | 返回并删除 `6` |
+| `LRANGE users 1 2` | 列表保持 `2、1、4、5` | 返回 `1、4` |
+
+**左端批量插入的顺序：** 多参数 `LPUSH` 按参数顺序依次从左边插入：先插入 `1`，再把 `2` 插到 `1` 左边，最后把 `3` 插到最左边。因此不能直接把参数顺序当成最终显示顺序。
+
+**范围查询的下标：** 删除两端后，下标 `0、1、2、3` 对应元素 `2、1、4、5`。范围两端都包含，取的正是下标 1 和 2。
+
+> **下标说明：** `LRANGE users 0 -1` 中，`-1` 表示最后一个元素，可用于查看少量数据列表的完整内容。客户端输出里的 `1)`、`2)` 是返回项的显示编号，不是 List 的实际下标。
+
+`POP` 会修改列表，`LRANGE` 只是查询。不要一边重复弹出，一边仍按弹出前的列表核对结果。
+
+### 3. 双客户端完成阻塞取数
+
+阻塞读取示例需要两个客户端连接同一实例、同一逻辑库。可通过两个 SSH 终端分别启动 `redis-cli`，并在每个连接中独立完成认证和选库。
+
+**准备第二个窗口：** 在终端 B 的 Linux Shell 中输入：
+
+```bash
+redis-cli -h 127.0.0.1 -p 6379
+```
+
+再输入 Redis 命令：
+
+```redis
+AUTH 123321
+SELECT 0
+```
+
+然后按下面的顺序操作：
+
+| 顺序 | 操作位置 | 输入内容 | 预期现象 |
+| --- | --- | --- | --- |
+| 1 | 终端 A | `DEL users2` | 清理本次可重建的队列，使其为空 |
+| 2 | 终端 A | `BLPOP users2 100` | 不立即返回，最多等待 100 秒 |
+| 3 | 终端 B | `LPUSH users2 jack` | 在等待超时前插入元素 |
+| 4 | 观察终端 A | 无需再输入 | 立即解除等待，返回键名及元素 |
+
+终端 A 的结果应类似：
+
+```text
+1) "users2"
+2) "jack"
+```
+
+终端还可能显示实际等待时长。`jack` 已经被 A 弹出，所以 B 插入后若再查看 `users2`，可能发现队列已经为空；这正是成功消费的现象。
+
+**参数注意：必须提供 timeout。** `BLPOP users2` 会提示参数数量错误，应该补上 `100` 等等待秒数。普通 `LPOP` 在空列表上立即返回空值，`BLPOP` 则先等待元素或超时。
+
+**这里阻塞的是等待中的客户端，不是整个 Redis 服务。** 否则终端 B 根本无法执行插入。
+
+> **等待时间：** 超时仍无元素时，`BLPOP` 返回空值；`timeout=0` 表示无限等待。示例设置为 `100` 秒。需要停止当前客户端的等待，可按 Ctrl+C 退出，再重新连接。参见 [BLPOP 官方说明](https://redis.io/docs/latest/commands/blpop/)。
+
+### 4. 用两端关系理解栈和队列
+
+| 目标 | 写入 | 读取 | 原因 |
+| --- | --- | --- | --- |
+| 栈，后进先出 | `LPUSH` | `LPOP` | 同端进出，后插入的先取出 |
+| 栈，后进先出 | `RPUSH` | `RPOP` | 同端进出 |
+| 队列，先进先出 | `LPUSH` | `RPOP` | 两端进出，先插入的先取出 |
+| 队列，先进先出 | `RPUSH` | `LPOP` | 两端进出 |
+| 阻塞队列 | `LPUSH` | `BRPOP` | 先保证队列方向，再让空队列读取等待 |
+| 阻塞队列 | `RPUSH` | `BLPOP` | 同理 |
+
+**栈是同端进出，队列是两端进出。** 在此基础上，把读取操作换成带 `B` 的阻塞弹出，才得到对应的阻塞队列行为。
+
+`BLPOP users2` 配合 `LPUSH users2` 可以观察“空时等待、写入后唤醒”的行为，但两者属于同端进出。要构成先进先出的完整队列，应使用上表中的两端组合。
+
+## Set：去重、集合运算与好友关系
+
+### 1. 数据模型与基本操作
+
+Set 可先类比 Java 的 `HashSet`：元素不重复，不提供业务上的排列顺序，支持成员判断及集合运算。
+
+```redis
+DEL s1
+SADD s1 a b c
+SMEMBERS s1
+SREM s1 a
+SISMEMBER s1 a
+SISMEMBER s1 b
+SCARD s1
+```
+
+结果应体现：
+
+- `SADD` 首次加入三个新元素，返回 `3`。
+- `SMEMBERS` 包含 `a、b、c`，显示顺序没有保证。
+- 删除 `a` 后，两个成员判断分别返回 `0`、`1`。
+- 最后集合只剩两个成员，`SCARD` 返回 `2`。
+
+向同一集合再次添加已有成员，不会增加元素数量。这里 `SADD` 的返回值是 **新增成员数**。
+
+### 2. 三种集合运算
+
+假设 `s1` 包含 `a、b、c`，`s2` 包含 `b、c、d`：
+
+| 操作 | 命令 | 结果 | 业务理解 |
+| --- | --- | --- | --- |
+| 交集 | `SINTER s1 s2` | `b、c` | 两边共同拥有 |
+| 差集 | `SDIFF s1 s2` | `a` | 第一边有、第二边没有 |
+| 并集 | `SUNION s1 s2` | `a、b、c、d` | 合在一起并去重 |
+
+**这个表是独立的概念示例。** 上一个操作已经删除了 `s1` 的 `a`，若要验证本表中的结果，应先重新建立表中的初始数据，不能沿用已修改的集合。
+
+**差集有方向。** `SDIFF s2 s1` 会得到 `d`，不是 `a`。以上查询返回计算结果，并不会自动把差集或并集写回原集合。
+
+### 3. 好友集合示例
+
+使用 `zs`、`ls` 作为两个人的好友集合键，用拼音表示成员：
+
+| 集合键 | 表示谁的好友集合 | 初始成员 |
+| --- | --- | --- |
+| `zs` | 张三 | `lisi`、`wangwu`、`zhaoliu` |
+| `ls` | 李四 | `wangwu`、`mazi`、`ergou` |
+
+```redis
+DEL zs ls
+SADD zs lisi wangwu zhaoliu
+SADD ls wangwu mazi ergou
+```
+
+两次新增都应返回 `3`。各项查询与结果如下：
+
+| 要求 | 命令 | 预期结果 |
+| --- | --- | --- |
+| 张三有几位好友 | `SCARD zs` | `3` |
+| 两人的共同好友 | `SINTER zs ls` | `wangwu` |
+| 张三有、李四没有的好友 | `SDIFF zs ls` | `lisi`、`zhaoliu` |
+| 两人的好友合起来有哪些 | `SUNION zs ls` | `lisi`、`wangwu`、`zhaoliu`、`mazi`、`ergou`，共五人 |
+| 李四是否在张三好友中 | `SISMEMBER zs lisi` | `1` |
+| 张三是否在李四好友中 | `SISMEMBER ls zhangsan` | `0` |
+
+**关系不会自动双向维护。** 将 `lisi` 加到 `zs`，不会自动把 `zhangsan` 加到 `ls`。本例按给定数据查询，不额外补造另一边的关系。
+
+最后删除好友，再核对：
+
+```redis
+SREM zs lisi
+SMEMBERS zs
+SCARD zs
+```
+
+`SREM` 返回 `1`，张三好友只剩 `wangwu` 和 `zhaoliu`，数量为 `2`。李四的集合 `ls` 不因此自动变化。
+
+**集合运算要点：** 共同拥有对应交集，第一边有而第二边没有对应差集，合并去重对应并集。删除成员会改变后续查询结果。
+
+## SortedSet：分数、排名与成绩排行榜
+
+### 1. 先区分 member、score 和 rank
+
+SortedSet 也叫 ZSet，是带分数的有序集合。它与 Java `TreeSet` 在“集合、可排序”的功能上有相似之处，但实现和排序方式并不相同。
+
+| 概念 | 本例含义 | 示例 |
+| --- | --- | --- |
+| key | 整个成绩集合的名称 | `stus` |
+| member | 集合成员，在本例中用学生姓名 | `Amy` |
+| score | 该成员的排序分数 | `92` |
+| rank | 按某个方向排序后的位置 | 从 `0` 开始的下标 |
+
+成员不重复，按 score 排序；默认升序，即分数从低到高。排行榜经常需要高分在前，所以读取时要明确使用降序。
+
+SortedSet 可以结合跳表与哈希表支持成员定位和有序查询；具体内部编码与数据规模、配置有关。
+
+### 2. 常见命令与参数
+
+| 命令 | 作用 | 需要注意 |
+| --- | --- | --- |
+| `ZADD key score member [score member ...]` | 添加成员或更新已有成员分数 | 每组参数都是分数在前、成员在后 |
+| `ZREM key member [member ...]` | 删除指定成员 | 给成员名，不给分数 |
+| `ZSCORE key member` | 查询成员分数 | 分数与排名是两回事 |
+| `ZRANK key member` | 查询升序排名下标 | 从 `0` 开始 |
+| `ZREVRANK key member` | 查询降序排名下标 | 高分在前，仍从 `0` 开始 |
+| `ZCARD key` | 查询成员总数 | 不限定分数范围 |
+| `ZCOUNT key min max` | 统计分数范围内的人数 | `min`、`max` 是分数 |
+| `ZINCRBY key increment member` | 给成员分数加上变化量 | 与 `HINCRBY` 的参数位置不同 |
+| `ZRANGE key start stop` | 按升序排名下标取成员 | `start`、`stop` 是位置，包含两端 |
+| `ZREVRANGE key start stop` | 按降序排名下标取成员 | 高分前三名使用 `0 2` |
+| `ZRANGEBYSCORE key min max` | 按分数范围查询成员 | 此处的范围又是分数，不是排名 |
+
+SortedSet 也支持 `ZDIFF`、`ZINTER`、`ZUNION` 等集合运算。这些命令的参数格式与 Set 不完全相同，使用前可通过 `HELP` 查询。
+
+```redis
+HELP @sorted_set
+HELP ZADD
+HELP ZREVRANK
+```
+
+### 3. 初始化七位学生
+
+示例成绩如下，成员名称区分大小写：
+
+| 学生 | 成绩 |
+| --- | --- |
+| Jack | 85 |
+| Lucy | 89 |
+| Rose | 82 |
+| Tom | 95 |
+| Jerry | 78 |
+| Amy | 92 |
+| Miles | 76 |
+
+```redis
+DEL stus
+ZADD stus 85 Jack 89 Lucy 82 Rose 95 Tom 78 Jerry 92 Amy 76 Miles
+ZCARD stus
+ZRANGE stus 0 -1
+```
+
+新增返回 `7`，成员总数也是 `7`。即使插入顺序是乱的，升序读取仍应得到：
+
+```text
+Miles → Jerry → Rose → Jack → Lucy → Amy → Tom
+```
+
+在 RDM 中打开 `stus`，可以看到成员与 score 对应展示。成员名称需要与写入时一致，例如 `Amy` 与 `amy` 会被当成不同成员。
+
+> **同时查询分数：** 可以执行 `ZRANGE stus 0 -1 WITHSCORES` 同时查看成员和分数；`WITHSCORES` 是附加显示选项，不会改变数据。
+
+### 4. 删除 Tom 并查询 Amy 的分数
+
+```redis
+ZREM stus Tom
+ZCARD stus
+ZSCORE stus Amy
+```
+
+返回值依次是 `1`、`6`、`"92"`。这时 Tom 已不参与之后的排名。
+
+**数据状态会影响排名。** 以下查询以删除 Tom 后的六人数据为准；删除前查询 Rose 的降序下标会多一位。
+
+### 5. 查询 Rose 的升序与降序排名
+
+```redis
+ZRANK stus Rose
+ZREVRANK stus Rose
+```
+
+应分别返回 `2` 和 `3`。
+
+| 排序方向 | 删除 Tom 后的顺序 | Rose 的下标 |
+| --- | --- | --- |
+| 升序，低分在前 | Miles、Jerry、Rose、Jack、Lucy、Amy | `2` |
+| 降序，高分在前 | Amy、Lucy、Jack、Rose、Jerry、Miles | `3` |
+
+**排名下标从 0 开始。** 如果按高分优先向用户显示名次，Rose 应显示为第 `3 + 1 = 4` 名；不能直接把返回的 `3` 显示为第三名。
+
+### 6. 统计 80 分范围内的人数
+
+统计 0～80 分的人数：
+
+```redis
+ZCOUNT stus 0 80
+```
+
+返回 `2`，对应 `Miles=76` 和 `Jerry=78`。
+
+**边界补充：这里是闭区间 `[0, 80]`，会包含恰好 80 分的人。** “80 分以下”需要明确是否包含 80 分；这组示例没有恰好 80 分的成员，因此两种边界条件得到相同结果。若业务明确要求严格小于 80，可写：
+
+```redis
+ZCOUNT stus 0 (80
+```
+
+这是在 Redis 交互提示符中输入的命令；`(80` 表示不包含 80。不要把数学区间的右括号也补进去。按分数范围读取时采用同样的排除边界形式，见 [分数范围参数说明](https://redis.io/docs/latest/commands/zrangebyscore/)。
+
+### 7. 给 Amy 加两分
+
+```redis
+ZINCRBY stus 2 Amy
+ZSCORE stus Amy
+```
+
+两次都应得到 `"94"`。第二个参数 `2` 是 **加分量**，不是把 Amy 的最终分数改为 2；要减两分，可将加分量写成 `-2`。
+
+不要交换成员名和步长：正确顺序是 **集合键、变化量、成员**。
+
+### 8. 查询前三名
+
+分别按升序和降序读取前三个位置：
+
+```redis
+ZRANGE stus 0 2
+ZREVRANGE stus 0 2
+```
+
+| 命令 | 结果 | 实际含义 |
+| --- | --- | --- |
+| `ZRANGE stus 0 2` | Miles、Jerry、Rose | 从低分端取三人 |
+| `ZREVRANGE stus 0 2` | Amy、Lucy、Jack | 从高分端取三人，即成绩前三名 |
+
+范围是 **`0、1、2` 三个位置**，不是只取两个人。`ZRANGE` 的参数不是“最低分、最高分”，不能把 `0 2` 理解为 0～2 分。
+
+### 9. 查询分数范围内的学生
+
+```redis
+ZRANGEBYSCORE stus 0 80
+```
+
+返回 `Miles` 和 `Jerry`。与 `ZCOUNT stus 0 80` 相比，区间条件相同，但一个返回 **成员**，另一个返回 **数量**。
+
+同样，这里包含 80 分。若需要严格小于 80，使用：
+
+```redis
+ZRANGEBYSCORE stus 0 (80
+```
+
+`ZRANGEBYSCORE` 按分数范围返回成员，也可使用 `ZRANGE ... BYSCORE` 等统一查询接口。使用不同接口时应核对参数顺序。
+
+### 10. 最终数据与结果检查
+
+在只删除一次 Tom、只给 Amy 加一次两分后，最终结果应是：
+
+| 高分名次 | 成员 | 分数 |
+| --- | --- | --- |
+| 1 | Amy | 94 |
+| 2 | Lucy | 89 |
+| 3 | Jack | 85 |
+| 4 | Rose | 82 |
+| 5 | Jerry | 78 |
+| 6 | Miles | 76 |
+
+核对最终数据：
+
+```redis
+ZCARD stus
+ZSCORE stus Tom
+ZSCORE stus Amy
+ZREVRANK stus Rose
+ZREVRANGE stus 0 2 WITHSCORES
+ZCOUNT stus 0 80
+ZRANGEBYSCORE stus 0 80
+```
+
+应分别核对到：总数 `6`、Tom 为 `(nil)`、Amy 为 `94`、Rose 的降序下标为 `3`、前三名为 `Amy / Lucy / Jack`、范围人数为 `2`、范围成员为 `Miles / Jerry`。
+
+若 Amy 是 `96`，通常是把“加两分”重复执行了；若 Tom 仍存在，先检查删除命令的大小写及数据库。需要完全重做时，只清理 `stus`，重新执行初始化、删除和加分步骤。
+
+## 把五种类型连起来选择
+
+| 需求 | 优先理解的类型 | 原因 |
+| --- | --- | --- |
+| 保存一段文本、一个数字或整个 JSON | String | 一个键对应一个整体值，支持数字操作和有效期 |
+| 对象中的字段需要单独修改 | Hash | 一个键中拆分多个字段，能直接读写特定字段 |
+| 元素有位置顺序、可能重复，需要两端进出 | List | 支持左右插入、弹出及阻塞读取 |
+| 成员不能重复，需要共同好友等集合运算 | Set | 成员判断、去重、交并差 |
+| 成员不能重复，还需要按分数取排名 | SortedSet | 成员关联分数，支持排名及分数范围查询 |
+
+所有类型的键都可以采用冒号分层命名；**键名的层级风格和 value 的数据类型是两个维度**。例如，`heima:user:1` 不会仅凭这个名字就成为 Hash，最终类型取决于写入方式。
+
+## 常见问题与排查方法
+
+根据报错先区分连接、认证、类型、参数和数据状态问题，再检查对应配置或命令。
+
+| 现象 | 常见原因 | 检查与处理 |
+| --- | --- | --- |
+| `Could not connect`、连接被拒绝 | 服务没启动，主机或端口错误 | 先检查 Linux 服务，再核对目标 IP、端口 |
+| `NOAUTH Authentication required` | 没有认证 | 在当前客户端执行正确的 `AUTH`；第二个窗口也要认证 |
+| `WRONGPASS` | 输入的密码与服务端配置不一致 | 核对实际加载的配置文件及连接的实例 |
+| 命令行有数据，RDM 看不到 | 实例或数据库不同，或页面未刷新 | 核对主机、端口、DB 编号，再刷新键列表和已打开的值页 |
+| `WRONGTYPE` | 对某个键用了不匹配的类型命令 | 可用 `TYPE key` 辅助确认类型，再使用对应命令；不要直接删除需要保留的数据 |
+| `ERR wrong number of arguments` | 参数遗漏或排列错误 | 用 `HELP 命令名`；重点检查 `MSET` 成对参数、Hash 字段、阻塞弹出的 timeout |
+| 自增时报整数 / 数字错误 | 当前值不是合法数字，或命令类型不合适 | 先 `GET` / `HGET` 查看原值；浮点步长使用对应浮点命令 |
+| JSON 写入报参数错误 | JSON 未作为一个完整参数传入 | 用外层单引号包住整段 JSON，内部保留 JSON 双引号 |
+| `HSET` 返回 `0` | 只覆盖已有字段，没有新增字段 | 用 `HGET` 验证，不能只凭 `0` 判断失败 |
+| `BLPOP` 一直等待 | 未有元素、实例 / 库不一致，或 B 窗口未成功插入 | 检查两个窗口的连接和库；在超时前由 B 插入；不在正等待的 A 里继续敲别的命令 |
+| List 顺序与参数顺序不同 | 从左端逐个插入，或此前已经弹出元素 | 按左右端逐步画出状态；必要时只重建本例列表 |
+| Set / Hash 输出顺序与笔记不同 | 误把无序结果当作固定展示顺序 | 核对成员及字段对应关系，不对齐打印次序 |
+| 排行榜人数、分数不一致 | 重复加分、未删 Tom、成员大小写错误 | 对照初始化与操作顺序，检查 `ZSCORE`、`ZCARD` |
+| 业务显示名次少一位 | 直接使用从 0 开始的 rank | 按需要先选择升序 / 降序，再将下标加一用于名次显示 |
+
+`TYPE` 是为排查类型混用增加的辅助命令。示例：`TYPE heima:user:1` 应为 `string`，`TYPE heima:user:3` 应为 `hash`，`TYPE stus` 应为 `zset`。
+
+## 核心概念对照
+
+| 容易混淆的点 | 区别 |
+| --- | --- |
+| 键名与值类型 | 冒号只约定键名层级，值类型由写入方式决定 |
+| JSON 与 Hash | JSON 是一个整体字符串，Hash 可以独立操作内部字段 |
+| `MGET` 与 `HMGET` | 前者读取多个键，后者读取同一 Hash 的多个字段 |
+| `SETNX` 与 `HSETNX` | 前者判断键是否存在，后者判断 Hash 字段是否存在 |
+| `HSET` 与 `HSETNX` 的返回值 `0` | 前者表示没有新增字段，后者表示条件不成立、未写入 |
+| `LRANGE` 与 `POP` | 前者只查询位置范围，后者返回并移除元素 |
+| 栈与队列 | 同端进出是栈，两端进出是队列；阻塞读取还需使用 `BLPOP` 或 `BRPOP` |
+| Set 与 SortedSet | 两者成员都唯一，SortedSet 另外关联分数并支持有序查询 |
+| 排名范围与分数范围 | `ZRANGE` 的位置下标与 `ZRANGEBYSCORE` 的分数边界含义不同 |
+| 排名下标与展示名次 | 下标从 0 开始；展示名次一般需要在下标上加 1 |
+| 修改量与最终值 | `INCRBY`、`HINCRBY`、`ZINCRBY` 接收的是本次变化量 |

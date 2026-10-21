@@ -1,0 +1,931 @@
+# Redis 基础与环境搭建
+
+Redis 是以键值对组织数据的内存数据库，支持多种数据结构、持久化和集群。理解它的数据模型后，可以依次完成安装配置、服务管理、客户端连接和键的生命周期操作。
+
+常用数据类型及对象、列表、集合的详细操作参见 [Redis 数据类型与常用命令](/docs/java/redis/data-types/)。
+
+## 知识结构
+
+| 模块 | 核心内容 |
+| --- | --- |
+| 数据模型 | SQL 与 NoSQL 的差异、键值结构、Redis 的主要特征 |
+| 环境准备 | Linux 虚拟机、网络、SSH、软件源与编译依赖 |
+| 安装配置 | 源码编译、目录结构、监听地址、认证、日志 |
+| 服务管理 | 前台运行、后台运行、systemd 与开机自启 |
+| 客户端 | 命令行连接、认证、图形客户端、逻辑数据库 |
+| 常用操作 | 查询键、删除键、存在判断、有效期与 TTL |
+
+## Redis 的数据模型
+
+### 1. 从表结构转换到键值结构
+
+关系型数据库通常把用户保存为表中的一行：
+
+| id | name | age |
+| --- | --- | --- |
+| 1 | Jack | 21 |
+
+Redis 的基本数据组织方式是 `key → value`。例如，名字和年龄可以分别保存为两个键：
+
+```text
+name → Jack
+age  → 21
+```
+
+这种方式便于理解命令，但把用户的多个属性拆开后，属性之间的归属关系比较松散。如果要表达一个完整用户，可以把用户 ID 作为键，把用户对象的 JSON 字符串作为值：
+
+```text
+user:1 → {"id":1,"name":"Jack","age":21}
+```
+
+这里的 `user:1` 是一个键，右侧整个 JSON 是一个字符串值。Redis 不会因为字符串长得像 JSON，就自动把它当作 Hash。**“JSON 字符串”和“Redis Hash”是两种不同的存储形式。**
+
+### 2. SQL 与 NoSQL 的差异
+
+SQL 是 Structured Query Language 的缩写。SQL 数据库通常指以 MySQL、Oracle 为代表的关系型数据库。NoSQL 通常译为非关系型数据库，也常解释为 Not Only SQL。
+
+| 比较角度 | 关系型数据库的典型做法 | NoSQL 的典型做法 |
+| --- | --- | --- |
+| 数据结构 | 先定义表、字段、类型及约束，再存入符合结构的数据 | 键值、文档、宽列、图等模型，结构要求随产品而不同 |
+| 数据关联 | 用主键、外键及关联查询表达关系 | 通过嵌套文档或保存关联标识表达，常由应用维护关系 |
+| 查询方式 | 使用 SQL，通用语法较统一 | 各产品有各自的命令、调用形式或查询语言 |
+| 事务 | 常用于需要 ACID 保证的业务 | 支持范围依具体产品与操作而定，不能默认等同于关系型事务 |
+| 存储与性能 | MySQL 等常以磁盘持久化配合缓存 | Redis 主要在内存中读写；其他 NoSQL 产品不能一概而论 |
+| 扩展方式 | 可提升单机配置，也可借助分库分表等方案扩展 | Redis 等提供分片集群，便于把数据分布到多个节点 |
+
+常见的 NoSQL 分类包括：键值型 Redis、文档型 MongoDB 等、宽列型 HBase、图类型 Neo4j。它们都用于存取数据，但数据模型和操作方式不同。
+
+例如，查询用户信息时，关系型数据库可以使用：
+
+```sql
+SELECT id, name, age FROM user WHERE id = 1;
+```
+
+Redis 则根据已约定的键读取相应值：
+
+```redis
+GET user:1
+```
+
+**重点：NoSQL 的灵活不代表完全没有结构或约束。** Redis 的值有类型，必须使用匹配该类型的操作。没有外键，也不代表业务不需要关系；关系维护可能转移到了应用代码。
+
+以订单业务为例：订单等核心数据通常需要可靠的事务保证，可以保存在关系型数据库；为了提高查询速度，还可把部分数据放进 Redis。两者可以配合使用。
+
+> **理解边界：** 不同 NoSQL 产品的能力存在差异，不能一概认为“所有 NoSQL 都只在内存中存储”“所有 NoSQL 都没有事务”或“关系型数据库无法水平扩展”。判断时应落实到具体产品、版本和业务要求。
+
+### 3. Redis 的基本特征
+
+Redis 诞生于 2009 年，全称 **Remote Dictionary Server，远程词典服务器**。像查词典一样，通过键查找值。
+
+Redis 的主要特征如下：
+
+1. **键值型，值的类型丰富。** 除了字符串，还有 Hash、List、Set、Sorted Set 等。
+2. **核心命令主要由单线程执行。** 命令按顺序处理，避免多个命令在执行中任意交错。
+3. **低延迟、速度快。** 主要基于内存读写，结合 I/O 多路复用与高效实现。内存访问是性能优势的重要来源。
+4. **支持持久化。** 可以把内存数据保存到磁盘，用于恢复数据。
+5. **支持主从与分片集群。** 主从用于复制数据等场景；分片把数据拆到不同节点，扩大可容纳的数据量。
+6. **支持多语言客户端。** Java、Python、C 等语言都能访问 Redis。
+
+**“Redis 是单线程”主要描述 Redis 6.2.6 的核心命令执行模型。** Redis 6 引入的网络 I/O 多线程，并不等于所有命令都由多个线程同时执行。
+
+**单条命令的原子性也不等于多条命令组合的原子性。** 例如先读后写是两个动作，不能只凭“单线程”就断言整段业务不会被其他请求穿插。需要结合完整业务流程分析并发安全性。
+
+## 实验环境准备
+
+### 1. 版本、工具与目录
+
+| 项目 | 示例配置 |
+| --- | --- |
+| 服务端操作系统 | CentOS 7 Linux 虚拟机 |
+| Redis | 6.2.6，源码包 `redis-6.2.6.tar.gz` |
+| SSH 与上传工具 | MobaXterm，也可使用其他 SSH / SFTP 工具 |
+| 源码存放目录 | `/usr/local/src/redis-6.2.6` |
+| 默认可执行文件目录 | `/usr/local/bin` |
+| Redis 配置文件 | `/usr/local/src/redis-6.2.6/redis.conf` |
+| systemd 服务文件 | `/etc/systemd/system/redis.service` |
+| Windows 图形客户端 | RDM 2021.9 |
+| 虚拟机 IP 示例 | `192.168.150.101`，实际连接时替换为目标虚拟机 IP |
+| 示例密码 | `123321`，仅用于隔离实验环境 |
+
+IP 和密码需要与实际配置一致。**Windows 客户端连接 Linux 虚拟机时填写虚拟机 IP；在虚拟机内部访问 Redis 时可以使用 `127.0.0.1`。**
+
+以下 Linux 安装和服务管理命令按 root 会话书写。普通账号先用 `sudo -i` 进入管理会话。Redis 交互窗口中的命令则不加 `sudo`。
+
+### 2. 创建 Linux 虚拟机
+
+尚未准备 Linux 环境时，可按以下步骤创建本地实验虚拟机：
+
+1. 在现有虚拟化软件中创建一台 Linux 虚拟机，系统类型选择 CentOS 7 / 对应的 64 位 Linux。
+2. 挂载 CentOS 7 的安装 ISO。本地实验可分配 2 个 CPU 核心、2 GB 内存、20 GB 磁盘，按宿主机资源调整。
+3. 网络使用 NAT，并保持虚拟网卡连接。安装时启用网卡，让虚拟机能访问软件源，也能被宿主机访问。
+4. 启动安装器，选择最小化安装，设置 root 密码，确认安装目标是刚创建的虚拟磁盘，然后完成安装并重启。
+5. 在虚拟机控制台登录，检查操作系统与网络：
+
+```bash
+cat /etc/centos-release
+ip -4 addr
+ip route
+```
+
+记录网卡上的 IPv4 地址。`127.0.0.1` 是回环地址，不是给 Windows 图形客户端填写的地址。
+
+6. 检查 SSH 服务；若尚未安装，先执行 `yum install -y openssh-server`，再执行：
+
+```bash
+systemctl enable --now sshd
+systemctl status sshd --no-pager
+```
+
+7. Windows 打开 MobaXterm，选择 **Session → SSH**，Remote host 填虚拟机 IP，端口填 `22`，登录虚拟机。也可在 Windows PowerShell 中执行 `ssh root@虚拟机IP`。
+8. 如果 SSH 连接超时，先检查虚拟网卡、IP 与 `sshd`。若 firewalld 正在运行且没有允许 SSH，在虚拟机控制台为实际使用的网卡所属区域允许 `ssh` 服务；不要直接关闭整个防火墙。
+
+**结果检查：** Windows 的 SSH 窗口已经进入 Linux 命令行，能执行 `pwd`、`ip -4 addr`。后续编译命令全部在这个 Linux 窗口中执行。
+
+> **版本说明：** CentOS 7 已停止安全更新，这套旧版本组合仅用于本地隔离实验。安装资料可从 [CentOS 官方归档](https://vault.centos.org/7.9.2009/)查找，不把它作为新生产环境的选型。
+
+### 3. 修复 CentOS 7 的 yum 源（按需执行）
+
+如果 `yum` 正常，跳过本小节。只有在 **CentOS 7.9.2009 的新建练习虚拟机**中遇到旧 mirrorlist 失效时，才采用下面的归档源方案。它只改变这台虚拟机的 yum 源配置，不用于其他发行版或版本。
+
+先备份已有主源文件，存在同名备份时不要覆盖：
+
+```bash
+cp -n /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.before-redis
+vi /etc/yum.repos.d/CentOS-Base.repo
+```
+
+将这个文件的内容替换为以下内容，保存退出：
+
+```ini
+[base]
+name=CentOS-7.9.2009 - Base - Vault
+baseurl=https://vault.centos.org/7.9.2009/os/$basearch/
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+[updates]
+name=CentOS-7.9.2009 - Updates - Vault
+baseurl=https://vault.centos.org/7.9.2009/updates/$basearch/
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+[extras]
+name=CentOS-7.9.2009 - Extras - Vault
+baseurl=https://vault.centos.org/7.9.2009/extras/$basearch/
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+```
+
+这里的 `$basearch` 是由 yum 解析的变量，在 `vi` 中原样保留。然后执行：
+
+```bash
+yum makecache
+yum repolist
+```
+
+**预期：** 能建立元数据缓存，启用的主源能列出软件包。若错误来自其他已启用的第三方源，先根据报错定位那个源；不要不断重装 Redis。
+
+## 安装 Redis：从源码包到可执行文件
+
+### 第 1 步：安装编译依赖
+
+Redis 基于 C 语言实现，源码安装需要编译工具；`tcl` 用于相关测试支持。安装依赖：
+
+```bash
+yum install -y gcc tcl make
+gcc --version
+make --version
+```
+
+`-y` 表示对软件包安装询问自动确认。`gcc` 用于编译，`make` 按构建规则组织编译和安装；`tcl` 用于 Redis 的相关测试支持。
+
+**结果检查：** 安装成功，`gcc` 和 `make` 能显示版本。若出现找不到软件源，先检查网络与 yum 配置。
+
+### 第 2 步：上传并解压源码包
+
+已有源码包时，使用 `redis-6.2.6.tar.gz`。MobaXterm 左侧 SFTP 文件区进入 `/usr/local/src`，把这个包拖入。**上传前先看清远程目标目录，不是 Windows 的本地目录。**
+
+```bash
+mkdir -p /usr/local/src
+cd /usr/local/src
+ls -lh redis-6.2.6.tar.gz
+tar -zxf redis-6.2.6.tar.gz
+cd /usr/local/src/redis-6.2.6
+ls
+```
+
+解压后应看到 `src`、`deps`、`Makefile`、`redis.conf` 等文件。
+
+**下载源码包：** 可从 Redis 官方发行目录取得同版本源码，然后继续上面的解压步骤：
+
+```bash
+cd /usr/local/src
+curl -fLO https://download.redis.io/releases/redis-6.2.6.tar.gz
+```
+
+`-f` 让 HTTP 错误导致命令失败；`-L` 跟随重定向；`-O` 用远端文件名保存。若文件已经存在且需要保留，先处理重名问题，不要重复下载覆盖已有材料。
+
+### 第 3 步：编译与安装
+
+确认当前目录是 `/usr/local/src/redis-6.2.6`，再执行编译和安装命令：
+
+```bash
+make && make install
+```
+
+`make` 先编译；`&&` 表示只有前一条成功才继续；`make install` 把程序安装到默认可执行文件目录。
+
+**不要只看到命令停止滚动就判断成功。** 安装结束后执行：
+
+```bash
+ls -l /usr/local/bin/redis-*
+/usr/local/bin/redis-server --version
+/usr/local/bin/redis-cli --version
+```
+
+预期版本为 `6.2.6`。常见文件含义如下：
+
+| 文件 | 用途 |
+| --- | --- |
+| `redis-server` | 启动 Redis 服务端 |
+| `redis-cli` | 命令行客户端，连接服务端执行命令 |
+| `redis-sentinel` | 哨兵程序，用于监控与故障转移 |
+| `redis-benchmark` | 性能测试程序 |
+| `redis-check-rdb` / `redis-check-aof` | 持久化文件检查工具 |
+
+当 `/usr/local/bin` 已加入 `PATH` 时，可以在其他目录直接执行 `redis-server`。若提示找不到命令，先使用上面的绝对路径，再检查 `echo "$PATH"`，不必重新编译。
+
+### 第 4 步：认清三个不同的位置
+
+```text
+/usr/local/src/
+├─ redis-6.2.6.tar.gz
+└─ redis-6.2.6/
+   ├─ Makefile
+   ├─ src/
+   ├─ redis.conf          ← 后续编辑的配置
+   └─ redis.conf.bck      ← 修改前创建的备份
+
+/usr/local/bin/
+├─ redis-server           ← 服务端可执行文件
+└─ redis-cli              ← 客户端可执行文件
+
+/etc/systemd/system/
+└─ redis.service          ← 后续创建的系统服务文件
+```
+
+**重点：源码目录、可执行文件目录、工作目录是三个不同的概念。** 源码目录放安装材料；可执行文件目录放程序；工作目录影响数据、相对路径日志等文件的落点。
+
+## Redis 的三种启动方式
+
+**三种方式是同一个 Redis 实例的不同启动方法。** 实验按顺序进行，切换前先停止前一种方式启动的进程，避免争用 `6379`。
+
+### 方式一：默认前台启动
+
+在 Linux SSH 窗口执行：
+
+```bash
+redis-server
+```
+
+预期看到 Redis 启动日志，版本 `6.2.6`，端口 `6379`，并进入接收连接的状态。
+
+这个窗口没有返回 Shell 提示符，因为服务在前台运行。这不代表客户端不能连接；可以另开一个 SSH 会话，在新窗口执行：
+
+```bash
+redis-cli PING
+```
+
+在本步骤的未设密码、默认本机访问状态下，预期返回 `PONG`。该命令用于验证本机服务是否能够接收请求。
+
+结束前台运行时，在运行 `redis-server` 的原窗口按 **Ctrl+C**，观察正常退出日志并回到 Shell。
+
+**前台运行特征：** 服务持续占用当前终端，但仍可接收其他客户端的请求。关闭终端通常会影响前台进程，需要脱离当前终端运行时可改用后台方式。
+
+### 方式二：指定配置文件，后台启动
+
+#### 1. 备份配置
+
+```bash
+cd /usr/local/src/redis-6.2.6
+cp -n redis.conf redis.conf.bck
+vi redis.conf
+```
+
+`redis.conf.bck` 用于保留原配置。`cp -n` 避免覆盖已经存在的同名备份。
+
+**vi 基本操作：** 普通模式输入 `/daemonize` 后回车可查找，按 `n` 找下一个；按 `i` 进入编辑；修改后按 `Esc`，输入 `:wq` 回车保存退出。需要放弃本次修改时用 `:q!`。
+
+#### 2. 修改关键配置
+
+在原配置中定位并修改相应项，而不是把下面片段当成整个 `redis.conf` 替换。确认同一个选项没有残留多个互相冲突的有效定义。
+
+```conf
+bind 0.0.0.0
+protected-mode yes
+port 6379
+daemonize yes
+requirepass 123321
+databases 16
+dir /usr/local/src/redis-6.2.6
+logfile "redis.log"
+```
+
+| 配置 | 作用与本次取值 |
+| --- | --- |
+| `bind 0.0.0.0` | 监听所有 IPv4 网卡以接受远程连接；客户端仍填写实际虚拟机 IP |
+| `protected-mode yes` | 保持保护模式开启 |
+| `port 6379` | 服务端监听端口，保留默认值 |
+| `daemonize yes` | 作为守护进程在后台运行 |
+| `requirepass 123321` | 配置示例密码，客户端随后必须认证 |
+| `databases 16` | 保留 16 个逻辑库，编号为 0～15 |
+| `dir /usr/local/src/redis-6.2.6` | 固定工作目录，使日志和数据文件位置一致 |
+| `logfile "redis.log"` | 把日志写入文件，使用相对文件名 |
+
+**相关可选配置：**
+
+```conf
+dir ./
+# maxmemory 512mb
+```
+
+`dir ./` 表示使用启动时的当前目录作为工作目录。`maxmemory 512mb` 是内存上限配置示例，可按需启用。`databases 1` 表示只提供 DB0；**需要切换到 DB1 时，应保留 `databases 16` 等大于 1 的设置。**
+
+> **工作目录：** 设置 `dir /usr/local/src/redis-6.2.6`，可以让手工启动与 systemd 启动使用相同的文件目录，避免日志和数据因启动位置不同而分散。以下日志检查均采用该路径。
+
+**网络访问范围：** `bind 0.0.0.0` 配合示例密码仅用于本地隔离练习。不要把这个端口直接开放到公网，也不要因连接失败就关闭全部防火墙或取消密码。
+
+**日志说明：** `logfile ""` 表示输出到标准输出，并非所有情况下都完全没有日志；若同时采用后台模式，标准输出日志会被送到 `/dev/null`。因此本次指定文件名。此行为可对照 [Redis 6.2.6 原始配置注释](https://raw.githubusercontent.com/redis/redis/6.2.6/redis.conf)。
+
+#### 3. 使用配置文件启动
+
+```bash
+cd /usr/local/src/redis-6.2.6
+redis-server redis.conf
+```
+
+也可以在任意目录使用完整路径：
+
+```bash
+/usr/local/bin/redis-server /usr/local/src/redis-6.2.6/redis.conf
+```
+
+**上面两条是等价的替代写法，执行一条即可。** 预期立即返回 Shell 提示符，不再让启动日志持续占用当前窗口。
+
+#### 4. 检查服务确实启动了
+
+```bash
+ps -ef | grep '[r]edis-server'
+ss -lntp | grep ':6379'
+tail -n 30 /usr/local/src/redis-6.2.6/redis.log
+```
+
+预期能找到 `redis-server` 进程，监听 `6379`，日志中有启动完成信息。`grep '[r]edis-server'` 是排除 grep 自身的一种写法。
+
+**注意：修改配置文件后，不会自动改变已经运行的进程。** 验证新配置前要让服务通过该文件重新启动；否则容易以为密码或监听地址没有生效。
+
+#### 5. 停止手工启动的实例，为系统服务留出端口
+
+推荐在 Linux Shell 执行以下命令连接，再在 Redis 提示符内认证和正常关闭：
+
+```bash
+redis-cli -h 127.0.0.1 -p 6379
+```
+
+```redis
+AUTH 123321
+SHUTDOWN
+```
+
+这会停止**当前连接的本地实验实例**，连接随即断开。退出 `redis-cli` 后再次检查 `6379`，确认原进程已退出再继续。
+
+常规关闭应优先使用 `SHUTDOWN`，让 Redis 完成正常退出流程。强制结束进程会跳过正常关闭过程，不适合作为日常停止方式。
+
+### 方式三：加入 systemd，配置开机自启
+
+#### 1. 创建系统服务文件
+
+在 Linux Shell 中执行：
+
+```bash
+vi /etc/systemd/system/redis.service
+```
+
+输入以下完整内容。配置文件路径与前面保持一致，不能填成源码包路径或 `redis-cli` 路径：
+
+```ini
+[Unit]
+Description=redis-server
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/redis-server /usr/local/src/redis-6.2.6/redis.conf
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+该服务文件将 Redis 交给 systemd 管理。`Type=forking` 对应前面配置的后台进程模式；`ExecStart` 是启动命令；`PrivateTmp=true` 给服务使用独立的临时目录；`WantedBy` 指定启用服务时挂接的目标。
+
+**易错点：不要把 `Type=forking` 与前台运行的 `daemonize no` 随意混用。** 这两个选项需要配套设置。
+
+#### 2. 让 systemd 重新读取服务定义
+
+```bash
+systemctl daemon-reload
+```
+
+它重新加载系统服务定义，不代表 Redis 已经启动，也不代表已经开启开机自启。
+
+#### 3. 启动并检查
+
+```bash
+systemctl start redis
+systemctl status redis --no-pager
+```
+
+预期看到 `active (running)`。若失败，先检查旧实例是否仍占用端口，再检查 `ExecStart`、`redis.conf` 与日志文件路径。
+
+#### 4. 熟悉管理命令
+
+```bash
+systemctl stop redis
+systemctl status redis --no-pager
+systemctl start redis
+systemctl restart redis
+systemctl status redis --no-pager
+```
+
+停止后应是未运行状态；启动或重启后应恢复 `active (running)`。这组操作作用于刚创建的 `redis.service`。
+
+#### 5. 启用开机自启
+
+```bash
+systemctl enable redis
+systemctl is-enabled redis
+```
+
+预期 `is-enabled` 返回 `enabled`。**`start` 管本次运行，`enable` 管之后开机是否自动启动，两者不是一回事。**
+
+**重启后验证：** 在可以中断连接的实验虚拟机中重启系统，重新登录后执行 `systemctl status redis --no-pager`。仅看到 `enabled` 能确认配置已开启；重启后仍在运行才验证了实际自启结果。
+
+## 使用命令行客户端：先连接，再认证，再操作
+
+### 1. 认清客户端与服务端
+
+`redis-server` 是保存和处理数据的服务端；`redis-cli` 是向服务端发命令的客户端。启动客户端不会自动替代已经启动的服务端。
+
+**辨认输入位置：** Linux Shell 提示符通常以 `#` 或 `$` 结尾；进入客户端后会看到类似 `127.0.0.1:6379>` 的 Redis 提示符。`AUTH`、`SELECT`、`SET` 等写在 Redis 提示符后；`systemctl`、`vi`、`redis-cli` 等写在 Shell 中。要返回 Shell，在 Redis 提示符内执行 `QUIT` 或按 Ctrl+D。
+
+客户端基本语法：
+
+```text
+redis-cli [options] [command]
+```
+
+| 参数 | 含义 | 不指定时 |
+| --- | --- | --- |
+| `-h` | 目标主机 IP / 主机名 | `127.0.0.1` |
+| `-p` | 目标端口 | `6379` |
+| `-a` | 连接时使用的密码 | 不主动提供密码 |
+| `command` | 连接后立即执行的命令 | 进入持续交互窗口 |
+
+注意小写 `-p` 是端口。以下连接示例均使用同一个实验实例。
+
+### 2. 未认证时的报错
+
+在 Linux Shell 中执行：
+
+```bash
+redis-cli -h 127.0.0.1 -p 6379
+```
+
+进入 Redis 提示符后执行：
+
+```redis
+PING
+```
+
+设置密码后，预期返回：
+
+```text
+(error) NOAUTH Authentication required.
+```
+
+**出现 Redis 提示符不代表已经通过密码认证。** 这里是能到达服务、但还没有权限执行需要认证的命令。
+
+### 3. 两种认证方式
+
+**方式 A：连接参数中指定密码。** 先退出刚才的客户端，再在 Linux Shell 执行：
+
+```bash
+redis-cli -h 127.0.0.1 -p 6379 -a 123321
+```
+
+```redis
+PING
+```
+
+预期返回 `PONG`。使用 `-a` 时，客户端可能提示命令行传入密码存在泄露风险。
+
+**方式 B：连接后执行 AUTH。** 在 Linux Shell 执行：
+
+```bash
+redis-cli -h 127.0.0.1 -p 6379
+```
+
+然后在 Redis 提示符中执行：
+
+```redis
+AUTH 123321
+PING
+```
+
+预期依次返回 `OK`、`PONG`。示例未配置独立的 ACL 用户，因此使用只带密码的 `AUTH` 形式。示例密码只用于练习，也不要把真实环境的密码写入公开笔记。
+
+**通过虚拟机 IP 建立连接：**
+
+```bash
+redis-cli -h 192.168.150.101 -p 6379
+```
+
+实际连接时替换 IP，再执行同样的 `AUTH` 和 `PING`。本机回环地址成功、虚拟机 IP 失败时，要检查监听地址与网络，不能只反复改密码。
+
+### 4. 写入与读取键值数据
+
+以下命令都在已经认证的 Redis 提示符中执行。先确保处于 DB0：
+
+```redis
+SELECT 0
+SET name Jack
+SET age 21
+GET name
+GET age
+```
+
+预期前面三个写入 / 切库动作分别返回 `OK`，读取结果为 `"Jack"` 和 `"21"`。
+
+`SET name Jack` 的意思是“键为 name，值为 Jack”，命令中不写等号；`GET name` 是按键读取。这里的 `age` 也以 String 类型保存，不能因为显示为数字就把它当成另一种 Redis 基本类型。
+
+**注意：`SET` 会覆盖同名键原来的值。** `name`、`age`、`k1`～`k4` 都是可重建的示例键，操作应限定在隔离实验实例中。
+
+## 图形客户端与多个逻辑数据库
+
+### 1. 安装图形客户端
+
+Redis Desktop Manager，简称 **RDM**，是第三方图形客户端。以下使用 **2021.9** 版本说明安装与连接，客户端与 Redis 服务端分别安装。
+
+源码仓库为 [uglide/RedisDesktopManager](https://github.com/uglide/RedisDesktopManager)，Windows 预编译包来自 [lework 的 2021.9 Release](https://github.com/lework/RedisDesktopManager-Windows/releases/tag/2021.9)。安装包与界面可能因客户端版本而不同。
+
+操作顺序：
+
+1. 准备 `rdm-2021.9.zip`，可在对应 Release 的 Assets 中查找安装包。
+2. 解压后找到安装程序，运行安装，选择本地安装目录并完成向导。安装完成后通过快捷方式或安装目录启动。
+3. 从安装目录或快捷方式打开 `rdm.exe`，进入连接管理界面。
+
+这一步只安装客户端，Redis 服务仍然运行在 Linux 虚拟机中。
+
+### 2. 从 Windows 创建连接
+
+点击 **连接到 Redis 服务器 / Connect to Redis Server**，填写：
+
+| 字段 | 填写内容 |
+| --- | --- |
+| 连接名称 | 任意易识别的名称，例如 `CentOS7-Redis` |
+| 主机 / Host | 目标虚拟机的 IPv4 地址 |
+| 端口 / Port | `6379` |
+| 密码 / AUTH | 实际配置的密码，示例为 `123321` |
+
+连接名称只是标签，不能代替 Host。**Windows 上填写 `127.0.0.1` 会指向 Windows 本机；示例中的 Redis 服务运行在 Linux 虚拟机中。**
+
+先点击测试连接，成功后保存，再展开连接。服务端配置了密码时，客户端必须提供相同密码才能通过测试。
+
+### 3. 排查 Windows 连接超时
+
+按以下顺序检查，不要同时修改多个地方：
+
+1. Linux 本机用 `AUTH`、`PING` 是否成功。
+2. `ss -lntp | grep ':6379'` 是否显示在虚拟机网卡可访问的地址上监听；仅 `127.0.0.1:6379` 无法接受 Windows 远程连接。
+3. Windows 客户端 Host 是否等于 `ip -4 addr` 中的实际地址。
+4. Windows PowerShell 执行 `Test-NetConnection 虚拟机IP -Port 6379`，查看 `TcpTestSucceeded`。
+5. 若端口测试失败，再检查虚拟网络与 Linux 防火墙。
+
+若 firewalld 正在运行，只允许宿主机访问实验端口即可。先查看网卡所属区域：
+
+```bash
+firewall-cmd --get-active-zones
+```
+
+下面是规则**模板**，把 `实际区域` 与 `宿主机IP` 替换为前面核实的值后再执行：
+
+```bash
+firewall-cmd --permanent --zone=实际区域 --add-rich-rule='rule family="ipv4" source address="宿主机IP/32" port protocol="tcp" port="6379" accept'
+firewall-cmd --reload
+```
+
+本规则只作用于指定来源 IP 到指定区域的 TCP 6379，不要求关闭防火墙。若网络采用额外的端口转发或云安全组，还要按实际网络路径检查。
+
+### 4. 验证 DB0 与 DB1 的数据隔离
+
+展开连接后应看到 DB0～DB15。Redis 默认有 16 个逻辑库，默认连接 DB0，数据库编号固定；不使用 MySQL 的 `CREATE DATABASE` 为逻辑库起任意名称。
+
+先展开 **DB0**，应看到前面写入的 `name` 与 `age`；选中 `name`，值为 `Jack`。若列表没有更新，刷新后再检查。
+
+然后选择 **DB1**，新建 String 类型键：
+
+```text
+Key:   name
+Value: Rose
+```
+
+保存后，在命令行验证：
+
+```redis
+SELECT 1
+GET name
+SELECT 0
+GET name
+```
+
+预期依次得到 `OK`、`"Rose"`、`OK`、`"Jack"`。同名键在两个不同数据库中互不覆盖。
+
+**易错点：`SELECT` 只改变当前连接选中的数据库。** 图形客户端切换了数据库，不会自动替另一个 `redis-cli` 会话切库；新建客户端连接也要重新检查当前数据库。
+
+**逻辑库与实例的区别：** 这些逻辑库属于同一个 Redis 实例，共享实例资源；不要把 16 个逻辑库理解成 16 台独立服务器。默认是 16 个，不代表配置数量的上限永远是 16；示例采用 16 个逻辑库。
+
+## 数据类型与命令帮助
+
+### 1. 键通常是字符串，类型主要指值的类型
+
+同样是“保存一个键值对”，值可以有不同结构。数据类型应根据读写方式、去重要求、顺序和查询需求选择。
+
+| 类型 | 结构特征 | 用途与特点 |
+| --- | --- | --- |
+| String | 字符串，可保存文本、数字文本、JSON 文本等 | 使用 `SET`、`GET` 读写整体值 |
+| Hash | 一个键对应多个字段和值 | 适合表达需要独立修改的对象属性 |
+| List | 有顺序、允许重复的元素序列 | 这里的“有序”指元素位置顺序 |
+| Set | 无序、成员不重复的集合 | 重点认识去重特征 |
+| Sorted Set / ZSet | 成员不重复，按关联的分数排序 | 与 List 的顺序来源不同 |
+| GEO | 地理坐标相关功能 | 支持地理位置存储与查询 |
+| BitMap | 按位记录状态 | 提供相应的统计与状态记录功能 |
+| HyperLogLog | 用于基数估算等统计 | 提供相应的统计与状态记录功能 |
+
+前五种是常用基本类型；GEO、BitMap、HyperLogLog 提供地理位置、位状态、基数估算等能力。**该表不是 Redis 类型的完整清单，功能分类也不等同于底层实现分类。**
+
+### 2. 两条查询帮助的路径
+
+第一条是查看 [Redis 官方命令文档](https://redis.io/docs/latest/commands/)，按类型或分组过滤，再查看命令的语法、参数、返回值及例子。官方网页的分组名称与 `redis-cli` 中可能不同，例如通用键操作在网页中按键相关命令归类，在命令行中常见分组是 `generic`。
+
+第二条是在 `redis-cli` 中执行：
+
+```redis
+HELP
+HELP @generic
+HELP @string
+HELP @hash
+HELP @list
+HELP @set
+HELP @sorted_set
+HELP KEYS
+HELP DEL
+HELP EXPIRE
+HELP TTL
+```
+
+`HELP @组名` 查看一组命令，`HELP 命令名` 查看单个命令。Redis 命令名通常不区分大小写，示例统一使用大写；**键名仍要保持原样，`name` 和 `Name` 是不同的键。**
+
+例如帮助中的：
+
+```text
+DEL key [key ...]
+```
+
+表示至少给一个键，还可以继续给其他键。`[]` 表示可选部分，`...` 表示可重复，实际输入时不写方括号和省略号。
+
+`redis-cli` 支持 **Tab 补全**和参数提示。可通过帮助查看参数，再用少量数据验证命令行为。
+
+## 通用命令与键的生命周期
+
+通用命令不限定某一种值类型，主要针对“键是否存在、键的生命周期”等共同属性。以下使用 String 值准备示例数据，通用命令同样适用于其他类型的键。
+
+### 1. 实验起点
+
+使用隔离实验实例，确认已经认证并切回 DB0：
+
+```redis
+SELECT 0
+SET name Jack
+SET age 21
+```
+
+以下出现的 `name`、`age`、`k1`、`k2`、`k3`、`k4` 都视为可修改、可删除的本次练习键。已有同名业务数据时不要直接执行。
+
+### 2. KEYS：按模式查找键
+
+```redis
+HELP KEYS
+KEYS *
+KEYS a*
+```
+
+`KEYS *` 返回当前数据库里所有匹配的键；此时应包含 `name`、`age`。返回顺序没有保证。`KEYS a*` 应匹配 `age`。
+
+| 模式 | 含义 | 例子 |
+| --- | --- | --- |
+| `*` | 任意长度的任意字符序列，包含空串 | `a*` 匹配以 a 开头的键 |
+| `?` | 任意单个字符 | `a??` 匹配 a 开头、总共三个字符的键 |
+| `*name*` | 中间包含 name | 匹配 `name`，也可匹配更长的相关键名 |
+
+它使用 glob 风格匹配，**不是正则表达式**。若在 Shell 里直接执行单条命令，模式需要引号，防止被 Shell 先展开：
+
+```bash
+redis-cli -h 127.0.0.1 -p 6379 -a 123321 KEYS 'a*'
+```
+
+上面的写法在 Shell 中直接发送一条命令；其他示例采用已认证的 Redis 交互窗口。
+
+> **性能注意：生产环境不要随意执行 `KEYS *`。** 它会遍历键空间，数据量大时可能阻塞服务的其他命令。即使连接从节点，也不能据此认为没有影响；需要结合实例用途评估。官方文档也建议常规应用避免用 KEYS 扫描大库，可参阅 [KEYS 的使用边界](https://redis.io/docs/latest/commands/keys/)。本次仅在几个键的练习库中运行。
+
+### 3. DEL：删除键，返回实际删除数量
+
+先删除一个练习键：
+
+```redis
+HELP DEL
+DEL name
+KEYS *
+```
+
+若 `name` 存在，`DEL` 返回 `(integer) 1`；再次查看键，只剩 `age`。
+
+批量删除前，使用 `MSET` 准备三个键：
+
+```redis
+MSET k1 v1 k2 v2 k3 v3
+KEYS *
+DEL k1 k2 k3 k4
+KEYS *
+```
+
+`MSET` 的参数成对出现：键、值、键、值。该命令可以一次写入多组 String 键值对。
+
+预期 `MSET` 返回 `OK`。若 `k4` 不存在，批量删除的返回值为 `(integer) 3`，因为只实际删除了三个存在的键。删除不存在的键不会因“不存在”报错；最终仍剩 `age`。
+
+**易错点：返回 3 不是错误码，也不代表命令只接受三个参数，而是实际删除的键数。**
+
+### 4. EXISTS：判断键是否存在
+
+```redis
+HELP EXISTS
+EXISTS age
+EXISTS name
+```
+
+此时 `age` 存在，返回 `(integer) 1`；`name` 已删除，返回 `(integer) 0`。
+
+`EXISTS` 也可以接收多个键，返回存在的键数。查询单个键时，返回的 1 / 0 可以分别理解为存在 / 不存在；查询多个键时，应按存在键的数量解释。
+
+### 5. EXPIRE：设置有效期
+
+```redis
+HELP EXPIRE
+EXPIRE age 20
+```
+
+这表示给当前库中的 `age` 设置 **20 秒**有效期。针对当前存在的 `age`，预期返回 `(integer) 1`。
+
+有效期从命令执行时开始计算；到期后这个键不可再正常读取。它适合验证码等有时效性的数据：例如五分钟验证码的有效期可表示为 300 秒。有效期应由业务决定，不是机械地给所有数据相同时间。
+
+**重点：`EXPIRE` 本身不负责创建键。** 先存数据，再给已经存在的键设置有效期。如果键不存在，应检查键名和当前数据库。
+
+### 6. TTL：查看剩余有效期
+
+设置有效期后立即执行，并在接下来的 20 秒内重复几次：
+
+```redis
+TTL age
+```
+
+预期看到逐渐减小的剩余秒数，例如 18、12、5。具体数值取决于命令执行间隔。
+
+等待超过 20 秒，再执行：
+
+```redis
+TTL age
+EXISTS age
+GET age
+KEYS *
+```
+
+当本实验起点只有 `name`、`age`，且前面已经删除 `name` 时，预期结果为：
+
+```text
+TTL age     → (integer) -2
+EXISTS age  → (integer) 0
+GET age     → (nil)
+KEYS *      → 空列表
+```
+
+**注意：`TTL=-2` 的准确含义是“键不存在”，并不只可能由过期导致。** 未创建过、被 `DEL` 删除、选错库查不到，也都可能得到这个值。
+
+重新写入示例数据，这次先不设置有效期：
+
+```redis
+MSET name Jack age 18
+TTL name
+TTL age
+```
+
+预期两次 TTL 都返回 `(integer) -1`。
+
+| TTL 返回值 | 正确含义 |
+| --- | --- |
+| 非负整数 | 当前剩余秒数，接近到期时可能是 0 |
+| `-1` | 键存在，但没有关联的过期时间 |
+| `-2` | 键不存在 |
+
+`-1` 不能理解成“永远不可能被删除”：仍可以主动删除或覆盖，也可能受到实例其他机制的影响。这里表示键未关联自动过期时间。返回值定义可对照 [Redis TTL 文档](https://redis.io/docs/latest/commands/ttl/)。
+
+### 7. 示例结果核对
+
+完成上面全部实验后，在 DB0 与 DB1 分别检查：
+
+```redis
+SELECT 0
+GET name
+GET age
+TTL name
+TTL age
+EXISTS k1 k2 k3 k4
+SELECT 1
+GET name
+SELECT 0
+```
+
+预期：
+
+| 检查对象 | 预期结果 |
+| --- | --- |
+| DB0：`name` | `Jack` |
+| DB0：`age` | `18` |
+| DB0：两个键的 TTL | 都为 `-1`，因为最后重新写入时未设置过期 |
+| DB0：`k1`～`k4` | 存在数量为 0 |
+| DB1：`name` | `Rose` |
+| 当前会话结束前 | 已切回 DB0 |
+
+图形客户端刷新相应数据库，应看到同样结果。**不使用 `FLUSHALL` 或 `FLUSHDB` 清空环境**；示例通过明确键名完成增删。
+
+## 常见问题与排查方法
+
+排查时先核对运行实例、配置文件和客户端连接，再检查命令参数与数据状态。
+
+| 现象 | 先检查什么 | 处理方向 |
+| --- | --- | --- |
+| `gcc` / `make` 找不到 | 依赖是否安装，yum 是否报错 | 先修复软件源并安装编译工具 |
+| `tar` 提示文件不存在 | 当前目录、上传目标、文件名大小写 | `pwd` 与 `ls` 核对，再解压 |
+| 编译报错但目录里有文件 | `make` 最早出现的错误，而不是最后一行 | 修复首个错误后重新编译，不把失败当成功 |
+| `redis-server: command not found` | `/usr/local/bin/redis-server` 是否存在 | 先用绝对路径执行，再排查 PATH |
+| `Address already in use` | `ss -lntp` 的占用进程 | 同端口可能已有实例，确认对象后正常停止 |
+| 服务启动后立刻退出 | 配置语法、工作目录权限、日志路径 | 查 Redis 日志和 systemd 日志 |
+| systemd 启动失败 | 路径、`daemonize yes`、是否还有手工进程 | 修正后 `daemon-reload`，再启动 |
+| 连接被拒绝 | 服务是否在运行，Host 与端口是否正确 | 先检查进程和监听，不是先改认证 |
+| Windows 连接超时 | 虚拟网络、IP、监听地址、防火墙 | 用端口测试逐层定位 |
+| `NOAUTH` | 已连接但未认证 | 在当前连接执行正确的 `AUTH` |
+| `WRONGPASS` | 当前实例实际加载的密码 | 核对配置文件及运行实例，避免连错服务 |
+| 修改了配置却没效果 | 是否重启，启动时是否指定了该配置 | 对照服务启动命令与配置完整路径 |
+| `SELECT 1` 报数据库范围错误 | 是否设置了 `databases 1` | 本实验改回 16，并让实例重新加载配置 |
+| CLI 与 GUI 看到的数据不同 | 是否同 IP、端口、数据库，GUI 是否刷新 | 对齐连接目标和库，再判断数据是否丢失 |
+| TTL 很快变成 `-2` | 是否已过 20 秒，键名和数据库是否正确 | 重新创建该练习键，再设置有效期观察 |
+| 文件中看不到日志 | `dir`、`logfile` 与启动目录 | 示例采用绝对工作目录，按那个路径查找 |
+
+Linux Shell 中可用的诊断命令：
+
+```bash
+systemctl status redis --no-pager
+journalctl -u redis -n 50 --no-pager
+ps -ef | grep '[r]edis-server'
+ss -lntp | grep ':6379'
+tail -n 50 /usr/local/src/redis-6.2.6/redis.log
+```
+
+这些命令分工不同：`systemctl` 看系统服务状态，`journalctl` 看服务管理日志，`ps` 看进程，`ss` 看端口，`tail` 看 Redis 服务日志。**先读最早的具体错误，再修改对应问题。**
+
+## 要点回顾
+
+| 概念 | 要点 |
+| --- | --- |
+| 键值模型 | 一个键对应一个值；JSON 字符串与 Hash 是不同的存储方式 |
+| 服务端与客户端 | `redis-server` 保存和处理数据，`redis-cli` 发送命令 |
+| 配置文件 | 修改文件后，需要由实例重新加载配置才能影响运行状态 |
+| 启动方式 | 前台占用当前终端，后台脱离终端，systemd 统一管理服务生命周期 |
+| 运行与自启 | `active (running)` 表示正在运行，`enabled` 表示已启用开机自启 |
+| 网络地址 | 虚拟机内部可使用回环地址；Windows 远程连接填写虚拟机 IP |
+| 逻辑数据库 | `SELECT` 只改变当前连接；不同逻辑库允许保存同名键 |
+| 删除结果 | `DEL` 返回实际删除的键数，删除不存在的键不会因此报错 |
+| 有效期 | `EXPIRE` 设置过期时间，`TTL=-1` 表示未设置过期，`TTL=-2` 表示键不存在 |
+| 查询开销 | `KEYS` 会遍历键空间，仅适合少量数据的实验或受控操作 |

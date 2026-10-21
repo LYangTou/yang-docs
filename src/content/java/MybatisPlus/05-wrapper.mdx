@@ -1,0 +1,215 @@
+# 第 5 节：条件构造器
+
+本节继续使用 `mp-demo`，不另建工程。先完成[入门案例与完整建项](./02-quick-start)和[常用配置](./04-configuration)，确认 `UserMapper.selectById(1L)` 能运行。学习目标是把“按 ID 操作”推进到“按业务条件操作”，并能从代码反推出 SQL。
+
+## 1. 核对表名与初始数据
+
+本节实际运行的 SQL 操作 **`tb_user`**。保留 `User` 上的 `@TableName("tb_user")`；第 2 节建库脚本已准备该表。课件中的 `user` 是示意写法，不要求切回 `user` 表。
+
+先在练习库记录当前数据：
+
+```sql
+USE mp;
+SELECT id, username, balance FROM tb_user ORDER BY id;
+```
+
+**数据差异**：课堂画面中 `Hope` 和 `Thomas` 都满足余额至少 `1000`；第 2 节补全 SQL 的 `Thomas` 余额为 `800`，因此刚导入该 SQL 后，下面的查询通常只返回 `Hope`。前面的更新也会改变结果。验收要对照自己的初始数据和 SQL 条件，不能只比较条数。
+
+本节查询不改库；两个更新案例会修改 `mp.tb_user`。先记录原余额，逐个运行；批量扣减每运行一次都会再扣 `200`，不会自动恢复。
+
+## 2. Wrapper 构造 SQL 的哪些部分
+
+`BaseMapper` 除了按 ID 操作的方法，还有接收 `Wrapper` 的方法：
+
+```java
+userMapper.selectList(wrapper);         // 按条件查询多条
+userMapper.update(entity, wrapper);     // 按条件更新
+userMapper.delete(wrapper);             // 按条件删除
+```
+
+常见构造器的关系：
+
+```text
+Wrapper
+└─ AbstractWrapper：提供 eq、ne、gt、ge、lt、le、like、in 等条件
+   ├─ QueryWrapper：增加 select，指定查询列
+   ├─ UpdateWrapper：增加 set / setSql，指定更新内容
+   └─ AbstractLambdaWrapper
+      ├─ LambdaQueryWrapper：通过 getter 引用查询字段
+      └─ LambdaUpdateWrapper：通过 getter 引用条件与更新字段
+```
+
+| 方法 | 含义 | 对应 SQL |
+| --- | --- | --- |
+| `eq("username", "Jack")` | 等于 | `username = ?` |
+| `ne("status", 2)` | 不等于 | `status <> ?` |
+| `gt("balance", 1000)` | 大于 | `balance > ?` |
+| `ge("balance", 1000)` | 大于等于 | `balance >= ?` |
+| `lt` / `le` | 小于 / 小于等于 | `<` / `<=` |
+| `like("username", "o")` | 包含 | `LIKE '%o%'` 的参数化形式 |
+| `likeLeft` / `likeRight` | 通配符在左 / 在右 | `'%o'` / `'o%'` |
+| `between("balance", 600, 1000)` | 闭区间 | `BETWEEN ? AND ?` |
+| `in("id", ids)` | 属于一组值 | `id IN (?, ?, ?)` |
+
+这些方法通常返回构造器自身，因此可以链式调用；连续的条件默认以 `AND` 连接。**普通 Wrapper 的字段参数是数据库列名**，例如 `create_time`；Lambda Wrapper 使用 Java 属性的 getter。
+
+## 3. 查询案例：筛选用户，只取四列
+
+需求：查询用户名包含 `o`、余额大于等于 `1000` 的用户，只取 `id`、`username`、`info`、`balance`。
+
+先把需求翻译成 SQL：
+
+```sql
+SELECT id, username, info, balance
+FROM tb_user
+WHERE username LIKE '%o%' AND balance >= 1000;
+```
+
+在已有的 `src/test/java/com/itheima/mp/mapper/UserMapperTest.java` 中增加 import，已存在的不要重复导入：
+
+```java
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+```
+
+复用第 2 节测试类中的 `@SpringBootTest`、`userMapper`，以及 `User`、`List`、`@Test` 等 import，增加方法：
+
+```java
+@Test
+void testQueryWrapper() {
+    QueryWrapper<User> wrapper = new QueryWrapper<User>()
+            .select("id", "username", "info", "balance")
+            .like("username", "o")
+            .ge("balance", 1000);
+
+    List<User> users = userMapper.selectList(wrapper);
+    users.forEach(System.out::println);
+}
+```
+
+执行顺序是“构造条件 → 调用 Mapper → 查看结果”。`select` 决定查哪些列，`like` 和 `ge` 决定筛选哪些行，表名则由实体映射提供，不需要写 `from`。
+
+**为什么使用 `selectList`**：需求允许多条结果，返回值是 `List<User>`。`selectOne` 适用于最多一条的预期，`selectCount` 返回数量，不能互相替代。
+
+**验收点**：日志出现四列的 `SELECT ... FROM tb_user`，条件有 `username LIKE ? AND balance >= ?`，参数有 `%o%` 与 `1000`。`like` 自动补左右百分号；`ge` 包含等于边界。未查询的 `password`、`phone`、`createTime` 等属性为 `null`，并不表示数据库中的值被清空。
+
+## 4. 更新案例：将 Jack 的余额设为 2000
+
+目标 SQL：
+
+```sql
+UPDATE tb_user SET balance = 2000 WHERE username = 'Jack';
+```
+
+这是给字段赋一个固定值，更新值放在实体中，筛选条件放在 Wrapper 中：
+
+```java
+@Test
+void testUpdateByQueryWrapper() {
+    // SET 部分
+    User user = new User();
+    user.setBalance(2000);
+
+    // WHERE 部分：精确匹配，不是模糊匹配
+    QueryWrapper<User> wrapper = new QueryWrapper<User>()
+            .eq("username", "Jack");
+
+    int rows = userMapper.update(user, wrapper);
+    System.out.println("rows = " + rows);
+}
+```
+
+两个参数职责不同：第一个描述写入什么，第二个描述改哪些行。这里没有给实体设置 ID，不能改用 `updateById(user)`。沿用上一节的非空更新策略，其他值为 `null` 的属性不会进入 `SET`。
+
+运行前确认 `Jack` 只有一条记录；运行后应影响一行，执行下面的 SQL 检查余额为 `2000`：
+
+```sql
+SELECT id, username, balance FROM tb_user WHERE username = 'Jack';
+```
+
+> **易错点：QueryWrapper 也能构造更新、删除的 WHERE。** 名字中的 Query 不表示只能用于查询。更新内容已由实体表达时，它可以专门负责筛选条件。
+
+## 5. 更新案例：给 ID 1、2、4 各扣 200
+
+目标 SQL：
+
+```sql
+UPDATE tb_user
+SET balance = balance - 200
+WHERE id IN (1, 2, 4);
+```
+
+不能写 `user.setBalance(200)`，那会把每个人的余额都设为 `200`。三个人的原余额不同，应让数据库依据每一行的旧值分别计算：
+
+```java
+@Test
+void testUpdateWrapper() {
+    List<Long> ids = List.of(1L, 2L, 4L);
+
+    UpdateWrapper<User> wrapper = new UpdateWrapper<User>()
+            .setSql("balance = balance - 200")
+            .in("id", ids);
+
+    int rows = userMapper.update(null, wrapper);
+    System.out.println("rows = " + rows);
+}
+```
+
+`setSql` 提供 `SET` 的 SQL 片段；此处常量由开发者编写。第一个参数为 `null`，表示不用实体提供更新值，更新内容和条件都由 Wrapper 提供。
+
+执行前后分别查询：
+
+```sql
+SELECT id, username, balance FROM tb_user WHERE id IN (1, 2, 4) ORDER BY id;
+```
+
+**验收点**：三条记录存在时应影响三行；每条余额比执行前少 `200`，ID `3` 不变。课堂是 `2000、800、1000` 变成 `1800、600、800`；自己初值不同时，检查差额。
+
+> **重点：检查更新范围。** `.in("id", ids)` 限制受影响的行，不能遗漏。本例集合固定非空；将来改成变量集合时，应先确认集合非空。不要通过重复运行扣款测试来验证“幂等”，这条操作本身每次都会扣款。
+
+## 6. LambdaQueryWrapper：用 getter 替代字段字符串
+
+`"username"`、`"balance"` 是字符串，拼错时编译器通常无法发现。课堂最后把第一个查询改成方法引用：
+
+```java
+@Test
+void testLambdaQueryWrapper() {
+    LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
+            .select(User::getId, User::getUsername, User::getInfo, User::getBalance)
+            .like(User::getUsername, "o")
+            .ge(User::getBalance, 1000);
+
+    List<User> users = userMapper.selectList(wrapper);
+    users.forEach(System.out::println);
+}
+```
+
+`User::getUsername` 是 getter 的方法引用，不是已经读取到的用户名。MP 依据 getter 对应的属性及映射元数据确定数据库列；`User` 上的 Lombok `@Data` 提供 getter。
+
+另一种取得方式：
+
+```java
+LambdaQueryWrapper<User> wrapper = new QueryWrapper<User>().lambda();
+```
+
+**验收点**：数据未变化时，两种查询生成等价 SQL、返回相同记录。两次查询之间如果做了扣款，结果变化不能归因于 Lambda。课堂推荐优先使用 Lambda 形式；本节实际演示的是 Lambda 查询改写。
+
+## 7. 按教师的顺序复现与检查
+
+逐个运行：只读 SQL → `testQueryWrapper` → `testLambdaQueryWrapper` → `testUpdateByQueryWrapper` → 检查 Jack → `testUpdateWrapper` → 检查三个余额。不要一次运行整个测试类。
+
+| 现象 | 检查方向 |
+| --- | --- |
+| 查询条数与视频不同 | 初始余额、前面是否改过数据、`ge` 是否误写成 `gt` |
+| 多个属性为 `null` | 是否只查了四列 |
+| `Unknown column` | 普通 Wrapper 是否写成了 Java 属性名；实体是否映射正确表 |
+| getter 方法引用报错 | 是否导入正确的 `User`；Lombok 和注解处理是否生效 |
+| 更新影响零行 | 用户名、ID、连接的数据库与表是否正确 |
+| 重跑后余额越来越少 | 扣减会重复生效，测试没有自动回滚 |
+
+学完应能讲清：为什么 `QueryWrapper` 能用于更新；为什么实体适合赋固定值，`setSql` 适合基于旧值计算；为什么只查部分字段不等于把其他列清空。
+
+下一节将保留 Wrapper 的条件构造能力，把计算表达式放到 Mapper XML 中。
+
+接口核对补充：[MyBatis-Plus 官方条件构造器文档](https://baomidou.com/guides/wrapper/)。以课程 MP `3.5.3.1` 的 API 为准。

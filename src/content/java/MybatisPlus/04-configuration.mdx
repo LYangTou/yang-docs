@@ -1,0 +1,87 @@
+# 第 4 节：常用配置
+
+MyBatis-Plus 继承 MyBatis 的许多配置，同时提供自己的全局配置。入门案例只写数据库连接就能运行，是因为大部分选项有默认值；本节要会判断**何时保持默认，何时显式设置**。视频先讲配置层级，再在 `application.yaml` 中配置实体别名包与主键策略，并用 `tb_user` 的新增测试检查效果；下文的 XML 查询是为了让缺少原工程的读者也能检验别名与 XML 路径的补充练习。
+
+## 常见配置项放在哪里
+
+下面是展示配置层级的 `application.yaml` 片段。和第 2 节的 `spring.datasource`、`logging` 放在同一个文件中；不要在文件里再写第二个顶层 `mybatis-plus` 键。视频课件在 `id-type` 处列出默认的 `assign_id`；这里为自增的 `tb_user.id` 显式改成 `auto`，对应视频后段的无手工 ID 新增演示。
+
+```yaml
+mybatis-plus:
+  type-aliases-package: com.itheima.mp.domain.po
+  mapper-locations: "classpath*:/mapper/**/*.xml"
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+  global-config:
+    db-config:
+      id-type: auto
+      update-strategy: not_null
+```
+
+| 配置 | 作用 | 本案例怎样选 |
+| --- | --- | --- |
+| `type-aliases-package` | 扫描实体类型别名，供 XML 的 `resultType` 等引用 | 配为 `com.itheima.mp.domain.po`，XML 可写 `resultType="User"` |
+| `mapper-locations` | 搜索 Mapper XML | 默认即 `classpath*:/mapper/**/*.xml`，按此目录放文件可不显式配置 |
+| `map-underscore-to-camel-case` | 下划线列名与驼峰属性名映射 | 默认开启，`create_time` 可映射到 `createTime` |
+| `cache-enabled` | 控制 MyBatis 二级缓存开关 | 示例设为 `false`，便于观察直接查询；它不是关闭所有缓存的总开关 |
+| `global-config.db-config.id-type` | 未在字段上指定时的全局主键策略；默认是 `assign_id` | `tb_user.id` 为数据库自增，演示时设 `auto` |
+| `global-config.db-config.update-strategy` | 更新时字段是否进入 `SET` | `not_null` 表示实体属性为 `null` 时通常不更新该列 |
+
+**局部与全局的关系**：如果第 3 节的 `User.id` 已写 `@TableId(type = IdType.AUTO)`，该字段的指定优先于全局 `id-type`；要单独观察全局配置的作用，可临时移除局部的 `type` 指定再运行测试。第 2 节的 `updateById` 只给 `id` 和 `balance` 赋值，其他属性是 `null`；在 `not_null` 策略下，生成的 `UPDATE` 只改余额。想把数据库列刻意更新为 `NULL` 时，不能靠这份“空值忽略”配置完成，需要另行指定更新语句或字段策略。
+
+跟着第 4 节的画面练习一次自增：保留 `@TableName("tb_user")`，将第 2 节的新增测试复制为新方法，去掉 `user.setId(5L)`，把用户名换成一个未占用的练习名，再运行。控制台的 `INSERT INTO tb_user` 不应包含手工给定的 ID；测试后用 `SELECT id, username FROM tb_user WHERE username = '你的练习名';` 取得数据库生成的 ID，再只删除这条记录。若仍出现很大的雪花 ID，优先检查局部 `@TableId` 是否覆盖了全局 `auto`。
+
+## 自定义 SQL 仍可放在 XML
+
+MP 提供通用 CRUD，但项目已有的 MyBatis XML 不必丢弃。按第 2 节结构，在 `src/main/resources/mapper` 新建 `UserMapper.xml`：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.itheima.mp.mapper.UserMapper">
+    <select id="queryById" resultType="User">
+        SELECT * FROM tb_user WHERE id = #{id}
+    </select>
+</mapper>
+```
+
+在 `UserMapper.java` 中**保留** `extends BaseMapper<User>`，同时增加方法：
+
+```java
+import org.apache.ibatis.annotations.Param;
+
+User queryById(@Param("id") Long id);
+```
+
+给 `UserMapperTest` 增加一个测试：
+
+```java
+@Test
+void testQueryByIdFromXml() {
+    User user = userMapper.queryById(1L);
+    System.out.println("user = " + user);
+}
+```
+
+执行这个测试，应查到 `Jack`。其中 `namespace` 必须与 Mapper 接口全限定名一致；`select` 的 `id` 必须与方法名 `queryById` 一致；`#{id}` 对应 `@Param("id")`；`resultType="User"` 能被识别，是因为配置了 `type-aliases-package`。不用别名时，也可写 `resultType="com.itheima.mp.domain.po.User"`。
+
+## 按现象排错
+
+| 现象 | 先检查 |
+| --- | --- |
+| `Invalid bound statement (not found)` | XML 是否在 `resources/mapper` 下；`mapper-locations` 是否覆盖该路径；`namespace` 与方法 `id` 是否一致 |
+| `Could not resolve type alias 'User'` | `type-aliases-package` 是否为实体包；或先改成全限定名验证 |
+| 查到数据但 `createTime` 为 `null` | 列名是否为 `create_time`；驼峰映射是否开启；SQL 是否选出了这列 |
+| 插入时主键异常 | 数据库列是否自增；实体局部 `@TableId` 与全局 `id-type` 是否冲突 |
+| 更新后未把某列清空 | `update-strategy: not_null` 会跳过 `null` 值；检查实际 `UPDATE` 的 `SET` 部分 |
+
+## 第 1–4 节的最终验收
+
+1. 数据库有 `mp.user`、`mp.tb_user` 与 `mp.address` 三张表；初始四个用户还在。
+2. `UserMapper` 已映射 `tb_user`，既能调用继承来的 `selectById(1L)`，也能调用补充练习 XML 的 `queryById(1L)`，都返回 `Jack`。
+3. 你能解释 `User` → `user`、`createTime` → `create_time` 的默认映射，并知道不匹配时用哪种注解。
+4. 你能用一个只更新 `balance` 的对象调用 `updateById`，通过 SQL 日志确认其他空属性没有出现在 `SET` 中。
+
+如果四项都能独立完成，就具备继续学习后续“条件构造器”的项目基础。

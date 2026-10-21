@@ -31,6 +31,7 @@ export default {
     'day_30': 'JDBC',
     'day_31': 'Maven补充',
     'spring_boot': 'Spring Boot',
-    'sql': '数据库'
+    'sql': '数据库',
+    'MybatisPlus': 'MyBatis-Plus',
+    'redis': 'Redis'
 }
-  

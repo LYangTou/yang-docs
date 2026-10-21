@@ -1,0 +1,186 @@
+# 第 6 节：Wrapper 与自定义 SQL 配合
+
+本节继续使用 `mp-demo`、`tb_user` 和上一节的测试类。目标是完成同一个批量扣款需求，同时把 SQL 的计算表达式移到 Mapper 层：**Java 构建条件，Mapper XML 书写固定 SQL，执行时组合为完整语句。**
+
+## 1. 为什么还需要自定义 SQL
+
+上一节已经能写：
+
+```java
+new UpdateWrapper<User>()
+        .setSql("balance = balance - 200")
+        .in("id", List.of(1L, 2L, 4L));
+```
+
+课堂提出的矛盾是：这种方式方便，但 `balance = balance - 200` 这样的 SQL 片段进入了业务代码。在要求 SQL 集中到 Mapper 或 Mapper XML 的项目规范下，需要调整。这里是课程讨论的分层约定，不表示所有团队都有完全相同的规定。
+
+另外，查询的 SELECT 部分如果有聚合、计算或别名，也可能不适合直接由通用 CRUD 自动生成。本节用扣款案例演示解决办法，没有另做一个聚合查询项目。
+
+```text
+业务层 / 测试：Wrapper 构建 WHERE 条件 + amount 业务参数
+                       ↓
+UserMapper：自定义方法接收两类参数
+                       ↓
+UserMapper.xml：固定 UPDATE / SET + Wrapper 生成的条件
+                       ↓
+MyBatis 执行最终 SQL
+```
+
+目标 SQL：
+
+```sql
+UPDATE tb_user
+SET balance = balance - ?
+WHERE id IN (?, ?, ?);
+```
+
+## 2. 第一步：构建条件并调用自定义方法
+
+在 `src/test/java/com/itheima/mp/mapper/UserMapperTest.java` 中增加：
+
+```java
+@Test
+void testCustomSqlUpdate() {
+    // 本方法会对练习库中这三个 ID 再扣一次 200
+    List<Long> ids = List.of(1L, 2L, 4L);
+    int amount = 200;
+
+    LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
+            .in(User::getId, ids);
+
+    userMapper.updateBalanceByIds(wrapper, amount);
+}
+```
+
+`List`、`User`、`@Test`、`LambdaQueryWrapper` 等 import 沿用上一节。此时方法名报红是正常的，下一步才定义它。
+
+这里使用 **`LambdaQueryWrapper` 构建筛选条件**，不再调用 `setSql`，也不再调用通用的 `userMapper.update`。`updateBalanceByIds` 是我们自己命名和编写的方法，不是继承 `BaseMapper` 自动获得的方法。
+
+## 3. 第二步：在 UserMapper 接收 Wrapper 与金额
+
+修改 `src/main/java/com/itheima/mp/mapper/UserMapper.java`。保留原来的 `extends BaseMapper<User>`、`@Mapper` 以及已有的 `queryById` 补充练习方法，只增加下面的 import 和方法：
+
+```java
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Constants;
+import org.apache.ibatis.annotations.Param;
+```
+
+```java
+void updateBalanceByIds(
+        @Param(Constants.WRAPPER) LambdaQueryWrapper<User> wrapper,
+        @Param("amount") int amount);
+```
+
+放进接口后的结构应类似：
+
+```java
+@Mapper
+public interface UserMapper extends BaseMapper<User> {
+    User queryById(@Param("id") Long id); // 前一节的补充练习，已有则保留
+
+    void updateBalanceByIds(
+            @Param(Constants.WRAPPER) LambdaQueryWrapper<User> wrapper,
+            @Param("amount") int amount);
+}
+```
+
+**重点：Wrapper 参数的绑定名必须是 `ew`。** `Constants.WRAPPER` 来自 `com.baomidou.mybatisplus.core.toolkit.Constants`，其值就是 `"ew"`；也可以直接写 `@Param("ew")`。使用常量能减少拼错风险。
+
+`amount` 是普通业务参数，命名可以自行选择，但必须与 XML 的引用一致。Java 局部变量叫 `wrapper` 没有问题，XML 使用的是 `@Param` 指定的名字。
+
+## 4. 第三步：在 XML 拼接条件片段
+
+打开第 4 节建立的 `src/main/resources/mapper/UserMapper.xml`，在原有 `<mapper>` 内新增 `<update>`；不要创建第二个 `<mapper>` 根节点，也不要覆盖原有查询。
+
+```xml
+<update id="updateBalanceByIds">
+    UPDATE tb_user
+    SET balance = balance - #{amount}
+    ${ew.customSqlSegment}
+</update>
+```
+
+没有前一节 XML 文件时，可以直接创建完整文件：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.itheima.mp.mapper.UserMapper">
+    <select id="queryById" resultType="User">
+        SELECT * FROM tb_user WHERE id = #{id}
+    </select>
+
+    <update id="updateBalanceByIds">
+        UPDATE tb_user
+        SET balance = balance - #{amount}
+        ${ew.customSqlSegment}
+    </update>
+</mapper>
+```
+
+确认 `application.yaml` 仍有前一节的配置：
+
+```yaml
+mybatis-plus:
+  type-aliases-package: com.itheima.mp.domain.po
+  mapper-locations: "classpath*:/mapper/**/*.xml"
+```
+
+已有 `mybatis-plus` 配置块时，在原块内合并，不要重复顶层键。
+
+### 两种占位符各自做什么
+
+| 写法 | 本例用途 | 最终处理 |
+| --- | --- | --- |
+| `#{amount}` | 扣款数值 | MyBatis 预编译参数，SQL 中成为 `?` |
+| `${ew.customSqlSegment}` | MP 生成的 SQL 结构片段 | 拼接条件片段，里面的值仍由 MP 的参数机制绑定 |
+
+`customSqlSegment` 在本例包含 `WHERE`，所以 XML **不要再写一个 `WHERE`**，也不要把它包进另一个 `<where>`。
+
+不能把 `${ew.customSqlSegment}` 改成 `#{ew.customSqlSegment}`：后者把整段条件当作一个普通值，无法表达 SQL 结构。同样不能因此把金额改成 `${amount}`；金额应继续走参数绑定。
+
+这里的条件由程序通过 Wrapper 构造。不要把“可拼接 Wrapper 片段”理解成允许接收任意外部 SQL 字符串。
+
+## 5. 运行与验收：与上一节是两次扣款
+
+只在前文确定的练习库运行。先查询并记录余额：
+
+```sql
+SELECT id, username, balance
+FROM mp.tb_user
+WHERE id IN (1, 2, 4)
+ORDER BY id;
+```
+
+在 IDEA 单独运行 `testCustomSqlUpdate`，或者在工程根目录执行：
+
+```powershell
+mvn '-Dtest=UserMapperTest#testCustomSqlUpdate' test
+```
+
+验收分三层：
+
+1. 测试成功启动，说明 Mapper 注册、数据源和 XML 能装配。
+2. 日志包含 `UPDATE tb_user SET balance = balance - ? WHERE (id IN (?,?,?))` 的等价语句，参数包含 `200`、`1`、`2`、`4`。
+3. 再运行只读 SQL，每个目标余额比本次执行前少 `200`，ID `3` 不变。
+
+课堂本节从 `1800、600、800` 再扣到 `1600、400、600`。这是在前一节基础上再次执行更新；不是把前一节的测试方法换了个写法后，数据就会自动恢复。自己的初值不同时，仍以扣减差额为准。
+
+> **跟做补充：防止无条件更新。** 本例固定 ID 集合非空。若把它改为可变入参，应在调用 Mapper 之前校验 IDs 非空；Wrapper 没有有效条件时，XML 的 UPDATE 可能失去 WHERE 范围。金额也应由业务层按需求校验。该校验属于便于独立练习的补充，不是本节另一个完整业务接口。
+
+## 6. 排错与讲解检查
+
+| 现象 | 检查顺序 |
+| --- | --- |
+| `Invalid bound statement` | XML 是否在 `resources/mapper`；扫描路径是否正确；`namespace` 是否等于接口全限定名；`id` 是否等于方法名 |
+| `Parameter 'ew' not found` | Wrapper 参数是否有 `@Param(Constants.WRAPPER)` 或 `@Param("ew")` |
+| `Parameter 'amount' not found` | 参数注解与 XML 的 `#{amount}` 是否同名 |
+| SQL 出现两个 WHERE | 是否又手写了 `WHERE` 或 `<where>` |
+| XML 更新了错误的表 | 自定义 XML 中表名是手写的，不会因为实体 `@TableName` 自动跟着变 |
+| 测试成功但数据库没变化 | 是否有匹配 ID；是否查了同一个库、同一张表；测试是否额外添加了回滚事务 |
+
+请能独立解释以下三件事：业务层现在还负责哪部分 SQL；为什么 Wrapper 的绑定名要叫 `ew`；为什么金额用 `#{}`，结构片段用 `${}`。
+
+本节的完整改动仅涉及测试方法、Mapper 方法和 XML 更新语句。下一节开始创建 Service 层，复用 MP 已有的业务层 CRUD 能力。

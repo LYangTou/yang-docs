@@ -1,0 +1,118 @@
+# 第 3 节：常用注解
+
+上一节的 `UserMapper` 没写 SQL，却能正确查询 `user` 表。原因是 `BaseMapper<User>` 中的泛型让 MP 读取 `User` 的类与属性，再按默认规则推断表、列和主键。这节先认清默认规则，再处理“不按规则命名”的情况。
+
+## 先观察默认映射
+
+| Java 侧 | MP 默认推断 | 在入门案例中的结果 |
+| --- | --- | --- |
+| 实体类 `User` | 类名转为表名 | `user` 表 |
+| 属性 `id` | 主键 | `user.id` |
+| 属性 `createTime` | 驼峰转下划线 | `create_time` 列 |
+| 属性 `updateTime` | 驼峰转下划线 | `update_time` 列 |
+
+先运行第 2 节的 `testSelectById`，看 SQL 中是否出现 `create_time`、`update_time`。**注解是用来纠正或明确映射，不是每个字段都必须添加。**
+
+## `@TableName`：指定实体对应哪张表
+
+当实体名和表名不符合默认规则时，在类上加表名注解。例如：
+
+```java
+import com.baomidou.mybatisplus.annotation.TableName;
+
+@TableName("tb_user")
+public class User {
+    // ...
+}
+```
+
+这样 `UserMapper` 的通用方法会操作 `tb_user`。视频后段在 `User.java` 上加入 `@TableName("tb_user")`，右侧数据库窗口中也能看到 `tb_user`；第 4 节的新增 SQL 正是 `INSERT INTO tb_user ...`。若使用第 2 节的自建 SQL，`tb_user` 已复制了 `user` 的结构与初始记录，可以跟着切换并再次运行 `testSelectById`。如果只建了 `user` 表，须先创建结构相同的 `tb_user`，否则会报表不存在。**只加表名注解而不复制字段结构，不能使两个不同结构的表通用。**
+
+## `@TableId`：明确主键列与主键生成方式
+
+实体属性不叫 `id`，或数据库主键策略与 MP 默认策略不同，就需要显式声明：
+
+```java
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+
+@TableId(value = "id", type = IdType.AUTO)
+private Long userId;
+```
+
+`value` 是**数据库列名**，`userId` 是**Java 属性名**；`type` 决定新增时主键如何取得。
+
+| `IdType` | 含义 | 使用条件 |
+| --- | --- | --- |
+| `AUTO` | 交给数据库自增 | 表的主键列已设置 `AUTO_INCREMENT` |
+| `INPUT` | 代码自己赋值 | `insert` 前必须设置 ID |
+| `ASSIGN_ID` | MP 生成 ID，默认生成器使用雪花算法 | 主键类型及数据库列能容纳生成值 |
+
+本课程的 `user.id` 与演示中的 `tb_user.id` 都是自增列。如果新增时不手工指定 ID，给 `User.id` 标记 `@TableId(type = IdType.AUTO)`，或者在第 4 节配置全局 `id-type: auto`。视频第 3 节给 `User.id` 加了局部 `AUTO` 注解；第 4 节演示了不调用 `setId` 的新增。第 2 节的 `testInsert` 明确设置了 `5L`，是为了复现已有测试记录；不要把“显式赋值 5”误认为数据库自增或雪花算法自动产生。
+
+## `@TableField`：处理普通字段的特殊情况
+
+`@TableField` 放在属性上，常见有四种用途：
+
+```java
+import com.baomidou.mybatisplus.annotation.TableField;
+
+@TableField("username")
+private String name;           // 属性与列名不一致
+
+@TableField("is_married")
+private Boolean isMarried;     // is 开头的布尔属性需明确列名
+
+@TableField("`order`")
+private Integer order;         // MySQL 关键字需用反引号转义
+
+@TableField(exist = false)
+private String address;        // 仅在 Java 对象中使用，表里没有这列
+```
+
+为什么 `isMarried` 容易错：JavaBean 对布尔属性有特殊命名规则，工具读取属性名时可能把 `is` 当作前缀，最终推断的列名不符合实际的 `is_married`。检查 SQL 中的列名，比只看实体字段名更可靠。
+
+为什么 `order` 容易错：`ORDER` 是 SQL 关键字，直接拼进 SQL 可能报语法错误。示例的反引号是 MySQL 写法；若项目换数据库，应按该数据库的标识符转义规则处理。
+
+`exist = false` 和“数据库该列的值为 NULL”完全不同：前者告诉 MP **不要生成这列**，避免查询或写入时出现 `Unknown column`。
+
+## 合起来看一个映射示例
+
+以下是用于理解注解组合的**独立示例**，不要覆盖第 2 节可运行的 `User.java`：
+
+```java
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
+
+@Data
+@TableName("tb_user")
+public class AnnotatedUser {
+    @TableId(value = "id", type = IdType.AUTO)
+    private Long userId;
+
+    @TableField("username")
+    private String name;
+
+    @TableField("is_married")
+    private Boolean isMarried;
+
+    @TableField("`order`")
+    private Integer order;
+
+    @TableField(exist = false)
+    private String address;
+}
+```
+
+读代码时应能反向说出数据库形状：表叫 `tb_user`；主键列叫 `id` 且自增；普通列至少有 `username`、`is_married`、`order`；没有 `address` 列。这里的表只是讲解映射的示例，并非前两节的 `user` 表结构。
+
+## 跟做检查
+
+1. 在第 2 节的 `User` 类上加 `@TableName("tb_user")`，确认练习库里有结构相同的 `tb_user`，重新跑 `testSelectById`；应从 `tb_user` 查到 `Jack`，SQL 中的表名也应变化。
+2. 给 `id` 加 `@TableId(type = IdType.AUTO)`，复制新增测试，把 `setId(5L)` 去掉并换一个**未被占用的用户名**。运行后，数据库应生成新 ID；完成后依据返回的 ID 删除该练习记录。后续配置演示继续使用 `tb_user`。
+3. 在纸上或单独类里写出上面的 `AnnotatedUser`，不连接主案例的 `UserMapper`。逐个解释每个注解在解决哪处命名差异。视频课件的 `is_married`、`order` 是讲解注解的示意字段，不属于第 2 节 `user` 表的实际结构。
+
+重点是建立一条检查链：**表是否正确 → 主键列及策略是否正确 → 普通字段是否正确**。发生 SQL 错误时，先看 MP 实际生成的 SQL，再决定是否需要注解。

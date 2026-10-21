@@ -1,0 +1,190 @@
+# 第 7 节：IService 接口基本用法
+
+本节在现有 `mp-demo` 中新增 Service 接口、实现类和测试类。完成后，既能通过 `UserMapper` 调用持久层 CRUD，也能通过 `IUserService` 调用 Service 层 CRUD，为下一节编写 HTTP 接口准备基础。
+
+## 1. 先分清 BaseMapper 与 IService
+
+`BaseMapper<User>` 提供持久层的通用方法；`IService<User>` 提供 Service 层的通用方法，并增加批处理、链式操作等能力。它们的方法名称不完全相同：
+
+| 操作 | Mapper 常用方法 | Service 常用方法 |
+| --- | --- | --- |
+| 新增一个 | `insert(user)` | `save(user)` |
+| 按 ID 删除 | `deleteById(id)` | `removeById(id)` |
+| 多 ID 删除 | `deleteBatchIds(ids)` | `removeByIds(ids)` |
+| 按 ID 更新 | `updateById(user)` | `updateById(user)` |
+| 按 ID 查一个 | `selectById(id)` | `getById(id)` |
+| 多 ID 查询 | `selectBatchIds(ids)` | `listByIds(ids)` |
+| 按条件查多个 | `selectList(wrapper)` | `list(wrapper)` |
+| 统计数量 | `selectCount(wrapper)` | `count(wrapper)` |
+
+课堂建议通过方法名前缀记忆 Service 接口：新增找 `save`，删除找 `remove`，修改找 `update`；查一个找 `get`，查多个找 `list`，统计找 `count`，分页找 `page`。
+
+**返回值也要区分**：例如 Mapper 的 `insert`、`updateById` 通常返回影响行数 `int`；Service 的 `save`、`updateById` 通常返回成功标志 `boolean`，不能一律当成行数使用。
+
+### 本节介绍、后续继续展开的方法
+
+- `saveBatch`、`updateBatchById`：批量新增、按主键批量更新。
+- `saveOrUpdate`、`saveOrUpdateBatch`：根据主键信息选择新增或更新。
+- `removeByIds` 与 `removeBatchByIds`：普通多 ID 删除与批处理删除，执行方式不同。
+- `getOne(wrapper)`：按条件查单个，应保证条件最多命中一条；不能拿它替代多条查询。
+- `lambdaQuery()`、`lambdaUpdate()`：返回链式构造器，后续课程展开。本节不实现复杂业务、分页和批量性能实验。
+
+**准确性补充**：课程用“是否有 ID”帮助理解 `saveOrUpdate`。MP `3.5.3.1` 默认实现还会查询该 ID 是否存在；ID 为空或记录不存在时可能走新增，存在才走更新。`saveOrUpdate` 也不是数据库的一条原子 UPSERT。批处理与 IN 删除的性能取决于数据量、驱动和数据库，不能把课堂的方向性说明当成所有场景下的固定结论。
+
+## 2. 为什么需要两处继承
+
+普通项目先写 `IUserService`，再让 `UserServiceImpl implements IUserService`。现在若接口继承 `IService<User>`，就获得了通用方法声明，但实现类还需要实现相应的抽象方法。
+
+MP 同时提供了 `ServiceImpl`，已经实现这些方法。正确结构是：
+
+```text
+IService<User>                       ServiceImpl<UserMapper, User>
+      ↑ 继承接口                              ↑ 继承实现
+IUserService  ←──── implements ────── UserServiceImpl
+```
+
+不要在 IDEA 选择“实现所有方法”生成一堆空方法；先让实现类继承 `ServiceImpl`。自己的新增业务仍然可以在 `IUserService` 声明，再在实现类中实现。
+
+## 3. 创建 IUserService 接口
+
+在 `src/main/java/com/itheima/mp` 下新建 `service` 包，再创建 `IUserService.java`：
+
+```java
+package com.itheima.mp.service;
+
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.itheima.mp.domain.po.User;
+
+public interface IUserService extends IService<User> {
+}
+```
+
+泛型 `User` 告诉 Service 操作哪个实体。它应与 `UserMapper extends BaseMapper<User>` 中的实体一致。
+
+## 4. 创建 UserServiceImpl 实现类
+
+在 `service` 下新建 `impl` 包，创建 `src/main/java/com/itheima/mp/service/impl/UserServiceImpl.java`：
+
+```java
+package com.itheima.mp.service.impl;
+
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.itheima.mp.domain.po.User;
+import com.itheima.mp.mapper.UserMapper;
+import com.itheima.mp.service.IUserService;
+import org.springframework.stereotype.Service;
+
+@Service
+public class UserServiceImpl extends ServiceImpl<UserMapper, User>
+        implements IUserService {
+}
+```
+
+两个泛型的顺序是 **Mapper、实体**：`ServiceImpl<UserMapper, User>`。`UserMapper` 必须继承 `BaseMapper<User>`，不能反过来写成 `ServiceImpl<User, UserMapper>`。
+
+`@Service` 将实现类注册到 Spring 容器。启动类仍放在 `com.itheima.mp`，让它扫描下级 `service` 包；Mapper 仍保留原来的 `@Mapper` 或启动类上的 Mapper 扫描。
+
+### 实现类怎样调用自定义 Mapper
+
+`ServiceImpl` 已提供 `protected baseMapper` 和 `getBaseMapper()`。例如以后需要调用第 6 节的自定义方法，可在 `UserServiceImpl` 的业务方法中使用：
+
+```java
+baseMapper.updateBalanceByIds(wrapper, amount);
+// 或 getBaseMapper().updateBalanceByIds(wrapper, amount);
+```
+
+这里展示调用入口，不要求现在另建扣款业务方法；复杂业务属于后续节次。无需为了访问同一个 Mapper 再额外注入一遍 `UserMapper`。
+
+## 5. 创建 Service 测试类
+
+在 `src/test/java/com/itheima/mp/service` 创建 `IUserServiceTest.java`。IDEA 也可以从接口使用 Create Test，但生成后仍要检查包名、目录和 `@SpringBootTest`。
+
+以下给出可直接使用的完整测试。新增对象沿用前面的字段结构，用户名改为课堂演示的 `LiLei`；不手工设置 ID，使用第 4 节配置的数据库自增。
+
+```java
+package com.itheima.mp.service;
+
+import com.itheima.mp.domain.po.User;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@SpringBootTest
+class IUserServiceTest {
+    @Autowired
+    private IUserService userService;
+
+    @Test
+    void testSaveUser() {
+        User user = new User();
+        user.setUsername("LiLei");
+        user.setPassword("123");
+        user.setPhone("18688990011");
+        user.setBalance(200);
+        user.setInfo("{\"age\":24,\"intro\":\"英文老师\",\"gender\":\"female\"}");
+        user.setCreateTime(LocalDateTime.now());
+        user.setUpdateTime(LocalDateTime.now());
+
+        boolean success = userService.save(user);
+        System.out.println("success = " + success);
+        System.out.println("generated id = " + user.getId());
+    }
+
+    @Test
+    void testQueryUsersByIds() {
+        List<User> users = userService.listByIds(List.of(1L, 2L, 4L));
+        users.forEach(System.out::println);
+    }
+}
+```
+
+关键调用只有 `userService.save(user)` 和 `userService.listByIds(...)`。为了便于独立验收，笔记补充打印了成功标志和回填 ID；其他示例字段不要求与课堂的每次临时输入完全一致。
+
+## 6. 按顺序运行并观察调用链
+
+先单独执行 `testQueryUsersByIds`，确认容器能注入 Service、ID 1、2、4 能查到；再执行一次 `testSaveUser`。命令行也可以运行：
+
+```powershell
+mvn '-Dtest=IUserServiceTest#testQueryUsersByIds' test
+mvn '-Dtest=IUserServiceTest#testSaveUser' test
+```
+
+在数据库检查：
+
+```sql
+SELECT id, username, balance FROM mp.tb_user WHERE username = 'LiLei';
+```
+
+**验收点**：新增测试成功、`success` 为 `true`、打印非空 ID，表中出现 `LiLei`。不要把新增测试反复点多次；用户名唯一约束可能报重复，删除也必须根据查到的实际 ID 确认练习记录，不能假定新记录一定是 ID `5`。
+
+课堂的新增测试会真实写库。本页沿用此行为，没有额外添加自动回滚；已有同名用户时应先换一个未占用的练习用户名。
+
+调用链可以读成：
+
+```text
+IUserServiceTest
+    → Spring 注入 UserServiceImpl
+    → 继承的 Service 方法
+    → UserMapper 的通用方法
+    → MP 生成 SQL，MyBatis 执行
+```
+
+## 7. 排错与验收问题
+
+| 问题 | 先检查 |
+| --- | --- |
+| 实现类提示缺少大量方法 | 是否继承 `ServiceImpl<UserMapper, User>` |
+| `IUserService` 无法注入 | 实现类是否有 `@Service`；是否在启动类扫描范围内 |
+| 泛型不满足约束 | `UserMapper` 是否继承 `BaseMapper<User>`；两个泛型顺序是否正确 |
+| 仍向 `user` 表插入 | `User` 是否保留 `@TableName("tb_user")` |
+| 生成很大的 ID | 字段局部主键策略是否覆盖了全局 `id-type: auto` |
+| 新增 LiLei 报重复 | 是否重复执行测试；是否有唯一用户名约束 |
+
+学完要能脱离笔记写出接口和实现类的继承关系，解释两个泛型的作用，指出 `save` 最后如何执行到 Mapper，并说明为什么仅继承 `IService` 还不够。
+
+下一节会创建 Controller、DTO 和 VO，让客户端通过 HTTP 调用这些 Service 方法。
+
+版本核对补充：[IService 3.5.3.1 源码](https://github.com/baomidou/mybatis-plus/blob/v3.5.3.1/mybatis-plus-extension/src/main/java/com/baomidou/mybatisplus/extension/service/IService.java)、[ServiceImpl 3.5.3.1 源码](https://github.com/baomidou/mybatis-plus/blob/v3.5.3.1/mybatis-plus-extension/src/main/java/com/baomidou/mybatisplus/extension/service/impl/ServiceImpl.java)。
