@@ -1,0 +1,1084 @@
+# 黑马点评商户查询缓存：项目准备、实现与验收
+
+本篇整合 P35–P43，围绕黑马点评项目完成商铺详情缓存、缓存更新与空值缓存，随后分析缓存雪崩、缓存击穿及其解决思路。按下文顺序操作，可以从准备课程工程开始，一步步做到这一阶段的项目效果。
+
+**本阶段的完成状态：** 商铺首次查询访问 MySQL 并写入 Redis；后续查询优先命中缓存；修改商铺后删除对应缓存；不存在的商铺也建立短期缓存；能够解释雪崩与击穿，并根据业务选择应对方案。
+
+> **范围与复现说明：** 视频从已经导入、完成前置登录章节的黑马点评工程继续开发，并未在 P35–P43 重新创建完整项目。下文“项目准备”补全导入、配置、启动与检查顺序，文件位置和连接参数示例属于复现补充；以拿到的原始工程为准。P37 的代码是按练习要求整理的参考实现。P42、P43 主要分析方案，互斥锁与逻辑过期的具体编码在 P44、P45，本篇保留方案和流程，不把后续代码算作本阶段已经实现的功能。
+
+## 一、学习范围与操作路线
+
+| 选集 | 核心内容 | 学习后应该做到什么 |
+| --- | --- | --- |
+| P35 | 什么是缓存 | 解释缓存的收益、成本和使用位置 |
+| P36 | 添加商户缓存 | 改造详情查询，缓存命中直接返回，未命中查询数据库并回填 |
+| P37 | 缓存练习题分析 | 给商铺类型列表添加缓存，保留 `sort` 排序 |
+| P38 | 缓存更新策略 | 理解淘汰、超时、主动更新以及 Cache Aside 的取舍 |
+| P39 | 实现商铺缓存与数据库的双写一致 | 给查询结果设置 TTL，修改商铺时先更新数据库再删除缓存 |
+| P40 | 缓存穿透的解决思路 | 比较缓存空对象与布隆过滤 |
+| P41 | 编码解决商铺查询的缓存穿透问题 | 区分缓存缺失、空值标记和正常数据，验证重复无效查询不会持续访问数据库 |
+| P42 | 缓存雪崩问题及解决思路 | 根据大量键过期、Redis 故障分别分析防护措施 |
+| P43 | 缓存击穿问题及解决方案 | 对比互斥锁与逻辑过期的时序、代价和适用条件 |
+
+推荐按四个里程碑推进：
+
+1. **工程可运行：** 原始商铺详情接口能返回数据库数据，前端能打开商铺详情页。
+2. **缓存可命中：** 第一次查询出现商铺 SQL，第二次查询不再出现同一条商铺 SQL。
+3. **更新可生效：** 修改 MySQL 后缓存消失，再查询时返回新数据并重建缓存。
+4. **空值能拦截：** 连续查询不存在的 ID，只有首次需要查询数据库，空值有效期内后续请求直接结束。
+
+每完成一个里程碑再进入下一步。不要在数据库、Redis、前端都还未连通时同时编写全部缓存逻辑。
+
+## 二、先理解缓存解决的问题
+
+### 1. 缓存是访问数据时的中间层
+
+缓存是存放数据副本的临时位置，通常具有较高的读写性能。它让后续请求有机会直接使用已经准备好的结果，减少对较慢数据来源的访问。
+
+在 Web 应用中，浏览器可以缓存资源，Java 应用可以使用进程内缓存或 Redis，数据库内部也会使用缓冲机制。P35 通过这些位置说明缓存的普遍性；本篇真正编写的是 **Java 应用访问 Redis 的业务缓存**。
+
+商铺查询加入缓存后，逻辑关系如下：
+
+```text
+浏览器发出商铺查询
+        ↓
+Controller → Service
+                ↓
+           查询 Redis
+           ├─ 命中 → 返回缓存中的商铺
+           └─ 未命中 → 查询 MySQL
+                         ├─ 查到 → 写入 Redis → 返回商铺
+                         └─ 未查到 → 按本阶段的空值策略处理
+```
+
+浏览器不会直接连接 Redis。缓存判断、数据库查询和回填都由后端业务代码完成。
+
+### 2. 为什么值得缓存商铺详情
+
+商铺详情页会显示名称、地址、图片、营业时间等信息，课程通过按 ID 查询详情的接口演示缓存。重复访问同一家商铺时，不必每次都重新查询数据库并组织相同结果。
+
+主要收益是降低数据库负载、减少重复查询的响应时间，提高系统承接请求的能力。收益取决于命中率、数据变化频率、网络与查询开销，不能把视频中的一次耗时对比当成所有环境的固定性能指标。
+
+引入缓存也有三类成本：
+
+| 成本 | 在商铺案例中的表现 |
+| --- | --- |
+| 一致性 | MySQL 已修改，Redis 还保存着旧的名称或地址 |
+| 开发维护 | 查询增加命中判断、回填、TTL、空值处理；写操作需要使缓存失效 |
+| 运维与资源 | 需要 Redis 内存、部署监控及故障防护，规模扩大后还可能需要高可用部署 |
+
+**重点：先判断业务需要，再决定缓存范围。** 对读请求少、数据经常变化且查询本身很便宜的业务，缓存未必能抵消新增成本。
+
+## 三、项目准备：从课程资料到可以运行的黑马点评
+
+> **复现补充：** 本节为独立跟做补充准备流程，不表示 P35–P43 重新演示了建项。官方配套压缩包尚未下载；已另行核对下方社区仓库的初始分支，确认含后端、SQL、前端与图片资源。社区整理版不等于官方原始包，依赖版本存在调整，下面区分其已核验路径与通用准备步骤。
+
+### 1. 准备工具与原始材料
+
+准备 JDK、Maven、IntelliJ IDEA、MySQL、已经启动的 Redis，以及课程的前端 Nginx 资源和接口测试工具。Java 环境沿用课程工程的要求，通常按前面示例使用 JDK 8；**最终以原始 `pom.xml` 的 Java 与 Spring Boot 版本为准**，不要新建一个最新 Boot 工程后混入旧版课程代码。
+
+所需资料应该包含：
+
+| 材料 | 如何识别 | 用途 |
+| --- | --- | --- |
+| 黑马点评后端初始工程 | 根目录存在 `pom.xml`，源码包中包含 `com.hmdp`、`ShopController` 等 | 导入 Maven 工程 |
+| 数据库脚本 | 包含 `tb_shop`、`tb_shop_type` 等表的建表和初始数据 | 建立与页面匹配的数据 |
+| 前端与 Nginx 资源 | 包含 `html`、`conf/nginx.conf`、Nginx 程序等 | 运行课程的移动端页面与反向代理 |
+| 课程提供的图片等静态资源 | 与前端资源路径、工程配置对应 | 显示商铺图片和类型图标 |
+
+视频简介给出的领取方式是通过“黑马程序员”公众号，回复“领取资源02”。若领取说明发生变化，以发布者当前提供的资料入口为准。资料准备齐全后再进行导入，不用另一个同名仓库的完成版代替初始工程。
+
+**已核对的公开备用资料（社区整理版）：** [cs001020/hmdp 的 init 分支](https://github.com/cs001020/hmdp/tree/init)。仓库 README 明确关联本课程，并区分初始分支与完成版；已通过 GitHub 文件目录确认下列材料存在：
+
+| 内容 | 仓库内路径 |
+| --- | --- |
+| 后端工程 | 根目录 `pom.xml`、`src/main/java/com/hmdp/` |
+| SQL | 根目录 `hmdp.sql` |
+| 前端页面、JS、CSS、图片 | `src/main/resources/nginx-1.18.0/html/hmdp/` |
+| Nginx 配置 | `src/main/resources/nginx-1.18.0/conf/nginx.conf` |
+
+在准备放工程的目录中执行下面命令；`hmdp` 目标目录应尚不存在：
+
+```powershell
+git clone --branch init --single-branch https://github.com/cs001020/hmdp.git
+```
+
+也可打开该 `init` 分支页面，通过 **Code → Download ZIP** 下载。这个分支是实战篇最初的基础工程，早于视频 P35 的进度；本篇围绕公开商铺接口完成缓存练习，前置登录章节没有被这个分支预先实现。
+
+该分支的 POM 已核对为 Java 8、Spring Boot 2.7.4、MyBatis-Plus 3.5.2、Hutool 5.8.8。这些是社区版本的实际配置，不标作教师视频的原始依赖版本。使用它时保持其 POM 内部版本一致。
+
+可以把仓库内整个 `nginx-1.18.0` 目录复制到下面示例中的独立 `nginx` 目录，保留页面、图片与配置的相对关系；其中配置的站点根目录是 **`html/hmdp`**。目前核对的是远程文件与配置，尚未启动该仓库做运行验收。
+
+可以使用以下目录布局，路径是本篇的示例：
+
+```text
+D:/code/hmdp-course/
+├─ hmdp/                    # 后端：这个目录下有 pom.xml
+├─ nginx/                   # 前端配套 Nginx 的根目录
+│  ├─ conf/nginx.conf
+│  ├─ html/
+│  └─ nginx.exe
+└─ materials/               # SQL、原始压缩包和其他资料
+```
+
+保留一份未修改的原始资料。若目录已存在，使用新的练习目录，避免覆盖已有项目。
+
+### 2. 创建练习数据库并导入课程 SQL
+
+先启动 MySQL，用数据库客户端连接到自己的练习实例。确认连接地址、端口、账号，然后新建课程使用的 `hmdp` 数据库。
+
+下面命令只用于 **尚不存在 `hmdp` 的独立练习实例**：
+
+```sql
+CREATE DATABASE hmdp CHARACTER SET utf8mb4;
+```
+
+如果已存在同名库，先确认是否就是本次练习库。不要为了导入资料而删除现有数据库。课程脚本可能包含建库、删表语句，执行前先打开脚本检查，确认目标库与影响范围。
+
+在数据库客户端中选中 `hmdp`，执行配套 SQL 文件。若脚本自带 `CREATE DATABASE`、`USE`，核对其目标后按脚本结构导入，避免重复建库。
+
+导入完成后执行：
+
+```sql
+USE hmdp;
+SHOW TABLES;
+SELECT id, name, type_id, address
+FROM tb_shop
+WHERE id = 1;
+
+SELECT id, name, sort
+FROM tb_shop_type
+ORDER BY sort;
+```
+
+**检查点：** 能看到商铺表、类型表；ID 为 1 的商铺存在；类型数据按 `sort` 排列。视频使用 ID 为 1 的“101茶餐厅”进行演示，如果拿到的数据名称不同，记录当前名称，后续验收围绕这条实际记录进行。
+
+### 3. 在 IDEA 中导入后端工程
+
+1. 解压后端初始工程到新的练习目录。找到真正包含 `pom.xml` 的目录，避免打开外层资料目录。
+2. IDEA 选择 **Open**，打开该 `pom.xml` 或其所在目录，并作为 Maven 工程加载。
+3. 在 Project Structure 设置 Project SDK 与语言级别，使其匹配原始 POM。
+4. 在 Maven 设置中核对 Maven Home、用户 `settings.xml` 和 Maven Runner 使用的 JDK。Maven 使用的 JDK 也应匹配工程。
+5. 等待依赖下载完成，再执行 Reload All Maven Projects。
+6. 若源码使用 Lombok，确保 IDEA 能识别 Lombok，并按 IDE 要求启用注解处理。不要手动为所有实体添加重复的 getter/setter。
+7. 找到 `HmDianPingApplication` 启动类，确认其包路径与原始工程一致。
+
+在后端根目录的 PowerShell 中验证环境和编译：
+
+```powershell
+java -version
+mvn -version
+mvn -DskipTests package
+```
+
+编译成功应出现 `BUILD SUCCESS`。依赖下载失败时先解决 Maven 仓库、代理或网络问题；此时修改业务代码不能解决依赖问题。
+
+### 4. 修改后端连接配置
+
+打开 `src/main/resources/application.yaml`，有些资料使用 `.yml`，按实际文件修改。**在原文件内修改对应项，保留其他配置。** 以下仅展示需要核对的配置结构：
+
+```yaml
+server:
+  port: 8081
+
+spring:
+  application:
+    name: hmdp
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/hmdp?useSSL=false&serverTimezone=Asia/Shanghai
+    username: YOUR_MYSQL_USER
+    password: YOUR_MYSQL_PASSWORD
+  redis:
+    host: 192.168.150.101
+    port: 6379
+    password: YOUR_REDIS_PASSWORD
+    database: 0
+
+mybatis-plus:
+  type-aliases-package: com.hmdp.entity
+
+logging:
+  level:
+    com.hmdp: debug
+```
+
+把 `YOUR_...` 替换成练习环境的真实值；`192.168.150.101` 只是 Redis 主机示例。MySQL 若也在虚拟机中，URL 里的 `127.0.0.1` 必须改成 MySQL 实际地址。这里的 `useSSL=false` 仅用于本地隔离实验连接示例，远程环境按实际连接要求配置。
+
+本篇按课程旧版 Boot 的 `spring.redis` 配置书写。若原始配置已有连接池、Jackson、MyBatis-Plus 等参数，继续保留；不要把上面的片段当作整份配置覆盖。
+
+在 PowerShell 检查端口连通性，地址按自己的环境替换：
+
+```powershell
+Test-NetConnection 127.0.0.1 -Port 3306
+Test-NetConnection 192.168.150.101 -Port 6379
+```
+
+再通过 Redis CLI 或 RDM 连接同一实例，认证并选择 DB0：
+
+```redis
+AUTH 实际密码
+SELECT 0
+PING
+```
+
+预期得到 `PONG`。若服务端未启用密码，省略 `AUTH`，并去掉应用中多余的密码配置。Redis 的安装与连接步骤参见 [Redis 基础与环境搭建](/docs/java/redis/)。
+
+### 5. 先启动后端，验证原始接口
+
+运行 `HmDianPingApplication`。也可在后端根目录执行：
+
+```powershell
+mvn spring-boot:run
+```
+
+先确认应用成功监听 `8081`，没有数据源、Redis 认证或端口占用错误，再测试接口：
+
+```powershell
+Invoke-RestMethod 'http://localhost:8081/shop/1' |
+    ConvertTo-Json -Depth 10
+
+Invoke-RestMethod 'http://localhost:8081/shop-type/list' |
+    ConvertTo-Json -Depth 10
+```
+
+课程通过 `Result` 统一返回业务结果。详情查询正常时，应看到类似结构，具体字段以原始 DTO 为准：
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "101茶餐厅"
+  }
+}
+```
+
+**HTTP 200 不等于业务成功。** 还要看 `success`、`errorMsg`、`data`。如果得到未登录或 401，先核对课程已有拦截器配置：商铺查询、类型查询等公开接口应按工程设计放行；不要为了调试删除整个登录模块。
+
+### 6. 配置并启动课程前端
+
+打开配套 Nginx 的 `conf/nginx.conf`。核对三件事：前端监听端口、静态文件根目录、`/api/` 到后端的代理地址。
+
+本篇按视频页面使用 `8080` 访问前端，后端为 `8081`。对应关系应为：
+
+```text
+http://localhost:8080/api/shop/1
+                    ↓ 去掉 /api/ 前缀后转发
+http://localhost:8081/shop/1
+```
+
+已有代理配置时修改其上游地址即可。若要核对配置语义，可参考下面的最小片段，保留配套文件中的其他路由、资源路径和上游配置：
+
+```nginx
+server {
+    listen 8080;
+    server_name localhost;
+
+    location / {
+        root html/hmdp;
+        index index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8081/;
+    }
+}
+```
+
+`proxy_pass` 地址结尾的 `/` 在这个配置中让 `/api/shop/1` 转发为 `/shop/1`。如果配套文件使用命名 upstream 或 rewrite，沿用其原有写法，不同时叠加两套前缀处理。
+
+上述社区仓库的原配置已经通过 `rewrite /api(/.*) $1 break` 去掉前缀，并使用 `proxy_pass http://127.0.0.1:8081`。它与上面的最小示例是两种写法，直接保留仓库配置即可，不需要替换为示例。
+
+在 Nginx 根目录打开 PowerShell，检查配置并启动：
+
+```powershell
+.\nginx.exe -t
+Start-Process -FilePath '.\nginx.exe' -WorkingDirectory (Get-Location).Path -WindowStyle Hidden
+```
+
+如果该实例已经运行，修改后执行 `.\nginx.exe -s reload`，不要重复启动争用端口。需要结束本次练习实例时，在同一个 Nginx 根目录执行 `.\nginx.exe -s quit`。
+
+打开 `http://localhost:8080`，按 **首页 → 美食 → 商铺 → 详情** 操作，也可以直接打开：
+
+```text
+http://localhost:8080/shop-detail.html?id=1
+```
+
+在浏览器开发者工具 Network 中确认请求到 `/api/shop/1`，并对照后端日志中的 `tb_shop` 查询。页面适合演示移动端布局，可在开发者工具中切到手机视图。
+
+**检查点：** 首页类型能显示，列表能打开，详情的名称和数据库一致。图片不显示时检查配套静态资源、返回的图片 URL 和 Nginx 路径，先把它与“详情接口查不到”区分开。
+
+### 7. 确认即将修改的代码位置
+
+后续操作都在导入的课程工程中进行。先找到下列文件：
+
+```text
+src/main/java/com/hmdp/
+├─ HmDianPingApplication.java
+├─ controller/
+│  ├─ ShopController.java
+│  └─ ShopTypeController.java
+├─ dto/Result.java
+├─ entity/
+│  ├─ Shop.java
+│  └─ ShopType.java
+├─ mapper/
+│  ├─ ShopMapper.java
+│  └─ ShopTypeMapper.java
+├─ service/
+│  ├─ IShopService.java
+│  ├─ IShopTypeService.java
+│  └─ impl/
+│     ├─ ShopServiceImpl.java
+│     └─ ShopTypeServiceImpl.java
+└─ utils/RedisConstants.java
+```
+
+工程如果完全缺少这些文件，先确认是否拿错资料。`Shop`、Mapper、`Result` 等是原始工程已有内容，本阶段不重新创建整套实体和数据访问层。
+
+## 四、给商铺详情添加缓存
+
+### 1. 找到原始调用链
+
+原始 `ShopController` 的详情查询直接调用 `shopService.getById(id)`。这个方法来自 MyBatis-Plus 的 `IService`，最终查询数据库。
+
+加入缓存后，需要在查询前后增加多个分支，业务应移到 Service：
+
+```text
+GET /shop/{id}
+    → ShopController.queryShopById
+    → IShopService.queryById
+    → ShopServiceImpl.queryById
+    → 先 Redis，必要时再 getById 查询 MySQL
+```
+
+**易错点：** 如果 Controller 仍调用 `getById`，新写的 `queryById` 就不会执行，缓存不会生效。
+
+### 2. 约定缓存结构与键名
+
+课程这里选择 Redis String，value 是商铺对象的 JSON：
+
+```text
+key   = cache:shop:1
+type  = String
+value = 商铺 JSON
+```
+
+ID 保证同一类商铺键的区分，`cache:shop:` 前缀区分其他业务。不能所有商铺共用 `cache:shop`，也不能读时用 `cache:shop:1`、删时却拼成 `shop:1`。
+
+String 和 Hash 都可以表达对象；本段选择 String 是为了演示手动 JSON 转换，**JSON 内容不会把 Redis String 自动变成 Hash**。客户端与序列化基础参见 [Redis Java 客户端与完整建项](/docs/java/redis/java-clients/)。
+
+### 3. 添加常量和接口声明
+
+在 `RedisConstants` 中加入商铺缓存前缀。已有同名常量时直接复用，保留原有登录相关常量：
+
+```java
+public static final String CACHE_SHOP_KEY = "cache:shop:";
+```
+
+在 `IShopService` 中添加方法，保留原有继承关系和其他声明：
+
+```java
+Result queryById(Long id);
+```
+
+这里的 `Result` 是 `com.hmdp.dto.Result`。
+
+### 4. 修改 Controller 的详情查询
+
+替换已有查询方法的方法体，不要新建重复的相同路径接口：
+
+```java
+@GetMapping("/{id}")
+public Result queryShopById(@PathVariable("id") Long id) {
+    return shopService.queryById(id);
+}
+```
+
+该方法位于已有的 `@RequestMapping("/shop")` Controller 中，因此组合路径是 `/shop/{id}`。
+
+### 5. 编写基础缓存查询方法
+
+在已有 `ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IShopService` 中注入 `StringRedisTemplate`：
+
+```java
+@Resource
+private StringRedisTemplate stringRedisTemplate;
+```
+
+第一版查询方法如下，先观察正常缓存流程；后文会逐步加上 TTL 与空值缓存：
+
+```java
+@Override
+public Result queryById(Long id) {
+    String key = CACHE_SHOP_KEY + id;
+
+    String shopJson = stringRedisTemplate.opsForValue().get(key);
+    if (StrUtil.isNotBlank(shopJson)) {
+        Shop shop = JSONUtil.toBean(shopJson, Shop.class);
+        return Result.ok(shop);
+    }
+
+    Shop shop = getById(id);
+    if (shop == null) {
+        return Result.fail("店铺不存在！");
+    }
+
+    stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(shop));
+    return Result.ok(shop);
+}
+```
+
+相关导入：
+
+```java
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
+import com.hmdp.dto.Result;
+import com.hmdp.entity.Shop;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import javax.annotation.Resource;
+import static com.hmdp.utils.RedisConstants.CACHE_SHOP_KEY;
+```
+
+JSON 工具来自 Hutool，按原始工程 POM 使用已有依赖，不要误导入另一个同名 JSON 工具。Spring Boot 旧版工程中的 `@Resource` 使用 `javax.annotation.Resource`。
+
+操作顺序有两个关键点：**先查缓存**；数据库查到后 **先回填缓存，再返回结果**。如果只查缓存却不回填，未命中的数据以后仍然每次查数据库。
+
+### 6. 验证缓存确实被使用
+
+下面的 Redis 操作只影响本次练习实例 DB0 的指定商铺缓存，先确认没有连接到其他环境：
+
+```redis
+SELECT 0
+DEL cache:shop:1
+```
+
+重启后端，清理或记录当前日志位置，然后只请求详情接口：
+
+```powershell
+Invoke-RestMethod 'http://localhost:8081/shop/1' |
+    ConvertTo-Json -Depth 10
+```
+
+第一次请求后，应看到一次针对 `tb_shop` 的查询。Redis 中检查：
+
+```redis
+TYPE cache:shop:1
+GET cache:shop:1
+TTL cache:shop:1
+```
+
+第一版应为 String、包含商铺 JSON，TTL 为 `-1`，因为尚未添加过期时间。再次发出相同请求，应返回同一商铺，并且不再新增这条商铺详情 SQL。
+
+后续所有 TTL 检查都按同一规则解释：
+
+| TTL 返回值 | 含义 |
+| --- | --- |
+| 非负整数 | 键当前剩余的有效秒数，具体数值随检查时刻减少 |
+| `-1` | 键存在，但没有设置自动过期时间 |
+| `-2` | 键不存在，可能尚未创建、已删除、已过期，或者查错了实例与数据库 |
+
+> **视频强调的验证点：** 整个详情页还会查询优惠券等数据，所以刷新页面后日志仍可能出现 SQL。要检查的是 `tb_shop` 的详情查询是否消失，不能因为看到优惠券查询就认定缓存失效。直接请求 `/shop/1` 可以减少干扰。
+
+## 五、给商铺类型列表添加缓存
+
+### 1. 练习要求与类型选择
+
+首页顶部的美食、KTV 等分类来自 `/shop-type/list`，原始实现按 `sort` 升序查询 `ShopType` 列表。类型列表重复使用、变化频率低，适合缓存。
+
+这里返回的是 `List<ShopType>`。可以把整个列表转成 JSON 数组放到一个 String 键中，也可以选 Redis List，但需要自己处理列表元素与顺序。**不必因为 Java 返回 List，就强制选择 Redis List。**
+
+### 2. 参考实现：整个列表保存为 JSON 数组
+
+> **练习补充：** P37 提出题目并分析数据类型，没有逐行完成本段答案。下面给出 String 方案供跟做，`cache:shop-type:list` 与示例 TTL 是本篇约定。
+
+在 `RedisConstants` 增加：
+
+```java
+public static final String CACHE_SHOP_TYPE_KEY = "cache:shop-type:list";
+public static final Long CACHE_SHOP_TYPE_TTL = 30L;
+```
+
+在 `IShopTypeService` 增加：
+
+```java
+Result queryTypeList();
+```
+
+在已有 `ShopTypeServiceImpl` 中注入 `StringRedisTemplate`，并增加：
+
+```java
+@Override
+public Result queryTypeList() {
+    String json = stringRedisTemplate.opsForValue().get(CACHE_SHOP_TYPE_KEY);
+    if (StrUtil.isNotBlank(json)) {
+        List<ShopType> types = JSONUtil.toList(
+                JSONUtil.parseArray(json), ShopType.class);
+        return Result.ok(types);
+    }
+
+    List<ShopType> types = query().orderByAsc("sort").list();
+    stringRedisTemplate.opsForValue().set(
+            CACHE_SHOP_TYPE_KEY,
+            JSONUtil.toJsonStr(types),
+            CACHE_SHOP_TYPE_TTL,
+            TimeUnit.MINUTES);
+    return Result.ok(types);
+}
+```
+
+本段还需要 `java.util.List`、`java.util.concurrent.TimeUnit`、`com.hmdp.entity.ShopType`、Hutool 两个工具类、`Result` 以及上述两个常量的导入。保留类原有的 MyBatis-Plus 继承关系。
+
+修改 `ShopTypeController` 原有方法：
+
+```java
+@GetMapping("list")
+public Result queryTypeList() {
+    return typeService.queryTypeList();
+}
+```
+
+这里假设原字段名就是 `typeService`，若资料中的字段名不同，使用已有字段名。
+
+### 3. 验收列表缓存
+
+删除本篇练习键，再连续查询两次类型列表：
+
+```redis
+DEL cache:shop-type:list
+```
+
+```powershell
+Invoke-RestMethod 'http://localhost:8081/shop-type/list' |
+    ConvertTo-Json -Depth 10
+```
+
+首次出现 `tb_shop_type` 查询，第二次不再出现；两次返回的类型顺序一致，首页分类显示正常。Redis 的值应为 JSON 数组 `[...]`，不是单个对象。
+
+**易错点：** 反序列化列表要使用数组及元素类型；不能用 `JSONUtil.toBean(json, ShopType.class)` 读取整个数组。查询时仍要保留 `ORDER BY sort`，否则缓存会把错误顺序长期保存下来。
+
+这里即使类型表为空，也会保存 `[]`，空数组是一个合法查询结果。它与后文商铺详情的空字符串标记属于不同业务约定。
+
+## 六、缓存更新策略与并发顺序
+
+### 1. 三类更新方式
+
+| 方式 | 触发条件 | 一致性与代价 | 本案例的使用方式 |
+| --- | --- | --- | --- |
+| 内存淘汰 | 达到配置的内存限制，并按淘汰策略处理 | 对应用较透明，但无法保证某条旧数据及时更新 | 理解 Redis 内存管理，不能用它代替业务失效 |
+| 超时剔除 | 键的 TTL 到期 | 实现简单；TTL 内仍可能读到旧值 | 给商铺缓存添加 30 分钟 TTL |
+| 主动更新 | 业务写入数据时主动处理缓存 | 需要编码、处理失败与并发；能更及时反映修改 | 更新商铺数据库后删除对应缓存 |
+
+低变化、容忍短期旧值的数据，可以采用较简单的过期方案；商铺详情等需要较及时更新的数据，课程采用主动更新，并用 TTL 限制异常情况下旧数据的存续时间。
+
+> **准确性补充：** 内存淘汰取决于 `maxmemory` 和 `maxmemory-policy`；`noeviction` 策略不会自动淘汰键，而会对相关写入返回错误。不能把课程对淘汰机制的概括理解为“Redis 默认必然自动删旧缓存”。详见 [Redis 键淘汰说明](https://redis.io/docs/latest/develop/reference/eviction/)。
+
+TTL 到期后也不会自动替应用查询 MySQL。它让旧键不能继续命中，下一次请求进入回源逻辑时才重建缓存。
+
+### 2. 主动更新的三种模式
+
+| 模式 | 谁维护缓存与数据库 | 主要特点 |
+| --- | --- | --- |
+| Cache Aside，旁路缓存 | 应用分别读写数据库和缓存 | 可控性较高，需要自己编写失效与回填逻辑；本案例采用 |
+| Read/Write Through | 由统一的数据访问服务封装缓存与数据库 | 调用者较简单，但服务内部需要实现一致性处理 |
+| Write Behind，异步写回 | 应用先写缓存，后台异步持久化 | 可合并写入、提高吞吐；存在同步延迟和未落库数据丢失风险 |
+
+后三者不是三个 Redis 命令，而是数据访问模式。P38 主要用它们说明为什么本案例选择由业务代码控制的 Cache Aside。
+
+### 3. 为什么修改后删除缓存
+
+数据库写入后，可以选择更新缓存，也可以删除缓存。课程选择删除，使下次读请求按需重建。
+
+连续修改多次、期间没有人读取时，每次计算并写入缓存可能产生多次没有被使用的更新；删除后按需回填，可以减少这种工作。删除也把读取所需的数据组织逻辑留在查询路径中。
+
+这里的“删除”必须使用读缓存时相同的键。删除返回未找到，不一定表示失败，目标键可能本来就不存在。
+
+### 4. 为什么先更新数据库，再删除缓存
+
+先删缓存的风险，可以用两个并发请求表示：
+
+```text
+初始状态：数据库名称为 A，缓存也为 A
+
+写请求：删除缓存 ───────────────────→ 数据库改为 B
+读请求：           缓存未命中 → 查到 A → 写回 A
+
+结果：数据库是 B，缓存又保存了 A
+```
+
+因此本案例采用：
+
+```text
+写操作：更新数据库 → 删除缓存
+读操作：查缓存 → 未命中时查数据库 → 写缓存并设置 TTL
+```
+
+**注意：这一顺序仍不等于绝对没有竞态。** 如果读请求先读到旧数据库值，随后写请求更新数据库并删除缓存，读请求最后才把旧值写入缓存，仍会暂时不一致。P38 通过时序比较认为后一种窗口通常更小，并使用 TTL 限制旧值保留时间。
+
+## 七、实现商铺修改后的缓存失效
+
+### 1. 给正常商铺缓存设置 30 分钟 TTL
+
+在 `RedisConstants` 中增加：
+
+```java
+public static final Long CACHE_SHOP_TTL = 30L;
+```
+
+把基础查询方法中的正常数据写入改为：
+
+```java
+stringRedisTemplate.opsForValue().set(
+        key,
+        JSONUtil.toJsonStr(shop),
+        CACHE_SHOP_TTL,
+        TimeUnit.MINUTES);
+```
+
+导入 `java.util.concurrent.TimeUnit` 和 `CACHE_SHOP_TTL`。`30L` 的单位由 `TimeUnit.MINUTES` 决定，不是 30 秒。
+
+**易错点：已有键不会因为修改 Java 代码就获得 TTL。** 旧键命中时会直接返回，根本没有执行新的 `set`。验证前删除 `cache:shop:1`，重新访问一次，才能看到新写入的 TTL 接近 `1800` 秒。
+
+### 2. 声明更新业务并修改 Controller
+
+在 `IShopService` 增加：
+
+```java
+Result update(Shop shop);
+```
+
+在 `ShopController` 的原有更新方法中，把直接 `updateById` 改成调用新业务：
+
+```java
+@PutMapping
+public Result updateShop(@RequestBody Shop shop) {
+    return shopService.update(shop);
+}
+```
+
+与类的 `/shop` 前缀组合后，请求是 `PUT /shop`。不要把它写成 `POST /shop/1`，也不要创建第二个相同映射。
+
+### 3. 在 Service 实现更新和删除
+
+课程演示的核心结构如下：
+
+```java
+@Override
+@Transactional
+public Result update(Shop shop) {
+    Long id = shop.getId();
+    if (id == null) {
+        return Result.fail("店铺id不能为空");
+    }
+
+    updateById(shop);
+    stringRedisTemplate.delete(CACHE_SHOP_KEY + id);
+    return Result.ok();
+}
+```
+
+导入 `org.springframework.transaction.annotation.Transactional`。先校验 ID，再更新数据库，最后删除缓存。`updateById` 是 MyBatis-Plus 已提供的方法，`update(Shop)` 则是本段新增的业务方法。
+
+> **事务边界补充：** 保留课程的 `@Transactional` 结构便于复现，但默认 `StringRedisTemplate` 不参加 Spring 托管事务。Redis 删除抛出未捕获运行时异常时，数据库事务可能回滚；已经成功执行的 Redis 删除不会跟随 MySQL 自动恢复。即使开启 Redis 事务支持，也不能据此把两套存储当成具有严格原子提交保证的一个事务。相关默认行为可对照 [Spring Data Redis 事务文档](https://docs.spring.io/spring-data/redis/reference/redis/transactions.html)。
+
+另外，`updateById` 返回的是更新是否成功。为了让独立练习更容易发现“ID 根本不存在”，可以在该调用处做下面的检查，再继续删除缓存；这是本篇的防错补充：
+
+```java
+boolean updated = updateById(shop);
+if (!updated) {
+    return Result.fail("店铺不存在或更新失败");
+}
+```
+
+不要把补充检查与原来的 `updateById(shop)` 同时保留成两次调用。
+
+### 4. 用请求工具完成更新实验
+
+课程的用户页面没有商家后台的编辑入口，因此使用 Postman 发送更新。也可以使用下面的 PowerShell 请求。
+
+先记录练习商铺的原始名称，然后查询 `/shop/1`，使 `cache:shop:1` 存在。只在可修改的练习数据库中执行下列更新，它会修改 ID 为 1 的商铺名称：
+
+```powershell
+$shopUpdateBody = '{"id":1,"name":"102茶餐厅"}'
+Invoke-RestMethod `
+    -Method Put `
+    -Uri 'http://localhost:8081/shop' `
+    -ContentType 'application/json; charset=utf-8' `
+    -Body ([System.Text.Encoding]::UTF8.GetBytes($shopUpdateBody))
+```
+
+Postman 对应设置为 **PUT → `http://localhost:8081/shop` → Body/raw/JSON**，请求体同上。
+
+按照以下顺序验收：
+
+| 顺序 | 操作 | 预期现象 |
+| --- | --- | --- |
+| 1 | 查询 `/shop/1` | 返回原名称，并且 Redis 中已有该商铺 JSON |
+| 2 | 发送修改名称请求 | 返回业务成功，日志出现 UPDATE |
+| 3 | MySQL 查询 ID 为 1 的记录 | 名称变为 `102茶餐厅` |
+| 4 | Redis 执行 `EXISTS cache:shop:1` | 返回 0，表示该键已删除 |
+| 5 | 再查询 `/shop/1` | 返回新名称，出现一次回源 SQL |
+| 6 | Redis 执行 GET 与 TTL | JSON 中为新名称，TTL 接近 1800 秒 |
+| 7 | 再次查询相同商铺 | 命中缓存，不再出现详情回源 SQL |
+
+数据库核对命令：
+
+```sql
+SELECT id, name FROM tb_shop WHERE id = 1;
+```
+
+**验收删除时不要先刷新详情页。** 详情刷新会立刻重建缓存，若此后才看 Redis，会误以为更新方法没有删除缓存。
+
+实验结束后，可使用相同更新接口恢复记录的原始名称，再查询一次。通过更新接口恢复也会走失效逻辑；不要只直接改 MySQL 后期待 Redis 自动变化。
+
+## 八、缓存穿透：为不存在的商铺保存短期标记
+
+### 1. 穿透为什么会持续访问数据库
+
+缓存穿透指请求的数据在缓存和数据库中都不存在。第一版查询遇到不存在的 ID，只返回“店铺不存在”，不保存任何结果。
+
+因此每次请求都会重复：
+
+```text
+不存在的 ID → Redis 未命中 → MySQL 查不到 → 返回错误
+下一次相同 ID → 仍然 Redis 未命中 → 仍然查 MySQL
+```
+
+大量此类请求会绕过缓存的保护。**普通缓存未命中不等于穿透**：数据库中存在、只是尚未缓存的数据，查到并回填后就可以正常命中。
+
+### 2. 两种方案的差异
+
+| 方案 | 做法 | 优点 | 需要注意 |
+| --- | --- | --- | --- |
+| 缓存空对象 | 数据库查不到时，在对应键保存“不存在”标记 | 简单，重复无效查询能命中标记 | 不同无效 ID 仍会消耗键空间；短期内新增同 ID 数据可能受旧标记影响 |
+| 布隆过滤 | 在查询链路前判断 ID 是否可能存在 | 空间效率较高，可提前拦截大量不存在请求 | 有误判；需要初始化、维护与同步，不能只接一个方法就完成 |
+
+布隆过滤可以理解为利用多个哈希位置和位数组表示集合成员关系。**在数据已正确加入、过滤器状态正确的前提下，判断“不存在”可以排除，判断“存在”只代表可能存在。** 误判放行后，数据库仍可能查不到。
+
+> **概念补充：** Redis Bitmap 提供位操作能力，不等于 Bitmap 本身已经实现了一个完整布隆过滤器。本段只比较思路，不实现布隆过滤。
+
+课程编码选择缓存空对象，同时用较短 TTL 限制无效键的保留时间。若后来新增了先前被标记为不存在的数据，应处理相应空值缓存，不能一直等着错误标记自然消失而不考虑业务要求。
+
+### 3. 严格区分三种读取结果
+
+本案例使用 **空字符串 `""`** 表示“数据库已确认不存在”：
+
+| Java 读取结果 | Redis 状态 | 业务含义 | 下一步 |
+| --- | --- | --- | --- |
+| `null` | 键不存在 | 还没有可用缓存 | 查询数据库 |
+| `""` | 键存在，值为空字符串 | 已缓存“不存在”的结果 | 直接返回店铺不存在 |
+| 非空 JSON | 键存在，值为商铺 JSON | 已缓存正常数据 | 转回 Shop 并返回 |
+
+空字符串不是 Java `null`，也不是文本 `"null"`。不要把 `null` 直接传给 `set`，也不要先把空字符串当 JSON 对象反序列化。
+
+`StrUtil.isNotBlank` 对 `null`、空字符串、空白内容都返回 false。因此只有第一个 `isNotBlank` 判断仍然不够：还必须拦截已经命中的空值，避免继续向数据库查询。
+
+### 4. 最终版常量
+
+保留其他业务已有常量，在 `RedisConstants` 中确保具有以下定义。本篇空值有效期取 2 分钟：
+
+```java
+public static final String CACHE_SHOP_KEY = "cache:shop:";
+public static final Long CACHE_SHOP_TTL = 30L;
+public static final Long CACHE_NULL_TTL = 2L;
+```
+
+正常商铺缓存保留 30 分钟，空值标记保留 2 分钟。短 TTL 可以降低无效数据积累和短期不一致的影响，但不能拦住不断更换 ID 的所有无效请求。
+
+### 5. 最终版详情查询方法
+
+用下面的方法 **替换前面第一版 `queryById`**，不要保留两个签名相同的方法。原有注入字段和类继承关系不变。
+
+```java
+@Override
+public Result queryById(Long id) {
+    String key = CACHE_SHOP_KEY + id;
+
+    // 1. 正常数据命中：JSON 转对象后直接返回。
+    String shopJson = stringRedisTemplate.opsForValue().get(key);
+    if (StrUtil.isNotBlank(shopJson)) {
+        Shop shop = JSONUtil.toBean(shopJson, Shop.class);
+        return Result.ok(shop);
+    }
+
+    // 2. 非 null 说明命中了空值标记，不再查询数据库。
+    if (shopJson != null) {
+        return Result.fail("店铺不存在！");
+    }
+
+    // 3. 真正的缓存缺失，才回源查询。
+    Shop shop = getById(id);
+    if (shop == null) {
+        stringRedisTemplate.opsForValue().set(
+                key, "", CACHE_NULL_TTL, TimeUnit.MINUTES);
+        return Result.fail("店铺不存在！");
+    }
+
+    // 4. 数据库存在，缓存真实结果并设置有效期。
+    stringRedisTemplate.opsForValue().set(
+            key, JSONUtil.toJsonStr(shop),
+            CACHE_SHOP_TTL, TimeUnit.MINUTES);
+    return Result.ok(shop);
+}
+```
+
+本段需要的完整业务导入为：
+
+```java
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
+import com.hmdp.dto.Result;
+import com.hmdp.entity.Shop;
+import java.util.concurrent.TimeUnit;
+import static com.hmdp.utils.RedisConstants.CACHE_SHOP_KEY;
+import static com.hmdp.utils.RedisConstants.CACHE_SHOP_TTL;
+import static com.hmdp.utils.RedisConstants.CACHE_NULL_TTL;
+```
+
+**两处修改缺一不可：** 数据库查不到时写入空字符串；读取后识别空值并提前返回。只做前者，`isNotBlank("")` 仍为 false，请求依然会落到数据库。
+
+### 6. 用不存在的 ID 验证
+
+视频使用 ID `0` 演示，先确认练习表中没有这条记录：
+
+```sql
+SELECT id, name FROM tb_shop WHERE id = 0;
+```
+
+如果确实不存在，在同一个练习 Redis 中删除可能残留的标记：
+
+```redis
+SELECT 0
+DEL cache:shop:0
+```
+
+重启应用后请求：
+
+```powershell
+Invoke-RestMethod 'http://localhost:8081/shop/0' |
+    ConvertTo-Json -Depth 10
+```
+
+应返回 `success: false` 和店铺不存在的信息。第一次允许出现一条 `tb_shop` 查询，然后检查：
+
+```redis
+EXISTS cache:shop:0
+TYPE cache:shop:0
+GET cache:shop:0
+STRLEN cache:shop:0
+TTL cache:shop:0
+```
+
+预期依次为：键存在、String、空字符串、长度 0、剩余 TTL 为不超过 120 的非负秒数。**Redis CLI 中的 `""` 与 `(nil)` 含义不同。** 同时结合 `EXISTS`、`TTL` 判断，避免仅凭空白显示误判。
+
+在 2 分钟内再次请求 `/shop/0`，应仍返回不存在，但不再出现对应数据库查询。空值到期后再次请求，允许重新查一次数据库，再建立新的短期标记。
+
+如果已有参数校验会直接拒绝 `0`，可选择另一个已经确认不存在且符合参数规范的 ID。为了复现空值缓存流程，应先说明请求被哪一层拒绝，不要把参数校验直接返回当成 Redis 命中。
+
+### 7. 主动防范措施
+
+P41 还提出：合理设计 ID、做基础格式校验、加强访问权限管理、限制请求频率和热点参数访问。这些与空值缓存配合使用，可以更早挡住无效请求。
+
+本阶段没有实现登录权限改造、限流组件或 ID 生成器。ID 难猜也不能替代权限检查；这里掌握的是防护方向，不需要为完成本段缓存实验同时引入一整套微服务组件。
+
+## 九、缓存雪崩：大量缓存同时不可用
+
+### 1. 两种典型触发条件
+
+缓存雪崩指同一时段大量缓存失效，导致许多请求集中访问数据库。课程分析两种来源：
+
+1. 大量键在相近时间过期，例如批量预热时给所有键设置相同 TTL。
+2. Redis 服务故障，原本由缓存承接的请求失去缓存保护。
+
+Redis 故障时，客户端可能抛出连接异常或超时；**并不会由 `StringRedisTemplate` 自动把请求改为查询 MySQL**。是否回源取决于应用的异常和降级策略，但没有控制地把故障请求全部转向数据库，会带来雪崩风险。
+
+### 2. 分情况选择措施
+
+| 触发原因或目标 | 处理思路 | 为什么有效 |
+| --- | --- | --- |
+| 大量键一起到期 | TTL 添加随机偏移 | 把过期时间分散，减少同一时刻的集中回源 |
+| 单个 Redis 节点故障 | 主从、哨兵等高可用措施 | 降低单节点故障让整个缓存服务长时间不可用的概率 |
+| 缓存整体故障或回源压力过大 | 限流、隔离、降级、必要时快速失败 | 限制数据库承接的请求量，保护核心服务 |
+| 需要更多层次承接热点请求 | 多级缓存 | Nginx、JVM 本地缓存等其他层可以承接部分请求 |
+
+主从复制与故障转移不能理解成“任何故障都零中断、零丢失”；多级缓存也需要维护各层的数据更新。这里掌握其作用，搭建和具体实现属于后续课程。
+
+### 3. TTL 随机偏移示例
+
+> **复现补充：** P42 给出随机 TTL 思路，没有带着完成 Java 代码。下面将 30 分钟加 0～5 分钟随机量，结果为 30～35 分钟，便于理解和自行练习。
+
+```java
+long ttlMinutes = CACHE_SHOP_TTL
+        + ThreadLocalRandom.current().nextInt(0, 6);
+
+stringRedisTemplate.opsForValue().set(
+        key, JSONUtil.toJsonStr(shop),
+        ttlMinutes, TimeUnit.MINUTES);
+```
+
+需要导入 `java.util.concurrent.ThreadLocalRandom`。`nextInt(0, 6)` 包含 0，不包含 6。
+
+如果采用此练习，再验收正常商铺 TTL 时，应按不超过 2100 秒的范围判断，不能仍要求固定接近 1800 秒。**随机 TTL 缓解的是多键集中到期，不能解决 Redis 整体故障，也不能代替对单个热点键的重建控制。**
+
+## 十、缓存击穿：热点键失效后的重建竞争
+
+### 1. 与穿透、雪崩的区别
+
+缓存击穿也称热点 Key 问题。一个或少数热点键失效后，在缓存重建完成之前，大量并发请求都未命中，于是一起访问数据库。
+
+课程强调两个特征：**访问并发高**，而且 **缓存重建较复杂、耗时较长**。重建可能包含多张表查询、关联计算和数据组织，而不只是一次简单的主键查询。
+
+```text
+热点键过期
+    ↓
+请求 A：查库并重建 ───────────────────→ 写回缓存
+请求 B：      未命中 → 也查库
+请求 C：          未命中 → 也查库
+请求 D：              未命中 → 也查库
+```
+
+重建窗口内没有可用缓存，即使每次请求的逻辑单独看都正确，并发回源仍可能压垮数据库。
+
+### 2. 方案一：互斥锁控制重建
+
+基本流程为：
+
+1. 查询缓存，命中则返回。
+2. 未命中时尝试获取该键的重建锁。
+3. 拿到锁的请求负责查询数据库、构建结果并写入缓存。
+4. 其他请求获取失败，短暂休眠后重新查询缓存或重试。
+5. 重建完成并释放锁后，等待者能命中新缓存。
+
+```text
+请求 A：未命中 → 拿到锁 → 查库重建 → 写缓存 → 释放锁
+请求 B：未命中 → 获取失败 → 等待 → 重新查询 → 命中
+请求 C：未命中 → 获取失败 → 等待 → 重新查询 → 命中
+```
+
+核心目的是让同一热点键的重建由受控请求完成，避免所有请求同时回源。请求重新拿到锁时也应考虑缓存可能已经建好，具体代码与锁的异常释放在后续实现时处理。
+
+优点是思路直接，不需要在业务缓存中新增逻辑过期字段；代价是其他请求需要等待，重建越慢，等待越明显。锁使用不当还会带来阻塞与死锁风险。
+
+> **一致性边界：** 这里偏向让请求等待重建结果，避免主动返回已经逻辑过期的旧值。但一把重建锁不能自动保证所有数据库修改和缓存更新的严格强一致；锁的保护范围、并发写入和失败处理仍然需要单独分析。
+
+### 3. 方案二：逻辑过期并异步重建
+
+对提前准备的热点数据，逻辑过期方案不依赖 Redis TTL 到期删除，而是把业务过期时间存到值中：
+
+```text
+cache:shop:1
+    ├─ data：商铺数据
+    └─ expireTime：业务判断使用的过期时间
+```
+
+`expireTime` 是普通业务字段，不是 Redis 的 TTL。查询时由应用把它与当前时间比较。
+
+流程为：
+
+1. 预先把热点数据写入 Redis，同时保存逻辑过期时间。
+2. 查询命中且未逻辑过期，直接返回。
+3. 发现逻辑过期，尝试获取重建锁。
+4. 获取成功，安排独立线程查询数据库、重建缓存并刷新逻辑过期时间；完成后释放锁。
+5. 当前请求直接返回旧数据。
+6. 其他请求发现过期且拿不到锁，也直接返回旧数据。
+7. 后续请求在异步重建完成后读到新数据。
+
+```text
+请求 A：读到旧值 → 发现过期 → 拿锁 → 提交重建任务 → 返回旧值
+后台线程：                            查库 → 写新值和新时间 → 释放锁
+请求 B：读到旧值 → 发现过期 → 拿锁失败 → 返回旧值
+请求 C：后台更新完成后查询 → 返回新值
+```
+
+**难点：两种方案都可能用锁，区别在于是否等待重建。** 逻辑过期方案通过允许短期旧值，让请求不用等待数据库重建任务。
+
+不设置 Redis TTL 也不保证键永远存在：它仍可能被删除、淘汰或因故障丢失。因此方案依赖热点数据准备与实际未命中处理，不能把“逻辑过期”理解成“以后永远无需查数据库”。
+
+### 4. 两种击穿方案如何选择
+
+| 比较项 | 互斥锁重建 | 逻辑过期与异步重建 |
+| --- | --- | --- |
+| 重建期间的请求 | 等待、休眠重试，再读重建结果 | 尽快返回已有旧值 |
+| 响应延迟 | 可能随重建时间上升 | 前台请求较少受到重建耗时影响 |
+| 数据新鲜度 | 倾向等待本轮重建结果 | 明确接受短期旧数据 |
+| 缓存值结构 | 普通业务数据即可 | 要额外保存逻辑过期时间 |
+| 实现代价 | 管理重建锁与等待 | 还要管理过期判断、后台任务和更新 |
+| 适用取向 | 更在意重建后的数据新鲜度，能接受等待 | 热点数据允许短时旧值，更在意请求可用性与延迟 |
+
+P43 的目标是理解上述取舍。到本篇结束时，商铺查询已经有 TTL 和空值缓存，**还没有加入互斥锁或逻辑过期的 Java 实现**；不要把理解方案当成项目已经具备了击穿防护。
+
+## 十一、最终工程核对与排错
+
+### 1. 本阶段应该修改哪些文件
+
+| 文件 | 应有变化 |
+| --- | --- |
+| `RedisConstants` | 商铺键前缀、正常 TTL、空值 TTL；做类型列表练习时另加相关常量 |
+| `IShopService` | 声明 `Result queryById(Long id)`、`Result update(Shop shop)` |
+| `ShopController` | 查询与更新交给新增 Service 方法 |
+| `ShopServiceImpl` | 注入 StringRedisTemplate；详情查询三分支；更新数据库后删除缓存 |
+| `IShopTypeService` | 参考练习新增 `queryTypeList()` |
+| `ShopTypeController` | 类型列表查询交给 Service |
+| `ShopTypeServiceImpl` | 类型列表序列化、反序列化与缓存回填 |
+
+不需要为这一段创建新数据库表。缓存数据存入 Redis，原有商铺表与类型表继续作为数据来源。
+
+### 2. 最终请求与缓存清单
+
+| 对象 | 请求或键 | 作用 |
+| --- | --- | --- |
+| 后端详情查询 | `GET http://localhost:8081/shop/1` | 单独验证商铺缓存 |
+| 前端代理查询 | `GET http://localhost:8080/api/shop/1` | 验证 Nginx 转发 |
+| 商铺更新 | `PUT http://localhost:8081/shop` | JSON 请求体包含 `id` 和要修改的字段 |
+| 类型查询 | `GET http://localhost:8081/shop-type/list` | 验证分类列表与排序 |
+| 正常商铺缓存 | `cache:shop:1` | String，正常 JSON，默认本篇 TTL 30 分钟 |
+| 不存在标记 | `cache:shop:0` | String，空字符串，TTL 2 分钟 |
+| 类型列表缓存 | `cache:shop-type:list` | 参考练习中的 JSON 数组缓存 |
+
+实验只清理上述指定键，不使用 `FLUSHALL`、`FLUSHDB`。特别是课程前置登录也使用 Redis，清空整个库会把登录数据一并删除。
+
+### 3. 按现象定位问题
+
+| 现象 | 优先核对 | 处理方向 |
+| --- | --- | --- |
+| Maven 无法编译、找不到 Hutool 或 MyBatis-Plus | 是否导入原始 POM、依赖是否下载完成 | 先修复依赖，不用新版本替换全部组件 |
+| 实体 getter 不被识别 | Lombok 与注解处理 | 检查 IDE、Maven 编译的实际错误 |
+| MySQL 连接拒绝或表不存在 | 主机、端口、库名、SQL 导入结果 | 先跑通 `tb_shop` 查询 |
+| Redis 超时、NOAUTH 或 WRONGPASS | 实际 Redis 主机、监听端口、密码、网络 | 让 CLI 与 Java 对齐同一连接目标 |
+| Java 写了缓存，RDM 看不到 | 实例、端口、数据库编号、是否刷新 | 统一为应用使用的实例和 DB0 |
+| 每次都查 `tb_shop` | Controller 是否仍调用 getById、键是否一致 | 让接口进入新 queryById，并检查键是否被频繁删除 |
+| 缓存值存在却 JSON 转换失败 | 键是否被其他练习写过、缓存值是否正常 JSON | 先读 GET 确认内容，再只删除该练习键重建 |
+| 加了 TTL，现有键仍为 -1 | 是否一直命中改动前的旧缓存 | 删除指定键，触发一次回源写入 |
+| 更新名称成功，但页面仍旧 | 更新接口是否调用新业务、删的键是否正确 | 直接核对 MySQL、Redis 和接口响应三者 |
+| 更新后观察到键仍然存在 | 是否已刷新详情页触发重建 | 更新后立即检查删除，再发起查询 |
+| 返回 200，但实际没有修改 | Result.success、请求方法、JSON、ID | 检查业务结果和 UPDATE 是否实际执行 |
+| 空值已经写入，重复查询仍有 SQL | 是否遗漏 `shopJson != null` 分支 | 在回源前拦截空值；不要只检查 isNotBlank |
+| 不存在的 ID 第一次就无 SQL | 参数校验、拦截器、已有空值缓存 | 先确认真实路径，再判断缓存是否生效 |
+| 前端 404 或代理接口错误 | Nginx 工作目录、root、/api/ 前缀 | 直接测 8081，再测 8080 的代理路径 |
+| 详情页仍出现优惠券 SQL | SQL 查询的具体表 | 只判断商铺详情 SQL，不把其他接口混为一谈 |
+
+### 4. 独立完成的验收标准
+
+完成后逐项操作，而不只是阅读代码：
+
+- 能从课程资料中找到正确的后端、SQL 和前端，完成 Maven 导入与配置。
+- 能说明浏览器 8080、后端 8081、MySQL 和 Redis 各自的职责与连接关系。
+- 删除 `cache:shop:1` 后首查回源，再查命中，能用 SQL 日志证明。
+- 正常数据具有 TTL，能解释 `-1`、`-2` 与正常剩余秒数。
+- 修改 ID 为 1 的商铺后，能先看到键删除，再看到下一次查询重建新值。
+- 查询确认不存在的 ID 后，能看到空字符串标记，并证明短期重复查询不再访问数据库。
+- 类型列表缓存保留 `sort` 排序，读出的仍是带正确字段的列表。
+- 能区分穿透、雪崩、击穿，并指出当前工程已经实现哪部分防护。
+- 能解释互斥重建为什么要等待、逻辑过期为什么会返回旧值，而不把两者都简单说成“加锁”。
+
+三类问题最后可用下表检查理解：
+
+| 问题 | 典型数据状态 | 数据库压力来源 | 本段处理 |
+| --- | --- | --- | --- |
+| 穿透 | 请求的数据本来就不存在 | 重复无效查询持续回源 | 已编码：短 TTL 空值缓存 |
+| 雪崩 | 大量缓存同时不可用 | 多个键的请求集中回源 | 已分析：随机 TTL、高可用、限流降级、多级缓存 |
+| 击穿 | 热点数据存在，但热点缓存失效 | 同一热点键在重建窗口内反复回源 | 已分析：互斥锁重建、逻辑过期异步重建 |
+
+后续跟做时，按本篇四个里程碑依次检查：先完成可运行工程，再证明缓存命中，随后验证更新失效，最后验证空值拦截。每一步都同时观察请求结果、数据库日志和 Redis 状态，就能判断问题位于哪一层。
