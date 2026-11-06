@@ -1,0 +1,130 @@
+[
+  {
+    "cid": 718453476,
+    "page": 44,
+    "from": "vupload",
+    "part": "实战篇-商户查询缓存-10.利用互斥锁解决缓存击穿问题",
+    "duration": 1320,
+    "vid": "",
+    "weblink": "",
+    "dimension": {
+      "width": 1920,
+      "height": 1080,
+      "rotate": 0
+    },
+    "first_frame": "http://i1.hdslb.com/bfs/storyff/n220512a230rv5f76vw1m6363pnj6x6w_firsti.jpg",
+    "ctime": 1652354713
+  },
+  {
+    "cid": 718453895,
+    "page": 45,
+    "from": "vupload",
+    "part": "实战篇-商户查询缓存-11.利用逻辑过期解决缓存击穿问题",
+    "duration": 1692,
+    "vid": "",
+    "weblink": "",
+    "dimension": {
+      "width": 1920,
+      "height": 1080,
+      "rotate": 0
+    },
+    "first_frame": "http://i1.hdslb.com/bfs/storyff/n220512a236tggate77ibs523obqzack_firsti.jpg",
+    "ctime": 1652354713
+  },
+  {
+    "cid": 518602259,
+    "page": 46,
+    "from": "vupload",
+    "part": "实战篇-商户查询缓存-12.封装Redis工具类",
+    "duration": 1796,
+    "vid": "",
+    "weblink": "",
+    "dimension": {
+      "width": 1920,
+      "height": 1080,
+      "rotate": 0
+    },
+    "first_frame": "http://i0.hdslb.com/bfs/storyff/n22022815a20yoorqrpdy1hcq3wkjdkc_firsti.jpg",
+    "ctime": 1646026210
+  },
+  {
+    "cid": 547015792,
+    "page": 47,
+    "from": "vupload",
+    "part": "实战篇-商户查询缓存-13.缓存总结",
+    "duration": 821,
+    "vid": "",
+    "weblink": "",
+    "dimension": {
+      "width": 1920,
+      "height": 1080,
+      "rotate": 0
+    },
+    "first_frame": "http://i0.hdslb.com/bfs/storyff/n22031107hu2vdiqweafn2b29cvxje7c_firsti.jpg",
+    "ctime": 1646995366
+  },
+  {
+    "cid": 784553801,
+    "page": 48,
+    "from": "vupload",
+    "part": "实战篇-01.优惠券秒杀-全局唯一ID",
+    "duration": 860,
+    "vid": "",
+    "weblink": "",
+    "dimension": {
+      "width": 1920,
+      "height": 1080,
+      "rotate": 0
+    },
+    "first_frame": "http://i2.hdslb.com/bfs/storyff/n220726072pk3nzvdsmmu92mnzp44o4z_firsti.jpg",
+    "ctime": 1658814901
+  },
+  {
+    "cid": 518602297,
+    "page": 49,
+    "from": "vupload",
+    "part": "实战篇-02.优惠券秒杀-Redis实现全局唯一id",
+    "duration": 1523,
+    "vid": "",
+    "weblink": "",
+    "dimension": {
+      "width": 1920,
+      "height": 1080,
+      "rotate": 0
+    },
+    "first_frame": "http://i0.hdslb.com/bfs/storyff/n22022808ydqjrlpxkq625ev96fo1yrp_firsti.jpg",
+    "ctime": 1646026210
+  },
+  {
+    "cid": 518601890,
+    "page": 50,
+    "from": "vupload",
+    "part": "实战篇-03.优惠券秒杀-添加优惠券",
+    "duration": 650,
+    "vid": "",
+    "weblink": "",
+    "dimension": {
+      "width": 1920,
+      "height": 1080,
+      "rotate": 0
+    },
+    "first_frame": "http://i0.hdslb.com/bfs/storyff/n2202281424zlkymvjsdbo2trzyytv15_firsti.jpg",
+    "ctime": 1646026210
+  },
+  {
+    "cid": 518602385,
+    "page": 51,
+    "from": "vupload",
+    "part": "实战篇-04.优惠券秒杀-实现秒杀下单",
+    "duration": 1040,
+    "vid": "",
+    "weblink": "",
+    "dimension": {
+      "width": 1920,
+      "height": 1080,
+      "rotate": 0
+    },
+    "first_frame": "http://i0.hdslb.com/bfs/storyff/n220228081s5ehubi6rg781400ea0ny3_firsti.jpg",
+    "ctime": 1646026210
+  }
+]

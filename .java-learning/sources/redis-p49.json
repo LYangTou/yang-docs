@@ -1,0 +1,5448 @@
+{
+  "page": 49,
+  "title": "实战篇-02.优惠券秒杀-Redis实现全局唯一id",
+  "duration": 1523,
+  "basis": "Public Bilibili AI Chinese subtitle; verify identifiers against frames",
+  "body": [
+    {
+      "from": 1.62,
+      "to": 2.45,
+      "sid": 1,
+      "location": 2,
+      "content": "好同学们",
+      "music": 0
+    },
+    {
+      "from": 2.45,
+      "to": 3.17,
+      "sid": 2,
+      "location": 2,
+      "content": "上节课呢",
+      "music": 0
+    },
+    {
+      "from": 3.17,
+      "to": 6.11,
+      "sid": 3,
+      "location": 2,
+      "content": "我们已经分析了基于redis的全局",
+      "music": 0
+    },
+    {
+      "from": 6.11,
+      "to": 8.32,
+      "sid": 4,
+      "location": 2,
+      "content": "唯一id的生成策略",
+      "music": 0
+    },
+    {
+      "from": 8.32,
+      "to": 11.95,
+      "sid": 5,
+      "location": 2,
+      "content": "那么下边呢我们就一起来动手实践一下",
+      "music": 0
+    },
+    {
+      "from": 11.95,
+      "to": 13.56,
+      "sid": 6,
+      "location": 2,
+      "content": "那我们打开地",
+      "music": 0
+    },
+    {
+      "from": 13.84,
+      "to": 17.62,
+      "sid": 7,
+      "location": 2,
+      "content": "首先啊我们来在ut包下定义一个类",
+      "music": 0
+    },
+    {
+      "from": 17.62,
+      "to": 21.38,
+      "sid": 8,
+      "location": 2,
+      "content": "起个名字叫redis id worker",
+      "music": 0
+    },
+    {
+      "from": 21.58,
+      "to": 25.04,
+      "sid": 9,
+      "location": 2,
+      "content": "也就是一个基于release的ip生成器",
+      "music": 0
+    },
+    {
+      "from": 25.14,
+      "to": 28.44,
+      "sid": 10,
+      "location": 2,
+      "content": "那么这个类呢我们给它定义成一个component",
+      "music": 0
+    },
+    {
+      "from": 28.44,
+      "to": 30.3,
+      "sid": 11,
+      "location": 2,
+      "content": "也就是spring的一个b啊",
+      "music": 0
+    },
+    {
+      "from": 30.3,
+      "to": 31.97,
+      "sid": 12,
+      "location": 2,
+      "content": "方便我们后续去使用",
+      "music": 0
+    },
+    {
+      "from": 31.97,
+      "to": 34.13,
+      "sid": 13,
+      "location": 2,
+      "content": "然后呢我需要定义一个方法",
+      "music": 0
+    },
+    {
+      "from": 34.13,
+      "to": 37.18,
+      "sid": 14,
+      "location": 2,
+      "content": "这个方法的返回值啊就是一个浪形啊",
+      "music": 0
+    },
+    {
+      "from": 37.18,
+      "to": 38.74,
+      "sid": 15,
+      "location": 2,
+      "content": "因为按照我们之前的策略",
+      "music": 0
+    },
+    {
+      "from": 38.74,
+      "to": 41.72,
+      "sid": 16,
+      "location": 2,
+      "content": "我们最终的id啊是一个64位的数字",
+      "music": 0
+    },
+    {
+      "from": 41.72,
+      "to": 43.76,
+      "sid": 17,
+      "location": 2,
+      "content": "那就是对应了java的long行嘛",
+      "music": 0
+    },
+    {
+      "from": 43.76,
+      "to": 46.68,
+      "sid": 18,
+      "location": 2,
+      "content": "然后名字就叫next",
+      "music": 0
+    },
+    {
+      "from": 46.78,
+      "to": 50.38,
+      "sid": 19,
+      "location": 2,
+      "content": "在这儿呢我们接触一个参数啊",
+      "music": 0
+    },
+    {
+      "from": 50.38,
+      "to": 54.2,
+      "sid": 20,
+      "location": 2,
+      "content": "嗯我把它取名为key prefix好",
+      "music": 0
+    },
+    {
+      "from": 54.2,
+      "to": 55.64,
+      "sid": 21,
+      "location": 2,
+      "content": "为什么要记住这样一个参数呢",
+      "music": 0
+    },
+    {
+      "from": 55.64,
+      "to": 60.17,
+      "sid": 22,
+      "location": 2,
+      "content": "大家想我们的生存策略是基于release的自增长",
+      "music": 0
+    },
+    {
+      "from": 60.17,
+      "to": 63.17,
+      "sid": 23,
+      "location": 2,
+      "content": "而ris自增长肯定是需要有一个key",
+      "music": 0
+    },
+    {
+      "from": 63.17,
+      "to": 64.89,
+      "sid": 24,
+      "location": 2,
+      "content": "然后对应的值不断自增",
+      "music": 0
+    },
+    {
+      "from": 64.89,
+      "to": 67.05,
+      "sid": 25,
+      "location": 2,
+      "content": "那不同业务他肯定有不同的",
+      "music": 0
+    },
+    {
+      "from": 67.05,
+      "to": 67.56,
+      "sid": 26,
+      "location": 2,
+      "content": "可以吗",
+      "music": 0
+    },
+    {
+      "from": 67.56,
+      "to": 69.81,
+      "sid": 27,
+      "location": 2,
+      "content": "大家不能都去用同一个自增长",
+      "music": 0
+    },
+    {
+      "from": 69.81,
+      "to": 70.44,
+      "sid": 28,
+      "location": 2,
+      "content": "是不是",
+      "music": 0
+    },
+    {
+      "from": 70.44,
+      "to": 71.31,
+      "sid": 29,
+      "location": 2,
+      "content": "所以说呢",
+      "music": 0
+    },
+    {
+      "from": 71.31,
+      "to": 75.33,
+      "sid": 30,
+      "location": 2,
+      "content": "这里我们需要有一个前缀来去区分不同的业务",
+      "music": 0
+    },
+    {
+      "from": 75.33,
+      "to": 78.97,
+      "sid": 31,
+      "location": 2,
+      "content": "那比如说我们订单业务你可以传一个order过来",
+      "music": 0
+    },
+    {
+      "from": 78.97,
+      "to": 82,
+      "sid": 32,
+      "location": 2,
+      "content": "然后你的其他的业务你可以传其他的过来啊",
+      "music": 0
+    },
+    {
+      "from": 82,
+      "to": 86.12,
+      "sid": 33,
+      "location": 2,
+      "content": "所以这里可以理解成是业务的前缀好",
+      "music": 0
+    },
+    {
+      "from": 86.12,
+      "to": 87.26,
+      "sid": 34,
+      "location": 2,
+      "content": "那么下边在这儿呢",
+      "music": 0
+    },
+    {
+      "from": 87.26,
+      "to": 90.77,
+      "sid": 35,
+      "location": 2,
+      "content": "我们就可以来去编写id生成的策略了",
+      "music": 0
+    },
+    {
+      "from": 90.77,
+      "to": 92.54,
+      "sid": 36,
+      "location": 2,
+      "content": "那我们可以参考这幅图啊",
+      "music": 0
+    },
+    {
+      "from": 92.54,
+      "to": 94.78,
+      "sid": 37,
+      "location": 2,
+      "content": "这是我们之前的那个策略吗",
+      "music": 0
+    },
+    {
+      "from": 94.78,
+      "to": 97.15,
+      "sid": 38,
+      "location": 2,
+      "content": "可以看到整个id啊分三部分",
+      "music": 0
+    },
+    {
+      "from": 97.15,
+      "to": 98.71,
+      "sid": 39,
+      "location": 2,
+      "content": "第一个是符号位",
+      "music": 0
+    },
+    {
+      "from": 98.71,
+      "to": 99.91,
+      "sid": 40,
+      "location": 2,
+      "content": "这个我们不用去管",
+      "music": 0
+    },
+    {
+      "from": 99.91,
+      "to": 102.79,
+      "sid": 41,
+      "location": 2,
+      "content": "只要最终我们生成id啊是一个正数就ok了",
+      "music": 0
+    },
+    {
+      "from": 102.79,
+      "to": 103.39,
+      "sid": 42,
+      "location": 2,
+      "content": "所以说呢",
+      "music": 0
+    },
+    {
+      "from": 103.39,
+      "to": 106.84,
+      "sid": 43,
+      "location": 2,
+      "content": "我们核心的工作就是去准备后两部分啊",
+      "music": 0
+    },
+    {
+      "from": 106.84,
+      "to": 107.53,
+      "sid": 44,
+      "location": 2,
+      "content": "一个时间戳",
+      "music": 0
+    },
+    {
+      "from": 107.53,
+      "to": 108.949,
+      "sid": 45,
+      "location": 2,
+      "content": "一个是序列号",
+      "music": 0
+    },
+    {
+      "from": 108.949,
+      "to": 110.989,
+      "sid": 46,
+      "location": 2,
+      "content": "那也就是说我们这个方法",
+      "music": 0
+    },
+    {
+      "from": 110.989,
+      "to": 112.819,
+      "sid": 47,
+      "location": 2,
+      "content": "核心的业务也就出来了啊",
+      "music": 0
+    },
+    {
+      "from": 112.819,
+      "to": 116.829,
+      "sid": 48,
+      "location": 2,
+      "content": "第一个呢就是去想办法生成时间戳",
+      "music": 0
+    },
+    {
+      "from": 116.829,
+      "to": 120.52,
+      "sid": 49,
+      "location": 2,
+      "content": "第二个呢就是想办法去生成序列号",
+      "music": 0
+    },
+    {
+      "from": 120.68,
+      "to": 121.46,
+      "sid": 50,
+      "location": 2,
+      "content": "当然了",
+      "music": 0
+    },
+    {
+      "from": 121.46,
+      "to": 123.14,
+      "sid": 51,
+      "location": 2,
+      "content": "最终我们还要干一件事情",
+      "music": 0
+    },
+    {
+      "from": 123.14,
+      "to": 126.29,
+      "sid": 52,
+      "location": 2,
+      "content": "就是把这两部分给它拼接起来返回对吧",
+      "music": 0
+    },
+    {
+      "from": 126.29,
+      "to": 128.42,
+      "sid": 53,
+      "location": 2,
+      "content": "拼接并返回啊",
+      "music": 0
+    },
+    {
+      "from": 128.42,
+      "to": 129.5,
+      "sid": 54,
+      "location": 2,
+      "content": "这就ok了",
+      "music": 0
+    },
+    {
+      "from": 129.5,
+      "to": 130.07,
+      "sid": 55,
+      "location": 2,
+      "content": "好",
+      "music": 0
+    },
+    {
+      "from": 130.07,
+      "to": 131.96,
+      "sid": 56,
+      "location": 2,
+      "content": "那么下面我们就来分析一下",
+      "music": 0
+    },
+    {
+      "from": 131.96,
+      "to": 133.97,
+      "sid": 57,
+      "location": 2,
+      "content": "这每一步该怎么去做啊",
+      "music": 0
+    },
+    {
+      "from": 133.97,
+      "to": 135.79,
+      "sid": 58,
+      "location": 2,
+      "content": "首先呢是这个时间戳",
+      "music": 0
+    },
+    {
+      "from": 135.79,
+      "to": 136.87,
+      "sid": 59,
+      "location": 2,
+      "content": "时间戳啊",
+      "music": 0
+    },
+    {
+      "from": 136.87,
+      "to": 138.88,
+      "sid": 60,
+      "location": 2,
+      "content": "它是一个31位的一个数字",
+      "music": 0
+    },
+    {
+      "from": 138.88,
+      "to": 140.41,
+      "sid": 61,
+      "location": 2,
+      "content": "单位呢是秒",
+      "music": 0
+    },
+    {
+      "from": 140.41,
+      "to": 141.85,
+      "sid": 62,
+      "location": 2,
+      "content": "它的值啊",
+      "music": 0
+    },
+    {
+      "from": 141.85,
+      "to": 146.05,
+      "sid": 63,
+      "location": 2,
+      "content": "是要有一个基础的一个日期作为开始时间嘛",
+      "music": 0
+    },
+    {
+      "from": 146.05,
+      "to": 149.8,
+      "sid": 64,
+      "location": 2,
+      "content": "时间说的直就是用当前时间减去那个开始时间",
+      "music": 0
+    },
+    {
+      "from": 149.8,
+      "to": 150.79,
+      "sid": 65,
+      "location": 2,
+      "content": "得到那个秒数",
+      "music": 0
+    },
+    {
+      "from": 150.79,
+      "to": 154.07,
+      "sid": 66,
+      "location": 2,
+      "content": "等于是就是从起始时间开始隔了多少秒啊",
+      "music": 0
+    },
+    {
+      "from": 154.07,
+      "to": 156.08,
+      "sid": 67,
+      "location": 2,
+      "content": "所以说我们在这个类里",
+      "music": 0
+    },
+    {
+      "from": 156.08,
+      "to": 158.72,
+      "sid": 68,
+      "location": 2,
+      "content": "最好去记录一个初始值对吧",
+      "music": 0
+    },
+    {
+      "from": 158.72,
+      "to": 160.04,
+      "sid": 69,
+      "location": 2,
+      "content": "那我们可以这么做",
+      "music": 0
+    },
+    {
+      "from": 160.04,
+      "to": 162.26,
+      "sid": 70,
+      "location": 2,
+      "content": "首先这块我们先让他不要报错啊",
+      "music": 0
+    },
+    {
+      "from": 162.26,
+      "to": 164.099,
+      "sid": 71,
+      "location": 2,
+      "content": "返回一个零好",
+      "music": 0
+    },
+    {
+      "from": 164.099,
+      "to": 167.609,
+      "sid": 72,
+      "location": 2,
+      "content": "然后呢我们在这嗯先写一个妹函数吧",
+      "music": 0
+    },
+    {
+      "from": 167.609,
+      "to": 170.05,
+      "sid": 73,
+      "location": 2,
+      "content": "生成一个这样的初始时间啊",
+      "music": 0
+    },
+    {
+      "from": 170.05,
+      "to": 172.03,
+      "sid": 74,
+      "location": 2,
+      "content": "初始时间的话我们得到描述",
+      "music": 0
+    },
+    {
+      "from": 172.03,
+      "to": 173.41,
+      "sid": 75,
+      "location": 2,
+      "content": "这里我们可以借助一个工具类啊",
+      "music": 0
+    },
+    {
+      "from": 173.41,
+      "to": 174.48,
+      "sid": 76,
+      "location": 2,
+      "content": "叫local data time",
+      "music": 0
+    },
+    {
+      "from": 174.48,
+      "to": 176.31,
+      "sid": 77,
+      "location": 2,
+      "content": "然后调一个of方法",
+      "music": 0
+    },
+    {
+      "from": 176.31,
+      "to": 179.4,
+      "sid": 78,
+      "location": 2,
+      "content": "of方法呢可以让我们去指定这个年月日啊",
+      "music": 0
+    },
+    {
+      "from": 179.4,
+      "to": 180.54,
+      "sid": 79,
+      "location": 2,
+      "content": "所以说呢在这个地方",
+      "music": 0
+    },
+    {
+      "from": 180.54,
+      "to": 183.95,
+      "sid": 80,
+      "location": 2,
+      "content": "我们直接来20221月1号啊",
+      "music": 0
+    },
+    {
+      "from": 183.95,
+      "to": 187.93,
+      "sid": 81,
+      "location": 2,
+      "content": "然后呢零点分零秒好",
+      "music": 0
+    },
+    {
+      "from": 187.93,
+      "to": 190.63,
+      "sid": 82,
+      "location": 2,
+      "content": "那么这样呢就其实就得到了一个呃",
+      "music": 0
+    },
+    {
+      "from": 190.63,
+      "to": 192.73,
+      "sid": 83,
+      "location": 2,
+      "content": "2021年1月1号零点分",
+      "music": 0
+    },
+    {
+      "from": 192.73,
+      "to": 195.72,
+      "sid": 84,
+      "location": 2,
+      "content": "这样一个具体的时间好time",
+      "music": 0
+    },
+    {
+      "from": 195.72,
+      "to": 198.36,
+      "sid": 85,
+      "location": 2,
+      "content": "然后我们要得到描述很简单啊",
+      "music": 0
+    },
+    {
+      "from": 198.36,
+      "to": 201.629,
+      "sid": 86,
+      "location": 2,
+      "content": "to这个apple second就可以了",
+      "music": 0
+    },
+    {
+      "from": 201.629,
+      "to": 205.169,
+      "sid": 87,
+      "location": 2,
+      "content": "那么这个里边接触的是时区zone of set",
+      "music": 0
+    },
+    {
+      "from": 205.169,
+      "to": 206.89,
+      "sid": 88,
+      "location": 2,
+      "content": "这里我们选ut c啊",
+      "music": 0
+    },
+    {
+      "from": 206.89,
+      "to": 209.86,
+      "sid": 89,
+      "location": 2,
+      "content": "好得到一个具体的描述second",
+      "music": 0
+    },
+    {
+      "from": 210.44,
+      "to": 213.26,
+      "sid": 90,
+      "location": 2,
+      "content": "然后我们再打印一下就行了",
+      "music": 0
+    },
+    {
+      "from": 213.26,
+      "to": 216.999,
+      "sid": 91,
+      "location": 2,
+      "content": "来运行走好",
+      "music": 0
+    },
+    {
+      "from": 216.999,
+      "to": 218.079,
+      "sid": 92,
+      "location": 2,
+      "content": "那我们得到了一个值",
+      "music": 0
+    },
+    {
+      "from": 218.079,
+      "to": 220.839,
+      "sid": 93,
+      "location": 2,
+      "content": "这个值其实就是202年1月1号零点分的",
+      "music": 0
+    },
+    {
+      "from": 220.839,
+      "to": 222.35,
+      "sid": 94,
+      "location": 2,
+      "content": "定的秒数了啊",
+      "music": 0
+    },
+    {
+      "from": 222.35,
+      "to": 225.05,
+      "sid": 95,
+      "location": 2,
+      "content": "那么现在呢我们把这个值给它记录下来",
+      "music": 0
+    },
+    {
+      "from": 225.05,
+      "to": 226.55,
+      "sid": 96,
+      "location": 2,
+      "content": "在这个地方定义一下啊",
+      "music": 0
+    },
+    {
+      "from": 226.55,
+      "to": 228.75,
+      "sid": 97,
+      "location": 2,
+      "content": "private static final好",
+      "music": 0
+    },
+    {
+      "from": 228.75,
+      "to": 230.58,
+      "sid": 98,
+      "location": 2,
+      "content": "那么这里呢肯定是个long形了",
+      "music": 0
+    },
+    {
+      "from": 230.58,
+      "to": 235.919,
+      "sid": 99,
+      "location": 2,
+      "content": "起个名字叫begin time step啊",
+      "music": 0
+    },
+    {
+      "from": 235.919,
+      "to": 239.98,
+      "sid": 100,
+      "location": 2,
+      "content": "初始时呃时间值就是这个值好",
+      "music": 0
+    },
+    {
+      "from": 239.98,
+      "to": 242.32,
+      "sid": 101,
+      "location": 2,
+      "content": "这就是开始的那个时间戳了啊",
+      "music": 0
+    },
+    {
+      "from": 244.66,
+      "to": 245.24,
+      "sid": 102,
+      "location": 2,
+      "content": "好",
+      "music": 0
+    },
+    {
+      "from": 245.459,
+      "to": 246.539,
+      "sid": 103,
+      "location": 2,
+      "content": "然后呢",
+      "music": 0
+    },
+    {
+      "from": 246.539,
+      "to": 250.139,
+      "sid": 104,
+      "location": 2,
+      "content": "我们要想去计算当前时间戳就非常简单了",
+      "music": 0
+    },
+    {
+      "from": 250.139,
+      "to": 250.739,
+      "sid": 105,
+      "location": 2,
+      "content": "刚才说过",
+      "music": 0
+    },
+    {
+      "from": 250.739,
+      "to": 254.87,
+      "sid": 106,
+      "location": 2,
+      "content": "用当前时间减去这个得到秒数是不是就ok了啊",
+      "music": 0
+    },
+    {
+      "from": 254.87,
+      "to": 257.419,
+      "sid": 107,
+      "location": 2,
+      "content": "所以说我们可以去获取当前时间",
+      "music": 0
+    },
+    {
+      "from": 257.419,
+      "to": 260.569,
+      "sid": 108,
+      "location": 2,
+      "content": "好会取当前时间其实就是利用logo the time了",
+      "music": 0
+    },
+    {
+      "from": 260.569,
+      "to": 261.949,
+      "sid": 109,
+      "location": 2,
+      "content": "里面有一个方法叫no",
+      "music": 0
+    },
+    {
+      "from": 261.949,
+      "to": 264.139,
+      "sid": 110,
+      "location": 2,
+      "content": "那这个其实就是当前时间啊",
+      "music": 0
+    },
+    {
+      "from": 264.139,
+      "to": 268.72,
+      "sid": 111,
+      "location": 2,
+      "content": "那now里边就有这个to ea second这样一个函数调用",
+      "music": 0
+    },
+    {
+      "from": 268.72,
+      "to": 271.3,
+      "sid": 112,
+      "location": 2,
+      "content": "它得到的就是当前的描述了",
+      "music": 0
+    },
+    {
+      "from": 271.3,
+      "to": 273.63,
+      "sid": 113,
+      "location": 2,
+      "content": "current或者叫no吧",
+      "music": 0
+    },
+    {
+      "from": 273.63,
+      "to": 276.77,
+      "sid": 114,
+      "location": 2,
+      "content": "no second当前的描述了",
+      "music": 0
+    },
+    {
+      "from": 276.77,
+      "to": 280.209,
+      "sid": 115,
+      "location": 2,
+      "content": "那么将来呢我们只需要用nosek减去这个啊",
+      "music": 0
+    },
+    {
+      "from": 280.209,
+      "to": 283.629,
+      "sid": 116,
+      "location": 2,
+      "content": "begin time step是不是就能够得到这个时间戳了啊",
+      "music": 0
+    },
+    {
+      "from": 283.629,
+      "to": 285.609,
+      "sid": 117,
+      "location": 2,
+      "content": "现在也可以直接去计算一下吧",
+      "music": 0
+    },
+    {
+      "from": 285.609,
+      "to": 289.3,
+      "sid": 118,
+      "location": 2,
+      "content": "减啊begin time step好",
+      "music": 0
+    },
+    {
+      "from": 289.3,
+      "to": 291.52,
+      "sid": 119,
+      "location": 2,
+      "content": "得到一个结果好",
+      "music": 0
+    },
+    {
+      "from": 291.52,
+      "to": 293.98,
+      "sid": 120,
+      "location": 2,
+      "content": "那么就是我们top step",
+      "music": 0
+    },
+    {
+      "from": 293.98,
+      "to": 295.24,
+      "sid": 121,
+      "location": 2,
+      "content": "ok好",
+      "music": 0
+    },
+    {
+      "from": 295.24,
+      "to": 298.3,
+      "sid": 122,
+      "location": 2,
+      "content": "这个就搞定了好那么时间戳计算完了以后",
+      "music": 0
+    },
+    {
+      "from": 298.3,
+      "to": 300.48,
+      "sid": 123,
+      "location": 2,
+      "content": "我们再来去计算这个序列号",
+      "music": 0
+    },
+    {
+      "from": 300.48,
+      "to": 303.48,
+      "sid": 124,
+      "location": 2,
+      "content": "序列号我们是利用rise的自增长",
+      "music": 0
+    },
+    {
+      "from": 303.48,
+      "to": 306.65,
+      "sid": 125,
+      "location": 2,
+      "content": "所以说呢我们在这呢需要去注入redis",
+      "music": 0
+    },
+    {
+      "from": 306.65,
+      "to": 310.56,
+      "sid": 126,
+      "location": 2,
+      "content": "那我们就可以用到我们这些的string redis",
+      "music": 0
+    },
+    {
+      "from": 310.56,
+      "to": 312.45,
+      "sid": 127,
+      "location": 2,
+      "content": "template工具了吧",
+      "music": 0
+    },
+    {
+      "from": 312.45,
+      "to": 314.1,
+      "sid": 128,
+      "location": 2,
+      "content": "这里呢你可以利用resource啊",
+      "music": 0
+    },
+    {
+      "from": 314.1,
+      "to": 315.24,
+      "sid": 129,
+      "location": 2,
+      "content": "也可以利用构造函数注入",
+      "music": 0
+    },
+    {
+      "from": 315.24,
+      "to": 316.21,
+      "sid": 130,
+      "location": 2,
+      "content": "都是没问题的",
+      "music": 0
+    },
+    {
+      "from": 316.21,
+      "to": 317.29,
+      "sid": 131,
+      "location": 2,
+      "content": "拿到它了以后呢",
+      "music": 0
+    },
+    {
+      "from": 317.29,
+      "to": 318.52,
+      "sid": 132,
+      "location": 2,
+      "content": "就可以去做自增了",
+      "music": 0
+    },
+    {
+      "from": 318.52,
+      "to": 321.01,
+      "sid": 133,
+      "location": 2,
+      "content": "自增长我们用的是字符串结构",
+      "music": 0
+    },
+    {
+      "from": 321.01,
+      "to": 321.52,
+      "sid": 134,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 321.52,
+      "to": 323.26,
+      "sid": 135,
+      "location": 2,
+      "content": "所以我这里要调哪个函数啊",
+      "music": 0
+    },
+    {
+      "from": 323.26,
+      "to": 325,
+      "sid": 136,
+      "location": 2,
+      "content": "哎ops for什么啊",
+      "music": 0
+    },
+    {
+      "from": 325,
+      "to": 325.96,
+      "sid": 137,
+      "location": 2,
+      "content": "value吧",
+      "music": 0
+    },
+    {
+      "from": 325.96,
+      "to": 326.83,
+      "sid": 138,
+      "location": 2,
+      "content": "整字符串",
+      "music": 0
+    },
+    {
+      "from": 326.83,
+      "to": 328.33,
+      "sid": 139,
+      "location": 2,
+      "content": "然后调用它的音",
+      "music": 0
+    },
+    {
+      "from": 328.33,
+      "to": 330.19,
+      "sid": 140,
+      "location": 2,
+      "content": "royment就是自增",
+      "music": 0
+    },
+    {
+      "from": 330.19,
+      "to": 330.91,
+      "sid": 141,
+      "location": 2,
+      "content": "默认啊",
+      "music": 0
+    },
+    {
+      "from": 330.91,
+      "to": 332.11,
+      "sid": 142,
+      "location": 2,
+      "content": "是一次自增一嘛",
+      "music": 0
+    },
+    {
+      "from": 332.11,
+      "to": 333.94,
+      "sid": 143,
+      "location": 2,
+      "content": "就1234就可以了啊",
+      "music": 0
+    },
+    {
+      "from": 333.94,
+      "to": 335.23,
+      "sid": 144,
+      "location": 2,
+      "content": "那么在这里自增的时候",
+      "music": 0
+    },
+    {
+      "from": 335.23,
+      "to": 336.7,
+      "sid": 145,
+      "location": 2,
+      "content": "你需要指定一个key",
+      "music": 0
+    },
+    {
+      "from": 337.159,
+      "to": 338.809,
+      "sid": 146,
+      "location": 2,
+      "content": "也就是我们刚刚讲的嘛",
+      "music": 0
+    },
+    {
+      "from": 338.809,
+      "to": 340.759,
+      "sid": 147,
+      "location": 2,
+      "content": "你不同的业务是不是有不同的k啊",
+      "music": 0
+    },
+    {
+      "from": 340.759,
+      "to": 342.48,
+      "sid": 148,
+      "location": 2,
+      "content": "你不能大家都是一样的啊",
+      "music": 0
+    },
+    {
+      "from": 342.48,
+      "to": 345.12,
+      "sid": 149,
+      "location": 2,
+      "content": "然后呢在这个key前面我们还可以拼一个标识",
+      "music": 0
+    },
+    {
+      "from": 345.12,
+      "to": 346.8,
+      "sid": 150,
+      "location": 2,
+      "content": "比如说叫i c r吧",
+      "music": 0
+    },
+    {
+      "from": 346.8,
+      "to": 349.82,
+      "sid": 151,
+      "location": 2,
+      "content": "这个increa也就是它是自动id啊",
+      "music": 0
+    },
+    {
+      "from": 349.82,
+      "to": 351.14,
+      "sid": 152,
+      "location": 2,
+      "content": "谁的自动id好",
+      "music": 0
+    },
+    {
+      "from": 351.14,
+      "to": 352.04,
+      "sid": 153,
+      "location": 2,
+      "content": "就是这个业务了",
+      "music": 0
+    },
+    {
+      "from": 352.04,
+      "to": 353.26,
+      "sid": 154,
+      "location": 2,
+      "content": "把业务拼上",
+      "music": 0
+    },
+    {
+      "from": 354.9,
+      "to": 355.34,
+      "sid": 155,
+      "location": 2,
+      "content": "啊",
+      "music": 0
+    },
+    {
+      "from": 355.34,
+      "to": 358.34,
+      "sid": 156,
+      "location": 2,
+      "content": "那到这儿是不是就意味着我们这个呃",
+      "music": 0
+    },
+    {
+      "from": 358.34,
+      "to": 359.54,
+      "sid": 157,
+      "location": 2,
+      "content": "key就结束了",
+      "music": 0
+    },
+    {
+      "from": 359.54,
+      "to": 360.54,
+      "sid": 158,
+      "location": 2,
+      "content": "到这就行了",
+      "music": 0
+    },
+    {
+      "from": 361.3,
+      "to": 363.66,
+      "sid": 159,
+      "location": 2,
+      "content": "唉到这里不行啊",
+      "music": 0
+    },
+    {
+      "from": 363.66,
+      "to": 365.26,
+      "sid": 160,
+      "location": 2,
+      "content": "为什么给大家解释一下",
+      "music": 0
+    },
+    {
+      "from": 365.26,
+      "to": 368.26,
+      "sid": 161,
+      "location": 2,
+      "content": "如果说啊我们这么做就意味着什么呢",
+      "music": 0
+    },
+    {
+      "from": 368.26,
+      "to": 369.76,
+      "sid": 162,
+      "location": 2,
+      "content": "就比如说这里传的是订单啊",
+      "music": 0
+    },
+    {
+      "from": 369.76,
+      "to": 373.04,
+      "sid": 163,
+      "location": 2,
+      "content": "就意味着整个啊订单业务",
+      "music": 0
+    },
+    {
+      "from": 374.12,
+      "to": 377.78,
+      "sid": 164,
+      "location": 2,
+      "content": "它呢永远采用的是一个key来做自增长",
+      "music": 0
+    },
+    {
+      "from": 377.86,
+      "to": 378.82,
+      "sid": 165,
+      "location": 2,
+      "content": "也就是说",
+      "music": 0
+    },
+    {
+      "from": 378.82,
+      "to": 380.98,
+      "sid": 166,
+      "location": 2,
+      "content": "不管你这个订单业务是经历了1年",
+      "music": 0
+    },
+    {
+      "from": 380.98,
+      "to": 382.81,
+      "sid": 167,
+      "location": 2,
+      "content": "2年还是10年8年",
+      "music": 0
+    },
+    {
+      "from": 382.81,
+      "to": 384.84,
+      "sid": 168,
+      "location": 2,
+      "content": "那么这个永远是同一个k",
+      "music": 0
+    },
+    {
+      "from": 385.3,
+      "to": 388.27,
+      "sid": 169,
+      "location": 2,
+      "content": "那么随着我们的业务逐渐的发展",
+      "music": 0
+    },
+    {
+      "from": 388.27,
+      "to": 389.92,
+      "sid": 170,
+      "location": 2,
+      "content": "订单越来越多",
+      "music": 0
+    },
+    {
+      "from": 389.92,
+      "to": 392.48,
+      "sid": 171,
+      "location": 2,
+      "content": "那么这个字中的值是不是也会越来越大呀",
+      "music": 0
+    },
+    {
+      "from": 392.48,
+      "to": 396.62,
+      "sid": 172,
+      "location": 2,
+      "content": "而redis单个key的自增长",
+      "music": 0
+    },
+    {
+      "from": 396.62,
+      "to": 400.19,
+      "sid": 173,
+      "location": 2,
+      "content": "它对应的这个数值啊是有一个上限的啊",
+      "music": 0
+    },
+    {
+      "from": 400.19,
+      "to": 401.84,
+      "sid": 174,
+      "location": 2,
+      "content": "上限是多少呢",
+      "music": 0
+    },
+    {
+      "from": 401.84,
+      "to": 403.86,
+      "sid": 175,
+      "location": 2,
+      "content": "是二的64次方",
+      "music": 0
+    },
+    {
+      "from": 403.86,
+      "to": 406.38,
+      "sid": 176,
+      "location": 2,
+      "content": "虽然说这个值已经非常非常大了啊",
+      "music": 0
+    },
+    {
+      "from": 406.38,
+      "to": 408.36,
+      "sid": 177,
+      "location": 2,
+      "content": "但是呢它也是有一个上限的",
+      "music": 0
+    },
+    {
+      "from": 408.36,
+      "to": 408.96,
+      "sid": 178,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 408.96,
+      "to": 411.45,
+      "sid": 179,
+      "location": 2,
+      "content": "那万一超过了这个上限怎么办呢",
+      "music": 0
+    },
+    {
+      "from": 411.45,
+      "to": 413.07,
+      "sid": 180,
+      "location": 2,
+      "content": "这是其一",
+      "music": 0
+    },
+    {
+      "from": 413.07,
+      "to": 419.58,
+      "sid": 181,
+      "location": 2,
+      "content": "而且呢你不要忘了我们的这个key的一个策略",
+      "music": 0
+    },
+    {
+      "from": 419.58,
+      "to": 420.12,
+      "sid": 182,
+      "location": 2,
+      "content": "里边",
+      "music": 0
+    },
+    {
+      "from": 420.12,
+      "to": 425.44,
+      "sid": 183,
+      "location": 2,
+      "content": "真正用来记录序列号的只有32个比特位",
+      "music": 0
+    },
+    {
+      "from": 425.52,
+      "to": 427.44,
+      "sid": 184,
+      "location": 2,
+      "content": "你raise是64比特位",
+      "music": 0
+    },
+    {
+      "from": 427.44,
+      "to": 428.79,
+      "sid": 185,
+      "location": 2,
+      "content": "超过64位很难",
+      "music": 0
+    },
+    {
+      "from": 428.79,
+      "to": 431.02,
+      "sid": 186,
+      "location": 2,
+      "content": "但超过32位还是有可能的吧",
+      "music": 0
+    },
+    {
+      "from": 431.02,
+      "to": 433.54,
+      "sid": 187,
+      "location": 2,
+      "content": "那接下来如果说永远是同",
+      "music": 0
+    },
+    {
+      "from": 433.54,
+      "to": 435.16,
+      "sid": 188,
+      "location": 2,
+      "content": "也可以超过了32位",
+      "music": 0
+    },
+    {
+      "from": 435.16,
+      "to": 438.06,
+      "sid": 189,
+      "location": 2,
+      "content": "那么你这个序列号这部分是不是就存不下了呀",
+      "music": 0
+    },
+    {
+      "from": 438.28,
+      "to": 443.25,
+      "sid": 190,
+      "location": 2,
+      "content": "所以说啊我们不能说永远使用同一个k",
+      "music": 0
+    },
+    {
+      "from": 443.25,
+      "to": 444.03,
+      "sid": 191,
+      "location": 2,
+      "content": "哪怕是同一个业务",
+      "music": 0
+    },
+    {
+      "from": 444.03,
+      "to": 445.56,
+      "sid": 192,
+      "location": 2,
+      "content": "也不能永远使用同一个k",
+      "music": 0
+    },
+    {
+      "from": 445.56,
+      "to": 448.7,
+      "sid": 193,
+      "location": 2,
+      "content": "否则的话呢真的有可能会超过这个上限",
+      "music": 0
+    },
+    {
+      "from": 448.74,
+      "to": 449.92,
+      "sid": 194,
+      "location": 2,
+      "content": "那怎么办",
+      "music": 0
+    },
+    {
+      "from": 450.26,
+      "to": 454.49,
+      "sid": 195,
+      "location": 2,
+      "content": "ok那在这里呢我给大家啊想到有这么一个办法",
+      "music": 0
+    },
+    {
+      "from": 454.49,
+      "to": 456.05,
+      "sid": 196,
+      "location": 2,
+      "content": "就是用什么呢",
+      "music": 0
+    },
+    {
+      "from": 456.05,
+      "to": 461.63,
+      "sid": 197,
+      "location": 2,
+      "content": "在业务这个前缀的后边拼上一个时间戳",
+      "music": 0
+    },
+    {
+      "from": 461.63,
+      "to": 465.19,
+      "sid": 198,
+      "location": 2,
+      "content": "比如说我们拼上嗯",
+      "music": 0
+    },
+    {
+      "from": 465.19,
+      "to": 469.33,
+      "sid": 199,
+      "location": 2,
+      "content": "20220910这样一个时间戳",
+      "music": 0
+    },
+    {
+      "from": 469.33,
+      "to": 471.5,
+      "sid": 200,
+      "location": 2,
+      "content": "那它代表的就是9月10号这一天",
+      "music": 0
+    },
+    {
+      "from": 471.5,
+      "to": 473.42,
+      "sid": 201,
+      "location": 2,
+      "content": "那你想当我们下单的时候",
+      "music": 0
+    },
+    {
+      "from": 473.42,
+      "to": 475.37,
+      "sid": 202,
+      "location": 2,
+      "content": "只要是9月10号这一天下的单",
+      "music": 0
+    },
+    {
+      "from": 475.37,
+      "to": 478.25,
+      "sid": 203,
+      "location": 2,
+      "content": "是不是就会以这个k去做自增啊",
+      "music": 0
+    },
+    {
+      "from": 478.25,
+      "to": 479.33,
+      "sid": 204,
+      "location": 2,
+      "content": "12345",
+      "music": 0
+    },
+    {
+      "from": 479.33,
+      "to": 482.66,
+      "sid": 205,
+      "location": 2,
+      "content": "而当到了第二天9月11号时",
+      "music": 0
+    },
+    {
+      "from": 482.66,
+      "to": 484.13,
+      "sid": 206,
+      "location": 2,
+      "content": "你再去下单",
+      "music": 0
+    },
+    {
+      "from": 484.13,
+      "to": 487.16,
+      "sid": 207,
+      "location": 2,
+      "content": "是不是又开始是一个新的k了",
+      "music": 0
+    },
+    {
+      "from": 487.16,
+      "to": 488.669,
+      "sid": 208,
+      "location": 2,
+      "content": "从一开始递增了",
+      "music": 0
+    },
+    {
+      "from": 488.669,
+      "to": 491.849,
+      "sid": 209,
+      "location": 2,
+      "content": "那也就是说这个k里自增的上限",
+      "music": 0
+    },
+    {
+      "from": 491.849,
+      "to": 494.009,
+      "sid": 210,
+      "location": 2,
+      "content": "其实就是这一天下单的量",
+      "music": 0
+    },
+    {
+      "from": 494.009,
+      "to": 496.049,
+      "sid": 211,
+      "location": 2,
+      "content": "那同学们一天下单的量",
+      "music": 0
+    },
+    {
+      "from": 496.049,
+      "to": 498.44,
+      "sid": 212,
+      "location": 2,
+      "content": "会不会达到二的32这么大",
+      "music": 0
+    },
+    {
+      "from": 498.44,
+      "to": 499.34,
+      "sid": 213,
+      "location": 2,
+      "content": "哎不可能",
+      "music": 0
+    },
+    {
+      "from": 499.34,
+      "to": 503.33,
+      "sid": 214,
+      "location": 2,
+      "content": "因为这个值都已经有几10亿这么大的一个值了",
+      "music": 0
+    },
+    {
+      "from": 503.33,
+      "to": 504.32,
+      "sid": 215,
+      "location": 2,
+      "content": "那因此呢",
+      "music": 0
+    },
+    {
+      "from": 504.32,
+      "to": 507.52,
+      "sid": 216,
+      "location": 2,
+      "content": "我们采用的方案就是拼接这个日期字符串",
+      "music": 0
+    },
+    {
+      "from": 507.52,
+      "to": 513.22,
+      "sid": 217,
+      "location": 2,
+      "content": "那也就是说每一天下单采用一个相同的key",
+      "music": 0
+    },
+    {
+      "from": 513.22,
+      "to": 516.1,
+      "sid": 218,
+      "location": 2,
+      "content": "不同天下单就是不同的k",
+      "music": 0
+    },
+    {
+      "from": 516.1,
+      "to": 518,
+      "sid": 219,
+      "location": 2,
+      "content": "那么这样做还有一个好处",
+      "music": 0
+    },
+    {
+      "from": 518,
+      "to": 520.04,
+      "sid": 220,
+      "location": 2,
+      "content": "就是将来如果我想统计啊",
+      "music": 0
+    },
+    {
+      "from": 520.04,
+      "to": 521.96,
+      "sid": 221,
+      "location": 2,
+      "content": "这一天总共下了多少单",
+      "music": 0
+    },
+    {
+      "from": 521.96,
+      "to": 525.04,
+      "sid": 222,
+      "location": 2,
+      "content": "是不是直接看对应日期的那个key的值就行了",
+      "music": 0
+    },
+    {
+      "from": 525.04,
+      "to": 528.22,
+      "sid": 223,
+      "location": 2,
+      "content": "所以呢他有一个统计效果好",
+      "music": 0
+    },
+    {
+      "from": 528.22,
+      "to": 530.2,
+      "sid": 224,
+      "location": 2,
+      "content": "ok所以说在这个地方啊",
+      "music": 0
+    },
+    {
+      "from": 530.2,
+      "to": 531.43,
+      "sid": 225,
+      "location": 2,
+      "content": "当然我们不能写死啊",
+      "music": 0
+    },
+    {
+      "from": 531.43,
+      "to": 533.26,
+      "sid": 226,
+      "location": 2,
+      "content": "我们在这个地方要生成这个序列号",
+      "music": 0
+    },
+    {
+      "from": 533.26,
+      "to": 535.38,
+      "sid": 227,
+      "location": 2,
+      "content": "它的这个key啊",
+      "music": 0
+    },
+    {
+      "from": 535.38,
+      "to": 538.86,
+      "sid": 228,
+      "location": 2,
+      "content": "我们必须先获取当前的这个日期啊",
+      "music": 0
+    },
+    {
+      "from": 538.86,
+      "to": 539.88,
+      "sid": 229,
+      "location": 2,
+      "content": "精确到天",
+      "music": 0
+    },
+    {
+      "from": 540.92,
+      "to": 544.719,
+      "sid": 230,
+      "location": 2,
+      "content": "然后再去做这个自增长的动作对吧",
+      "music": 0
+    },
+    {
+      "from": 544.74,
+      "to": 545.91,
+      "sid": 231,
+      "location": 2,
+      "content": "分两步",
+      "music": 0
+    },
+    {
+      "from": 545.91,
+      "to": 547.92,
+      "sid": 232,
+      "location": 2,
+      "content": "那得到天其实很简单",
+      "music": 0
+    },
+    {
+      "from": 547.92,
+      "to": 549.79,
+      "sid": 233,
+      "location": 2,
+      "content": "我们用这个now点啊",
+      "music": 0
+    },
+    {
+      "from": 549.79,
+      "to": 551.17,
+      "sid": 234,
+      "location": 2,
+      "content": "format做格式化就行了",
+      "music": 0
+    },
+    {
+      "from": 551.17,
+      "to": 553.109,
+      "sid": 235,
+      "location": 2,
+      "content": "用这个deformat啊",
+      "music": 0
+    },
+    {
+      "from": 553.109,
+      "to": 555.749,
+      "sid": 236,
+      "location": 2,
+      "content": "它里边的话呢我们用个oppattern吧",
+      "music": 0
+    },
+    {
+      "from": 555.749,
+      "to": 558.089,
+      "sid": 237,
+      "location": 2,
+      "content": "自己自定义这个格式化的方式啊",
+      "music": 0
+    },
+    {
+      "from": 558.089,
+      "to": 560.16,
+      "sid": 238,
+      "location": 2,
+      "content": "前面的y y y啊",
+      "music": 0
+    },
+    {
+      "from": 560.16,
+      "to": 560.88,
+      "sid": 239,
+      "location": 2,
+      "content": "杠mm",
+      "music": 0
+    },
+    {
+      "from": 560.88,
+      "to": 564.93,
+      "sid": 240,
+      "location": 2,
+      "content": "然后d这样不就得到了这个日期的天了嘛",
+      "music": 0
+    },
+    {
+      "from": 564.93,
+      "to": 566.58,
+      "sid": 241,
+      "location": 2,
+      "content": "对不对啊",
+      "music": 0
+    },
+    {
+      "from": 566.58,
+      "to": 570.18,
+      "sid": 242,
+      "location": 2,
+      "content": "好把它拼接在后面就可以了",
+      "music": 0
+    },
+    {
+      "from": 570.32,
+      "to": 574.22,
+      "sid": 243,
+      "location": 2,
+      "content": "这就是我们啊日期key的一个字符串了",
+      "music": 0
+    },
+    {
+      "from": 574.22,
+      "to": 575.46,
+      "sid": 244,
+      "location": 2,
+      "content": "这里得到count值",
+      "music": 0
+    },
+    {
+      "from": 575.46,
+      "to": 576.72,
+      "sid": 245,
+      "location": 2,
+      "content": "那么需要注意的是呢",
+      "music": 0
+    },
+    {
+      "from": 576.72,
+      "to": 579,
+      "sid": 246,
+      "location": 2,
+      "content": "这个地方啊我们精确到天",
+      "music": 0
+    },
+    {
+      "from": 579,
+      "to": 580.23,
+      "sid": 247,
+      "location": 2,
+      "content": "那也就是一天一个key",
+      "music": 0
+    },
+    {
+      "from": 580.23,
+      "to": 581.25,
+      "sid": 248,
+      "location": 2,
+      "content": "那如果是精确到月",
+      "music": 0
+    },
+    {
+      "from": 581.25,
+      "to": 581.97,
+      "sid": 249,
+      "location": 2,
+      "content": "就是1月一个k",
+      "music": 0
+    },
+    {
+      "from": 581.97,
+      "to": 582.39,
+      "sid": 250,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 582.39,
+      "to": 583.71,
+      "sid": 251,
+      "location": 2,
+      "content": "你说我们现在进去的天",
+      "music": 0
+    },
+    {
+      "from": 583.71,
+      "to": 586.15,
+      "sid": 252,
+      "location": 2,
+      "content": "我们统计的就是一天的总的订单量",
+      "music": 0
+    },
+    {
+      "from": 586.15,
+      "to": 588.31,
+      "sid": 253,
+      "location": 2,
+      "content": "如果说你将来想统计月其实也简单",
+      "music": 0
+    },
+    {
+      "from": 588.31,
+      "to": 589.39,
+      "sid": 254,
+      "location": 2,
+      "content": "你不需要以月为单位",
+      "music": 0
+    },
+    {
+      "from": 589.39,
+      "to": 591.24,
+      "sid": 255,
+      "location": 2,
+      "content": "你只需要用冒号给它分割开",
+      "music": 0
+    },
+    {
+      "from": 591.3,
+      "to": 593.04,
+      "sid": 256,
+      "location": 2,
+      "content": "因为我们知道在rise里面",
+      "music": 0
+    },
+    {
+      "from": 593.04,
+      "to": 594.54,
+      "sid": 257,
+      "location": 2,
+      "content": "如果你的key也不分割",
+      "music": 0
+    },
+    {
+      "from": 594.54,
+      "to": 596.24,
+      "sid": 258,
+      "location": 2,
+      "content": "他将来是不是分层级的",
+      "music": 0
+    },
+    {
+      "from": 596.24,
+      "to": 597.92,
+      "sid": 259,
+      "location": 2,
+      "content": "是年月日",
+      "music": 0
+    },
+    {
+      "from": 597.92,
+      "to": 599.06,
+      "sid": 260,
+      "location": 2,
+      "content": "那我想统计月的时候",
+      "music": 0
+    },
+    {
+      "from": 599.06,
+      "to": 601.16,
+      "sid": 261,
+      "location": 2,
+      "content": "我就统计它为前缀的所有的key",
+      "music": 0
+    },
+    {
+      "from": 601.16,
+      "to": 602.48,
+      "sid": 262,
+      "location": 2,
+      "content": "然后把它们的值累加",
+      "music": 0
+    },
+    {
+      "from": 602.48,
+      "to": 604.1,
+      "sid": 263,
+      "location": 2,
+      "content": "是不是得到这个月的作用",
+      "music": 0
+    },
+    {
+      "from": 604.1,
+      "to": 605.63,
+      "sid": 264,
+      "location": 2,
+      "content": "订单量我要统计年",
+      "music": 0
+    },
+    {
+      "from": 605.63,
+      "to": 608.25,
+      "sid": 265,
+      "location": 2,
+      "content": "就是以这个作为前缀统计",
+      "music": 0
+    },
+    {
+      "from": 608.25,
+      "to": 610.52,
+      "sid": 266,
+      "location": 2,
+      "content": "它里面包含了所有的k的值",
+      "music": 0
+    },
+    {
+      "from": 610.52,
+      "to": 611.66,
+      "sid": 267,
+      "location": 2,
+      "content": "是不是都可以",
+      "music": 0
+    },
+    {
+      "from": 611.66,
+      "to": 613.88,
+      "sid": 268,
+      "location": 2,
+      "content": "所以说这样我们将来想去做统计啊",
+      "music": 0
+    },
+    {
+      "from": 613.88,
+      "to": 615.53,
+      "sid": 269,
+      "location": 2,
+      "content": "就太简单了是吧",
+      "music": 0
+    },
+    {
+      "from": 615.53,
+      "to": 619.7,
+      "sid": 270,
+      "location": 2,
+      "content": "所以呢我们建议大家以日期精确到天文单位",
+      "music": 0
+    },
+    {
+      "from": 619.7,
+      "to": 620.68,
+      "sid": 271,
+      "location": 2,
+      "content": "作为key啊",
+      "music": 0
+    },
+    {
+      "from": 620.68,
+      "to": 621.88,
+      "sid": 272,
+      "location": 2,
+      "content": "两个好处啊",
+      "music": 0
+    },
+    {
+      "from": 621.88,
+      "to": 623.62,
+      "sid": 273,
+      "location": 2,
+      "content": "避免超过这个32位的上限",
+      "music": 0
+    },
+    {
+      "from": 623.62,
+      "to": 625.339,
+      "sid": 274,
+      "location": 2,
+      "content": "第二个呢是方面的统计",
+      "music": 0
+    },
+    {
+      "from": 625.48,
+      "to": 627.94,
+      "sid": 275,
+      "location": 2,
+      "content": "还有呢就是这个自增长得到结果了",
+      "music": 0
+    },
+    {
+      "from": 627.94,
+      "to": 629.98,
+      "sid": 276,
+      "location": 2,
+      "content": "这个地方要用一个基本类型",
+      "music": 0
+    },
+    {
+      "from": 629.98,
+      "to": 630.88,
+      "sid": 277,
+      "location": 2,
+      "content": "不要用包装类",
+      "music": 0
+    },
+    {
+      "from": 630.88,
+      "to": 632.819,
+      "sid": 278,
+      "location": 2,
+      "content": "因为等一会我们要做运算呢是吧",
+      "music": 0
+    },
+    {
+      "from": 632.96,
+      "to": 634.76,
+      "sid": 279,
+      "location": 2,
+      "content": "那这个地方为什么会涉黄呢",
+      "music": 0
+    },
+    {
+      "from": 634.76,
+      "to": 636.08,
+      "sid": 280,
+      "location": 2,
+      "content": "因为他这里会说啊",
+      "music": 0
+    },
+    {
+      "from": 636.08,
+      "to": 637.7,
+      "sid": 281,
+      "location": 2,
+      "content": "就是在自动拆迁的过程中",
+      "music": 0
+    },
+    {
+      "from": 637.7,
+      "to": 638.99,
+      "sid": 282,
+      "location": 2,
+      "content": "有可能会有控制针",
+      "music": 0
+    },
+    {
+      "from": 638.99,
+      "to": 641.25,
+      "sid": 283,
+      "location": 2,
+      "content": "那么事实上这里不会出现控制针",
+      "music": 0
+    },
+    {
+      "from": 641.25,
+      "to": 642.36,
+      "sid": 284,
+      "location": 2,
+      "content": "为什么呢",
+      "music": 0
+    },
+    {
+      "from": 642.36,
+      "to": 645.69,
+      "sid": 285,
+      "location": 2,
+      "content": "因为如果我们的这个key根本不存在",
+      "music": 0
+    },
+    {
+      "from": 645.69,
+      "to": 648.36,
+      "sid": 286,
+      "location": 2,
+      "content": "也就是说新的一天到来了第一个单对吧",
+      "music": 0
+    },
+    {
+      "from": 648.36,
+      "to": 649.23,
+      "sid": 287,
+      "location": 2,
+      "content": "那么这不存在呢",
+      "music": 0
+    },
+    {
+      "from": 649.23,
+      "to": 650.01,
+      "sid": 288,
+      "location": 2,
+      "content": "它不会导致控制",
+      "music": 0
+    },
+    {
+      "from": 650.01,
+      "to": 651.39,
+      "sid": 289,
+      "location": 2,
+      "content": "这样他会干什么呢",
+      "music": 0
+    },
+    {
+      "from": 651.39,
+      "to": 652.23,
+      "sid": 290,
+      "location": 2,
+      "content": "如果key不存在",
+      "music": 0
+    },
+    {
+      "from": 652.23,
+      "to": 654.06,
+      "sid": 291,
+      "location": 2,
+      "content": "它会自动给你创建这个k",
+      "music": 0
+    },
+    {
+      "from": 654.06,
+      "to": 655.98,
+      "sid": 292,
+      "location": 2,
+      "content": "然后呢嗯就从零开始嘛",
+      "music": 0
+    },
+    {
+      "from": 655.98,
+      "to": 658.27,
+      "sid": 293,
+      "location": 2,
+      "content": "加一之后是不是就是一方一直就是一",
+      "music": 0
+    },
+    {
+      "from": 658.27,
+      "to": 660.31,
+      "sid": 294,
+      "location": 2,
+      "content": "所以说你根本不用担心控制的问题",
+      "music": 0
+    },
+    {
+      "from": 660.31,
+      "to": 661.72,
+      "sid": 295,
+      "location": 2,
+      "content": "这绝对不会被控制",
+      "music": 0
+    },
+    {
+      "from": 661.72,
+      "to": 663.82,
+      "sid": 296,
+      "location": 2,
+      "content": "所以这块这个警告是你不用管",
+      "music": 0
+    },
+    {
+      "from": 663.82,
+      "to": 664.75,
+      "sid": 297,
+      "location": 2,
+      "content": "忽略就行了",
+      "music": 0
+    },
+    {
+      "from": 664.75,
+      "to": 665.62,
+      "sid": 298,
+      "location": 2,
+      "content": "好到这儿呢",
+      "music": 0
+    },
+    {
+      "from": 665.62,
+      "to": 666.52,
+      "sid": 299,
+      "location": 2,
+      "content": "序列号也有了",
+      "music": 0
+    },
+    {
+      "from": 666.52,
+      "to": 667.36,
+      "sid": 300,
+      "location": 2,
+      "content": "日期也有了",
+      "music": 0
+    },
+    {
+      "from": 667.36,
+      "to": 669.34,
+      "sid": 301,
+      "location": 2,
+      "content": "那下一步要干的事情是什么",
+      "music": 0
+    },
+    {
+      "from": 669.34,
+      "to": 671.17,
+      "sid": 302,
+      "location": 2,
+      "content": "同学们唉",
+      "music": 0
+    },
+    {
+      "from": 671.17,
+      "to": 674.32,
+      "sid": 303,
+      "location": 2,
+      "content": "下一波干的事情是不是把这两个东西拼接起来",
+      "music": 0
+    },
+    {
+      "from": 674.32,
+      "to": 675.7,
+      "sid": 304,
+      "location": 2,
+      "content": "形成最终的这个格式",
+      "music": 0
+    },
+    {
+      "from": 675.7,
+      "to": 676.93,
+      "sid": 305,
+      "location": 2,
+      "content": "然后返回就行了",
+      "music": 0
+    },
+    {
+      "from": 676.93,
+      "to": 679.26,
+      "sid": 306,
+      "location": 2,
+      "content": "那么我们该怎么样拼接呢",
+      "music": 0
+    },
+    {
+      "from": 679.32,
+      "to": 680.91,
+      "sid": 307,
+      "location": 2,
+      "content": "那有的人真简单呀",
+      "music": 0
+    },
+    {
+      "from": 680.91,
+      "to": 682.62,
+      "sid": 308,
+      "location": 2,
+      "content": "前面时间戳后背序列号",
+      "music": 0
+    },
+    {
+      "from": 682.62,
+      "to": 685.079,
+      "sid": 309,
+      "location": 2,
+      "content": "这俩用的字符串拼一下不就完了吗",
+      "music": 0
+    },
+    {
+      "from": 685.079,
+      "to": 685.979,
+      "sid": 310,
+      "location": 2,
+      "content": "哎是的",
+      "music": 0
+    },
+    {
+      "from": 685.979,
+      "to": 687.599,
+      "sid": 311,
+      "location": 2,
+      "content": "简单来讲是这么做可以",
+      "music": 0
+    },
+    {
+      "from": 687.599,
+      "to": 689.7,
+      "sid": 312,
+      "location": 2,
+      "content": "但你别忘了我们的返回值是浪",
+      "music": 0
+    },
+    {
+      "from": 689.7,
+      "to": 691.44,
+      "sid": 313,
+      "location": 2,
+      "content": "如果你把他俩拼接",
+      "music": 0
+    },
+    {
+      "from": 692.46,
+      "to": 694.32,
+      "sid": 314,
+      "location": 2,
+      "content": "那你的返回值就是字符串了",
+      "music": 0
+    },
+    {
+      "from": 694.32,
+      "to": 694.98,
+      "sid": 315,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 694.98,
+      "to": 697.74,
+      "sid": 316,
+      "location": 2,
+      "content": "所以说我们是要以数字的形式去做拼接",
+      "music": 0
+    },
+    {
+      "from": 697.74,
+      "to": 701.04,
+      "sid": 317,
+      "location": 2,
+      "content": "也就是数字的高位是这个时间戳",
+      "music": 0
+    },
+    {
+      "from": 701.04,
+      "to": 702.3,
+      "sid": 318,
+      "location": 2,
+      "content": "低位是序列号",
+      "music": 0
+    },
+    {
+      "from": 702.3,
+      "to": 704.359,
+      "sid": 319,
+      "location": 2,
+      "content": "那这种拼接又该怎么做呢",
+      "music": 0
+    },
+    {
+      "from": 704.36,
+      "to": 707.98,
+      "sid": 320,
+      "location": 2,
+      "content": "好那么这种呢就要借助于位运算了",
+      "music": 0
+    },
+    {
+      "from": 707.98,
+      "to": 709.75,
+      "sid": 321,
+      "location": 2,
+      "content": "你现在可以这么来理解啊",
+      "music": 0
+    },
+    {
+      "from": 709.75,
+      "to": 712.319,
+      "sid": 322,
+      "location": 2,
+      "content": "就是这个时间戳现在是在低位",
+      "music": 0
+    },
+    {
+      "from": 712.319,
+      "to": 714.659,
+      "sid": 323,
+      "location": 2,
+      "content": "而我们需要让他把地位让出来",
+      "music": 0
+    },
+    {
+      "from": 714.659,
+      "to": 715.679,
+      "sid": 324,
+      "location": 2,
+      "content": "让他往前挪",
+      "music": 0
+    },
+    {
+      "from": 715.679,
+      "to": 715.919,
+      "sid": 325,
+      "location": 2,
+      "content": "挪",
+      "music": 0
+    },
+    {
+      "from": 715.919,
+      "to": 716.999,
+      "sid": 326,
+      "location": 2,
+      "content": "到是不是高位去",
+      "music": 0
+    },
+    {
+      "from": 716.999,
+      "to": 718.23,
+      "sid": 327,
+      "location": 2,
+      "content": "那怎么去做",
+      "music": 0
+    },
+    {
+      "from": 718.23,
+      "to": 722.52,
+      "sid": 328,
+      "location": 2,
+      "content": "ok我们可以把时间戳的值",
+      "music": 0
+    },
+    {
+      "from": 722.52,
+      "to": 724.32,
+      "sid": 329,
+      "location": 2,
+      "content": "你可以理解成时间出现在这个零",
+      "music": 0
+    },
+    {
+      "from": 724.32,
+      "to": 725.37,
+      "sid": 330,
+      "location": 2,
+      "content": "对应在最低位",
+      "music": 0
+    },
+    {
+      "from": 725.37,
+      "to": 727.14,
+      "sid": 331,
+      "location": 2,
+      "content": "让他让他让他干什么呢",
+      "music": 0
+    },
+    {
+      "from": 727.14,
+      "to": 730.7,
+      "sid": 332,
+      "location": 2,
+      "content": "让他往左侧移动移动多少位",
+      "music": 0
+    },
+    {
+      "from": 730.7,
+      "to": 733.4,
+      "sid": 333,
+      "location": 2,
+      "content": "是不是移动到流出足够的",
+      "music": 0
+    },
+    {
+      "from": 733.4,
+      "to": 734.84,
+      "sid": 334,
+      "location": 2,
+      "content": "这个序列号的位置为止",
+      "music": 0
+    },
+    {
+      "from": 734.84,
+      "to": 736.1,
+      "sid": 335,
+      "location": 2,
+      "content": "那序列号占32位",
+      "music": 0
+    },
+    {
+      "from": 736.1,
+      "to": 739.9,
+      "sid": 336,
+      "location": 2,
+      "content": "那么因此它向左移动32位",
+      "music": 0
+    },
+    {
+      "from": 740.06,
+      "to": 742.92,
+      "sid": 337,
+      "location": 2,
+      "content": "这样呢就是相当于把位置给空出来了",
+      "music": 0
+    },
+    {
+      "from": 742.92,
+      "to": 745.44,
+      "sid": 338,
+      "location": 2,
+      "content": "那么它向左时间戳原来是在最低位吗",
+      "music": 0
+    },
+    {
+      "from": 745.44,
+      "to": 747.36,
+      "sid": 339,
+      "location": 2,
+      "content": "它往左移动了32位了",
+      "music": 0
+    },
+    {
+      "from": 747.36,
+      "to": 750.72,
+      "sid": 340,
+      "location": 2,
+      "content": "那剩下的这一空出来的32位",
+      "music": 0
+    },
+    {
+      "from": 750.72,
+      "to": 752.65,
+      "sid": 341,
+      "location": 2,
+      "content": "其实就是全部以什么补充了",
+      "music": 0
+    },
+    {
+      "from": 752.65,
+      "to": 753.97,
+      "sid": 342,
+      "location": 2,
+      "content": "以零补充了",
+      "music": 0
+    },
+    {
+      "from": 753.97,
+      "to": 757.39,
+      "sid": 343,
+      "location": 2,
+      "content": "然后我再把这个序列号的值填充到这一部分",
+      "music": 0
+    },
+    {
+      "from": 757.39,
+      "to": 758.98,
+      "sid": 344,
+      "location": 2,
+      "content": "是不是就ok了啊",
+      "music": 0
+    },
+    {
+      "from": 758.98,
+      "to": 760.36,
+      "sid": 345,
+      "location": 2,
+      "content": "那也就是说啊",
+      "music": 0
+    },
+    {
+      "from": 760.36,
+      "to": 762.28,
+      "sid": 346,
+      "location": 2,
+      "content": "我们需要让谁呢",
+      "music": 0
+    },
+    {
+      "from": 762.28,
+      "to": 768.819,
+      "sid": 347,
+      "location": 2,
+      "content": "这个time step时间戳的值好向左移动32位",
+      "music": 0
+    },
+    {
+      "from": 768.819,
+      "to": 769.419,
+      "sid": 348,
+      "location": 2,
+      "content": "当然了",
+      "music": 0
+    },
+    {
+      "from": 769.419,
+      "to": 771.189,
+      "sid": 349,
+      "location": 2,
+      "content": "这32最好别在这写死啊",
+      "music": 0
+    },
+    {
+      "from": 771.189,
+      "to": 773.199,
+      "sid": 350,
+      "location": 2,
+      "content": "它是序列号的长度对吧",
+      "music": 0
+    },
+    {
+      "from": 773.199,
+      "to": 773.979,
+      "sid": 351,
+      "location": 2,
+      "content": "现在是32",
+      "music": 0
+    },
+    {
+      "from": 773.979,
+      "to": 775.659,
+      "sid": 352,
+      "location": 2,
+      "content": "那将来呢不好说",
+      "music": 0
+    },
+    {
+      "from": 775.659,
+      "to": 778.4,
+      "sid": 353,
+      "location": 2,
+      "content": "这个有可能万一我们以后算法有变化的",
+      "music": 0
+    },
+    {
+      "from": 778.4,
+      "to": 781.31,
+      "sid": 354,
+      "location": 2,
+      "content": "所以也建议给它定义成一个常量啊",
+      "music": 0
+    },
+    {
+      "from": 781.31,
+      "to": 782.87,
+      "sid": 355,
+      "location": 2,
+      "content": "这个只要用int就行了啊",
+      "music": 0
+    },
+    {
+      "from": 782.87,
+      "to": 787.37,
+      "sid": 356,
+      "location": 2,
+      "content": "那么它代表的其实就是这个count这个位数base",
+      "music": 0
+    },
+    {
+      "from": 787.37,
+      "to": 789.55,
+      "sid": 357,
+      "location": 2,
+      "content": "现在是32好",
+      "music": 0
+    },
+    {
+      "from": 789.55,
+      "to": 796.3,
+      "sid": 358,
+      "location": 2,
+      "content": "可以记录一下好序列号的个位数好",
+      "music": 0
+    },
+    {
+      "from": 798.04,
+      "to": 800.719,
+      "sid": 359,
+      "location": 2,
+      "content": "就以这个count base的值就行了",
+      "music": 0
+    },
+    {
+      "from": 800.72,
+      "to": 802.22,
+      "sid": 360,
+      "location": 2,
+      "content": "位移完了以后呢",
+      "music": 0
+    },
+    {
+      "from": 802.22,
+      "to": 803.9,
+      "sid": 361,
+      "location": 2,
+      "content": "最低位全部以零补充",
+      "music": 0
+    },
+    {
+      "from": 803.9,
+      "to": 806.33,
+      "sid": 362,
+      "location": 2,
+      "content": "那么下面就要把count拼进去不就ok了",
+      "music": 0
+    },
+    {
+      "from": 806.33,
+      "to": 808.339,
+      "sid": 363,
+      "location": 2,
+      "content": "那怎么把count拼进去呢",
+      "music": 0
+    },
+    {
+      "from": 809.3,
+      "to": 810.64,
+      "sid": 364,
+      "location": 2,
+      "content": "这个该怎么去做",
+      "music": 0
+    },
+    {
+      "from": 811.6,
+      "to": 812.85,
+      "sid": 365,
+      "location": 2,
+      "content": "同学们想想看啊",
+      "music": 0
+    },
+    {
+      "from": 812.85,
+      "to": 814.32,
+      "sid": 366,
+      "location": 2,
+      "content": "现在移上去了以后",
+      "music": 0
+    },
+    {
+      "from": 814.32,
+      "to": 815.92,
+      "sid": 367,
+      "location": 2,
+      "content": "低位全部都是零",
+      "music": 0
+    },
+    {
+      "from": 815.92,
+      "to": 819.4,
+      "sid": 368,
+      "location": 2,
+      "content": "这个时候呢我们只要把count值填充到这就行了",
+      "music": 0
+    },
+    {
+      "from": 819.4,
+      "to": 823.02,
+      "sid": 369,
+      "location": 2,
+      "content": "而这个填充我们可以采用或运算是填充",
+      "music": 0
+    },
+    {
+      "from": 823.02,
+      "to": 825,
+      "sid": 370,
+      "location": 2,
+      "content": "为什么用运算就可以去填充呢",
+      "music": 0
+    },
+    {
+      "from": 825,
+      "to": 828.36,
+      "sid": 371,
+      "location": 2,
+      "content": "你想啊或运算是什么啊",
+      "music": 0
+    },
+    {
+      "from": 828.36,
+      "to": 829.5,
+      "sid": 372,
+      "location": 2,
+      "content": "一个为真就为真",
+      "music": 0
+    },
+    {
+      "from": 829.5,
+      "to": 830.16,
+      "sid": 373,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 830.16,
+      "to": 832.599,
+      "sid": 374,
+      "location": 2,
+      "content": "那现在这里都是零",
+      "music": 0
+    },
+    {
+      "from": 832.86,
+      "to": 835.14,
+      "sid": 375,
+      "location": 2,
+      "content": "而count的值它可能为零",
+      "music": 0
+    },
+    {
+      "from": 835.14,
+      "to": 836,
+      "sid": 376,
+      "location": 2,
+      "content": "可能为一",
+      "music": 0
+    },
+    {
+      "from": 836.28,
+      "to": 839.04,
+      "sid": 377,
+      "location": 2,
+      "content": "我们希望的是不管抗的值是零还是一",
+      "music": 0
+    },
+    {
+      "from": 839.04,
+      "to": 840.78,
+      "sid": 378,
+      "location": 2,
+      "content": "都直接填在这里好",
+      "music": 0
+    },
+    {
+      "from": 840.78,
+      "to": 845.21,
+      "sid": 379,
+      "location": 2,
+      "content": "那你想看现在是或零或零得到是零",
+      "music": 0
+    },
+    {
+      "from": 845.21,
+      "to": 846.98,
+      "sid": 380,
+      "location": 2,
+      "content": "零或一得是不是一",
+      "music": 0
+    },
+    {
+      "from": 846.98,
+      "to": 847.97,
+      "sid": 381,
+      "location": 2,
+      "content": "换言之",
+      "music": 0
+    },
+    {
+      "from": 847.97,
+      "to": 848.96,
+      "sid": 382,
+      "location": 2,
+      "content": "这里都是零的情况下",
+      "music": 0
+    },
+    {
+      "from": 848.96,
+      "to": 850.07,
+      "sid": 383,
+      "location": 2,
+      "content": "我们用或运算",
+      "music": 0
+    },
+    {
+      "from": 850.07,
+      "to": 852.149,
+      "sid": 384,
+      "location": 2,
+      "content": "那么count值是一",
+      "music": 0
+    },
+    {
+      "from": 852.149,
+      "to": 853.109,
+      "sid": 385,
+      "location": 2,
+      "content": "这里就会是一",
+      "music": 0
+    },
+    {
+      "from": 853.109,
+      "to": 853.589,
+      "sid": 386,
+      "location": 2,
+      "content": "count值是零",
+      "music": 0
+    },
+    {
+      "from": 853.589,
+      "to": 854.069,
+      "sid": 387,
+      "location": 2,
+      "content": "就是零",
+      "music": 0
+    },
+    {
+      "from": 854.069,
+      "to": 855.749,
+      "sid": 388,
+      "location": 2,
+      "content": "也就是说count值是什么",
+      "music": 0
+    },
+    {
+      "from": 855.749,
+      "to": 857.19,
+      "sid": 389,
+      "location": 2,
+      "content": "将来是不是就保留什么",
+      "music": 0
+    },
+    {
+      "from": 857.19,
+      "to": 861.99,
+      "sid": 390,
+      "location": 2,
+      "content": "这样是不是就能够实现这个拼接效果好",
+      "music": 0
+    },
+    {
+      "from": 861.99,
+      "to": 863.1,
+      "sid": 391,
+      "location": 2,
+      "content": "先向左移",
+      "music": 0
+    },
+    {
+      "from": 863.1,
+      "to": 864.06,
+      "sid": 392,
+      "location": 2,
+      "content": "把位置空出来",
+      "music": 0
+    },
+    {
+      "from": 864.06,
+      "to": 867.09,
+      "sid": 393,
+      "location": 2,
+      "content": "然后去或原样不动保留下来",
+      "music": 0
+    },
+    {
+      "from": 867.09,
+      "to": 868.19,
+      "sid": 394,
+      "location": 2,
+      "content": "这样就ok了",
+      "music": 0
+    },
+    {
+      "from": 868.19,
+      "to": 870.89,
+      "sid": 395,
+      "location": 2,
+      "content": "这就是我们最终这个运算的方案了",
+      "music": 0
+    },
+    {
+      "from": 870.89,
+      "to": 871.819,
+      "sid": 396,
+      "location": 2,
+      "content": "或运算",
+      "music": 0
+    },
+    {
+      "from": 873.88,
+      "to": 875.28,
+      "sid": 397,
+      "location": 2,
+      "content": "那么到这儿呢",
+      "music": 0
+    },
+    {
+      "from": 875.28,
+      "to": 877.65,
+      "sid": 398,
+      "location": 2,
+      "content": "我们其实这个id生成器的算法",
+      "music": 0
+    },
+    {
+      "from": 877.65,
+      "to": 879.42,
+      "sid": 399,
+      "location": 2,
+      "content": "就已经初步实现了",
+      "music": 0
+    },
+    {
+      "from": 879.42,
+      "to": 881.599,
+      "sid": 400,
+      "location": 2,
+      "content": "下边呢我们来测试一下啊",
+      "music": 0
+    },
+    {
+      "from": 881.599,
+      "to": 883.879,
+      "sid": 401,
+      "location": 2,
+      "content": "来我们打开这个单元测试",
+      "music": 0
+    },
+    {
+      "from": 883.879,
+      "to": 888.16,
+      "sid": 402,
+      "location": 2,
+      "content": "在这儿呢我们去注入刚刚我们定义的这个id",
+      "music": 0
+    },
+    {
+      "from": 888.16,
+      "to": 888.85,
+      "sid": 403,
+      "location": 2,
+      "content": "worker",
+      "music": 0
+    },
+    {
+      "from": 888.85,
+      "to": 889.78,
+      "sid": 404,
+      "location": 2,
+      "content": "rabbit",
+      "music": 0
+    },
+    {
+      "from": 890.92,
+      "to": 892.15,
+      "sid": 405,
+      "location": 2,
+      "content": "redis",
+      "music": 0
+    },
+    {
+      "from": 892.15,
+      "to": 893.76,
+      "sid": 406,
+      "location": 2,
+      "content": "id worker",
+      "music": 0
+    },
+    {
+      "from": 894,
+      "to": 895.5,
+      "sid": 407,
+      "location": 2,
+      "content": "好拿到它",
+      "music": 0
+    },
+    {
+      "from": 895.5,
+      "to": 899.16,
+      "sid": 408,
+      "location": 2,
+      "content": "然后呢我们在这儿呢去编写这个单元测试啊",
+      "music": 0
+    },
+    {
+      "from": 899.16,
+      "to": 901.29,
+      "sid": 409,
+      "location": 2,
+      "content": "test id work",
+      "music": 0
+    },
+    {
+      "from": 901.29,
+      "to": 904.47,
+      "sid": 410,
+      "location": 2,
+      "content": "在这呢我们测一下它这个并发情况下",
+      "music": 0
+    },
+    {
+      "from": 904.47,
+      "to": 906,
+      "sid": 411,
+      "location": 2,
+      "content": "生成id的一个性能",
+      "music": 0
+    },
+    {
+      "from": 906,
+      "to": 908.01,
+      "sid": 412,
+      "location": 2,
+      "content": "还有生成id的一个值的情况啊",
+      "music": 0
+    },
+    {
+      "from": 908.01,
+      "to": 910.05,
+      "sid": 413,
+      "location": 2,
+      "content": "所以说在这我们会准备一个线程池啊",
+      "music": 0
+    },
+    {
+      "from": 910.05,
+      "to": 912.52,
+      "sid": 414,
+      "location": 2,
+      "content": "所以说我们来写一个简单一点线程式",
+      "music": 0
+    },
+    {
+      "from": 912.52,
+      "to": 913.84,
+      "sid": 415,
+      "location": 2,
+      "content": "不用搞太复杂",
+      "music": 0
+    },
+    {
+      "from": 913.84,
+      "to": 917.9,
+      "sid": 416,
+      "location": 2,
+      "content": "直接就x creputer service吧",
+      "music": 0
+    },
+    {
+      "from": 917.9,
+      "to": 922.24,
+      "sid": 417,
+      "location": 2,
+      "content": "啊e等于啊这个executter 4好",
+      "music": 0
+    },
+    {
+      "from": 922.24,
+      "to": 925.24,
+      "sid": 418,
+      "location": 2,
+      "content": "然后呢new一个fixed spole吧",
+      "music": 0
+    },
+    {
+      "from": 925.24,
+      "to": 928.36,
+      "sid": 419,
+      "location": 2,
+      "content": "比如给500个线程嗯",
+      "music": 0
+    },
+    {
+      "from": 928.36,
+      "to": 932.74,
+      "sid": 420,
+      "location": 2,
+      "content": "然后呢我们在这里就可以来去做这个测试了啊",
+      "music": 0
+    },
+    {
+      "from": 933.26,
+      "to": 934.76,
+      "sid": 421,
+      "location": 2,
+      "content": "那我们是这样子的啊",
+      "music": 0
+    },
+    {
+      "from": 934.76,
+      "to": 935.96,
+      "sid": 422,
+      "location": 2,
+      "content": "我建议500个线程",
+      "music": 0
+    },
+    {
+      "from": 935.96,
+      "to": 937.88,
+      "sid": 423,
+      "location": 2,
+      "content": "等一会儿我们肯定要去执行500次",
+      "music": 0
+    },
+    {
+      "from": 937.88,
+      "to": 939.68,
+      "sid": 424,
+      "location": 2,
+      "content": "我们先把这个任务定义出来啊",
+      "music": 0
+    },
+    {
+      "from": 939.68,
+      "to": 940.86,
+      "sid": 425,
+      "location": 2,
+      "content": "rnable啊",
+      "music": 0
+    },
+    {
+      "from": 940.86,
+      "to": 944.49,
+      "sid": 426,
+      "location": 2,
+      "content": "task等于啊用一个lab表示来写吧",
+      "music": 0
+    },
+    {
+      "from": 944.49,
+      "to": 945.93,
+      "sid": 427,
+      "location": 2,
+      "content": "那我们的任务是什么呢",
+      "music": 0
+    },
+    {
+      "from": 945.93,
+      "to": 947.07,
+      "sid": 428,
+      "location": 2,
+      "content": "每个线程来了啊",
+      "music": 0
+    },
+    {
+      "from": 947.07,
+      "to": 949.11,
+      "sid": 429,
+      "location": 2,
+      "content": "都去生成100个这个id",
+      "music": 0
+    },
+    {
+      "from": 949.11,
+      "to": 951.61,
+      "sid": 430,
+      "location": 2,
+      "content": "并且把它打印一下好吧",
+      "music": 0
+    },
+    {
+      "from": 951.61,
+      "to": 957.36,
+      "sid": 431,
+      "location": 2,
+      "content": "那我们就for循环生成100个好了",
+      "music": 0
+    },
+    {
+      "from": 957.36,
+      "to": 958.44,
+      "sid": 432,
+      "location": 2,
+      "content": "调用这个release id",
+      "music": 0
+    },
+    {
+      "from": 958.44,
+      "to": 960.9,
+      "sid": 433,
+      "location": 2,
+      "content": "worker next i d啊",
+      "music": 0
+    },
+    {
+      "from": 960.9,
+      "to": 961.92,
+      "sid": 434,
+      "location": 2,
+      "content": "去生成啊",
+      "music": 0
+    },
+    {
+      "from": 961.92,
+      "to": 963.78,
+      "sid": 435,
+      "location": 2,
+      "content": "值呢都是这个order啊",
+      "music": 0
+    },
+    {
+      "from": 963.78,
+      "to": 964.76,
+      "sid": 436,
+      "location": 2,
+      "content": "去生成id",
+      "music": 0
+    },
+    {
+      "from": 965,
+      "to": 966.56,
+      "sid": 437,
+      "location": 2,
+      "content": "好得到这个id",
+      "music": 0
+    },
+    {
+      "from": 967.64,
+      "to": 970.84,
+      "sid": 438,
+      "location": 2,
+      "content": "然后给他打印一下呃",
+      "music": 0
+    },
+    {
+      "from": 970.84,
+      "to": 973.27,
+      "sid": 439,
+      "location": 2,
+      "content": "然后呢打印完了以后啊",
+      "music": 0
+    },
+    {
+      "from": 973.27,
+      "to": 975.03,
+      "sid": 440,
+      "location": 2,
+      "content": "这个任务其实也就结束了",
+      "music": 0
+    },
+    {
+      "from": 975.03,
+      "to": 977.49,
+      "sid": 441,
+      "location": 2,
+      "content": "然后我们把这个任务提交100次",
+      "music": 0
+    },
+    {
+      "from": 977.49,
+      "to": 980.76,
+      "sid": 442,
+      "location": 2,
+      "content": "提交500次或者三次都可以提交一下",
+      "music": 0
+    },
+    {
+      "from": 980.76,
+      "to": 982.859,
+      "sid": 443,
+      "location": 2,
+      "content": "然后提交的时候还是用for循环吧",
+      "music": 0
+    },
+    {
+      "from": 983.64,
+      "to": 985.31,
+      "sid": 444,
+      "location": 2,
+      "content": "啊比如说300次吧",
+      "music": 0
+    },
+    {
+      "from": 985.31,
+      "to": 989.6,
+      "sid": 445,
+      "location": 2,
+      "content": "然后呢通过e.submit提交这些任务",
+      "music": 0
+    },
+    {
+      "from": 989.6,
+      "to": 991.7,
+      "sid": 446,
+      "location": 2,
+      "content": "把这个任务放进去",
+      "music": 0
+    },
+    {
+      "from": 991.7,
+      "to": 995.12,
+      "sid": 447,
+      "location": 2,
+      "content": "那么这样呢我们的任务就会被提交300次啊",
+      "music": 0
+    },
+    {
+      "from": 995.12,
+      "to": 997.1,
+      "sid": 448,
+      "location": 2,
+      "content": "300x100就是3万个id",
+      "music": 0
+    },
+    {
+      "from": 997.1,
+      "to": 999.329,
+      "sid": 449,
+      "location": 2,
+      "content": "我们看一下它要花多长时间执行完",
+      "music": 0
+    },
+    {
+      "from": 999.329,
+      "to": 1001.009,
+      "sid": 450,
+      "location": 2,
+      "content": "所以我们去记个时",
+      "music": 0
+    },
+    {
+      "from": 1001.009,
+      "to": 1002.929,
+      "sid": 451,
+      "location": 2,
+      "content": "在任务开始的时候就记个时",
+      "music": 0
+    },
+    {
+      "from": 1002.929,
+      "to": 1004.669,
+      "sid": 452,
+      "location": 2,
+      "content": "任务结束再记个十对吧",
+      "music": 0
+    },
+    {
+      "from": 1004.669,
+      "to": 1007.41,
+      "sid": 453,
+      "location": 2,
+      "content": "sm.content meli啊",
+      "music": 0
+    },
+    {
+      "from": 1007.41,
+      "to": 1010.2,
+      "sid": 454,
+      "location": 2,
+      "content": "begin好",
+      "music": 0
+    },
+    {
+      "from": 1010.2,
+      "to": 1013.38,
+      "sid": 455,
+      "location": 2,
+      "content": "然后呢再来一个这个放到结束的时候",
+      "music": 0
+    },
+    {
+      "from": 1013.38,
+      "to": 1015.9,
+      "sid": 456,
+      "location": 2,
+      "content": "and但是大家要注意哦",
+      "music": 0
+    },
+    {
+      "from": 1015.9,
+      "to": 1017.52,
+      "sid": 457,
+      "location": 2,
+      "content": "因为我们使用线程池是异步的啊",
+      "music": 0
+    },
+    {
+      "from": 1017.52,
+      "to": 1018.96,
+      "sid": 458,
+      "location": 2,
+      "content": "所以这个计时是没有意义的",
+      "music": 0
+    },
+    {
+      "from": 1018.96,
+      "to": 1021.17,
+      "sid": 459,
+      "location": 2,
+      "content": "所以我们是不是要等他执行完再去计时",
+      "music": 0
+    },
+    {
+      "from": 1021.17,
+      "to": 1024.68,
+      "sid": 460,
+      "location": 2,
+      "content": "这里呢我们会借助于这个counter lg去做啊",
+      "music": 0
+    },
+    {
+      "from": 1025.7,
+      "to": 1028.3,
+      "sid": 461,
+      "location": 2,
+      "content": "count down lunch去做",
+      "music": 0
+    },
+    {
+      "from": 1028.3,
+      "to": 1030.64,
+      "sid": 462,
+      "location": 2,
+      "content": "比如说这里我们明明知道是300个线程吗",
+      "music": 0
+    },
+    {
+      "from": 1030.64,
+      "to": 1033.02,
+      "sid": 463,
+      "location": 2,
+      "content": "比如说我们就是300啊",
+      "music": 0
+    },
+    {
+      "from": 1033.02,
+      "to": 1036.36,
+      "sid": 464,
+      "location": 2,
+      "content": "得到浏览器好",
+      "music": 0
+    },
+    {
+      "from": 1036.36,
+      "to": 1038.01,
+      "sid": 465,
+      "location": 2,
+      "content": "到了拉起来以后呢",
+      "music": 0
+    },
+    {
+      "from": 1038.01,
+      "to": 1041.58,
+      "sid": 466,
+      "location": 2,
+      "content": "嗯每当一个新任务执行完毕啊",
+      "music": 0
+    },
+    {
+      "from": 1041.58,
+      "to": 1046.39,
+      "sid": 467,
+      "location": 2,
+      "content": "就执行一下这个啊count down动作好",
+      "music": 0
+    },
+    {
+      "from": 1046.39,
+      "to": 1049.66,
+      "sid": 468,
+      "location": 2,
+      "content": "那每一个任务count down一次啊",
+      "music": 0
+    },
+    {
+      "from": 1049.66,
+      "to": 1052.6,
+      "sid": 469,
+      "location": 2,
+      "content": "300个线程是不是叫count down 300次啊",
+      "music": 0
+    },
+    {
+      "from": 1052.6,
+      "to": 1053.44,
+      "sid": 470,
+      "location": 2,
+      "content": "等到结束",
+      "music": 0
+    },
+    {
+      "from": 1053.44,
+      "to": 1056.08,
+      "sid": 471,
+      "location": 2,
+      "content": "所以说我们在这来个which啊",
+      "music": 0
+    },
+    {
+      "from": 1056.08,
+      "to": 1058.85,
+      "sid": 472,
+      "location": 2,
+      "content": "wait好等待等待什么",
+      "music": 0
+    },
+    {
+      "from": 1058.85,
+      "to": 1061.34,
+      "sid": 473,
+      "location": 2,
+      "content": "等待所有的这个cut down结束为止",
+      "music": 0
+    },
+    {
+      "from": 1061.34,
+      "to": 1063.77,
+      "sid": 474,
+      "location": 2,
+      "content": "然后我们再去记住这个结束时间",
+      "music": 0
+    },
+    {
+      "from": 1063.77,
+      "to": 1064.28,
+      "sid": 475,
+      "location": 2,
+      "content": "end",
+      "music": 0
+    },
+    {
+      "from": 1064.28,
+      "to": 1067.22,
+      "sid": 476,
+      "location": 2,
+      "content": "然后呢去打印这个时间就可以了",
+      "music": 0
+    },
+    {
+      "from": 1068.9,
+      "to": 1070.51,
+      "sid": 477,
+      "location": 2,
+      "content": "啊这写个time",
+      "music": 0
+    },
+    {
+      "from": 1070.51,
+      "to": 1073.98,
+      "sid": 478,
+      "location": 2,
+      "content": "那它的值呢就是用n去减这个begin就可以了",
+      "music": 0
+    },
+    {
+      "from": 1074.88,
+      "to": 1076.16,
+      "sid": 479,
+      "location": 2,
+      "content": "所以这里来个括号",
+      "music": 0
+    },
+    {
+      "from": 1076.16,
+      "to": 1079.99,
+      "sid": 480,
+      "location": 2,
+      "content": "n减去begin好",
+      "music": 0
+    },
+    {
+      "from": 1079.99,
+      "to": 1082.12,
+      "sid": 481,
+      "location": 2,
+      "content": "那这样呢我们这个代码就完成了",
+      "music": 0
+    },
+    {
+      "from": 1082.12,
+      "to": 1083.26,
+      "sid": 482,
+      "location": 2,
+      "content": "我们做下这个测试",
+      "music": 0
+    },
+    {
+      "from": 1083.26,
+      "to": 1083.68,
+      "sid": 483,
+      "location": 2,
+      "content": "运行一下",
+      "music": 0
+    },
+    {
+      "from": 1083.68,
+      "to": 1085.54,
+      "sid": 484,
+      "location": 2,
+      "content": "看看效果好走",
+      "music": 0
+    },
+    {
+      "from": 1091.22,
+      "to": 1094.54,
+      "sid": 485,
+      "location": 2,
+      "content": "好那我们可以看到呢任务已经结束了啊",
+      "music": 0
+    },
+    {
+      "from": 1094.54,
+      "to": 1098.12,
+      "sid": 486,
+      "location": 2,
+      "content": "这里呢得到了非常多的一个这些id的值",
+      "music": 0
+    },
+    {
+      "from": 1098.12,
+      "to": 1099.56,
+      "sid": 487,
+      "location": 2,
+      "content": "你可以看到各不相同啊",
+      "music": 0
+    },
+    {
+      "from": 1099.56,
+      "to": 1100.82,
+      "sid": 488,
+      "location": 2,
+      "content": "并不会出现重复",
+      "music": 0
+    },
+    {
+      "from": 1100.82,
+      "to": 1102.5,
+      "sid": 489,
+      "location": 2,
+      "content": "只不过呢这是十进制",
+      "music": 0
+    },
+    {
+      "from": 1102.5,
+      "to": 1104.42,
+      "sid": 490,
+      "location": 2,
+      "content": "我们看不出它的一个构造",
+      "music": 0
+    },
+    {
+      "from": 1104.42,
+      "to": 1106.22,
+      "sid": 491,
+      "location": 2,
+      "content": "是不是跟我们所预期的一样",
+      "music": 0
+    },
+    {
+      "from": 1106.22,
+      "to": 1109.58,
+      "sid": 492,
+      "location": 2,
+      "content": "嗯我们呢可以利用数学的工具啊",
+      "music": 0
+    },
+    {
+      "from": 1109.58,
+      "to": 1111.53,
+      "sid": 493,
+      "location": 2,
+      "content": "把它转成二进制的形式啊",
+      "music": 0
+    },
+    {
+      "from": 1111.53,
+      "to": 1114.74,
+      "sid": 494,
+      "location": 2,
+      "content": "我们打开一个windows自带的计数器啊",
+      "music": 0
+    },
+    {
+      "from": 1114.74,
+      "to": 1115.56,
+      "sid": 495,
+      "location": 2,
+      "content": "计算器",
+      "music": 0
+    },
+    {
+      "from": 1115.68,
+      "to": 1118.43,
+      "sid": 496,
+      "location": 2,
+      "content": "然后把那个值呢给它粘过来啊",
+      "music": 0
+    },
+    {
+      "from": 1118.43,
+      "to": 1119.87,
+      "sid": 497,
+      "location": 2,
+      "content": "这是我们刚刚粘过来的一个值",
+      "music": 0
+    },
+    {
+      "from": 1119.87,
+      "to": 1120.65,
+      "sid": 498,
+      "location": 2,
+      "content": "我们看一下啊",
+      "music": 0
+    },
+    {
+      "from": 1120.65,
+      "to": 1122.21,
+      "sid": 499,
+      "location": 2,
+      "content": "这个902这个啊",
+      "music": 0
+    },
+    {
+      "from": 1122.21,
+      "to": 1124.4,
+      "sid": 500,
+      "location": 2,
+      "content": "那看他对应的二进制呢是这个值",
+      "music": 0
+    },
+    {
+      "from": 1124.4,
+      "to": 1126.56,
+      "sid": 501,
+      "location": 2,
+      "content": "我们可以来数一数对吧",
+      "music": 0
+    },
+    {
+      "from": 1126.56,
+      "to": 1129.86,
+      "sid": 502,
+      "location": 2,
+      "content": "然后呢嗯这里是八啊",
+      "music": 0
+    },
+    {
+      "from": 1129.86,
+      "to": 1133.17,
+      "sid": 503,
+      "location": 2,
+      "content": "2283848",
+      "music": 0
+    },
+    {
+      "from": 1133.17,
+      "to": 1135.45,
+      "sid": 504,
+      "location": 2,
+      "content": "那这部分显然就是他的一个什么呢",
+      "music": 0
+    },
+    {
+      "from": 1135.45,
+      "to": 1138.36,
+      "sid": 505,
+      "location": 2,
+      "content": "就是32位的一个计数器对吧",
+      "music": 0
+    },
+    {
+      "from": 1138.36,
+      "to": 1143.26,
+      "sid": 506,
+      "location": 2,
+      "content": "然后再往前其实就是他的那个呃时间的啊",
+      "music": 0
+    },
+    {
+      "from": 1143.26,
+      "to": 1144.52,
+      "sid": 507,
+      "location": 2,
+      "content": "时间戳了啊",
+      "music": 0
+    },
+    {
+      "from": 1144.52,
+      "to": 1145.42,
+      "sid": 508,
+      "location": 2,
+      "content": "那时间戳了",
+      "music": 0
+    },
+    {
+      "from": 1145.42,
+      "to": 1147.28,
+      "sid": 509,
+      "location": 2,
+      "content": "目前只有一二啊",
+      "music": 0
+    },
+    {
+      "from": 1147.28,
+      "to": 1147.82,
+      "sid": 510,
+      "location": 2,
+      "content": "三啊",
+      "music": 0
+    },
+    {
+      "from": 1147.82,
+      "to": 1149.31,
+      "sid": 511,
+      "location": 2,
+      "content": "三个八啊",
+      "music": 0
+    },
+    {
+      "from": 1149.31,
+      "to": 1149.97,
+      "sid": 512,
+      "location": 2,
+      "content": "24位",
+      "music": 0
+    },
+    {
+      "from": 1149.97,
+      "to": 1151.17,
+      "sid": 513,
+      "location": 2,
+      "content": "那再往前就是零",
+      "music": 0
+    },
+    {
+      "from": 1151.17,
+      "to": 1152.7,
+      "sid": 514,
+      "location": 2,
+      "content": "因为呢这个值比较小",
+      "music": 0
+    },
+    {
+      "from": 1152.7,
+      "to": 1153.87,
+      "sid": 515,
+      "location": 2,
+      "content": "以秒为单位啊",
+      "music": 0
+    },
+    {
+      "from": 1153.87,
+      "to": 1157.67,
+      "sid": 516,
+      "location": 2,
+      "content": "所以说呢他目前来说呢前面几位都是零啊",
+      "music": 0
+    },
+    {
+      "from": 1157.67,
+      "to": 1159.55,
+      "sid": 517,
+      "location": 2,
+      "content": "所以字节只有三个字节啊",
+      "music": 0
+    },
+    {
+      "from": 1159.55,
+      "to": 1161.59,
+      "sid": 518,
+      "location": 2,
+      "content": "好那我们再来看下一个啊",
+      "music": 0
+    },
+    {
+      "from": 1161.59,
+      "to": 1162.91,
+      "sid": 519,
+      "location": 2,
+      "content": "这个刚才那个是902",
+      "music": 0
+    },
+    {
+      "from": 1162.91,
+      "to": 1163.84,
+      "sid": 520,
+      "location": 2,
+      "content": "对不对啊",
+      "music": 0
+    },
+    {
+      "from": 1163.84,
+      "to": 1166.32,
+      "sid": 521,
+      "location": 2,
+      "content": "那嗯903有没有",
+      "music": 0
+    },
+    {
+      "from": 1166.32,
+      "to": 1167.58,
+      "sid": 522,
+      "location": 2,
+      "content": "那有902有没有",
+      "music": 0
+    },
+    {
+      "from": 1167.58,
+      "to": 1169.2,
+      "sid": 523,
+      "location": 2,
+      "content": "903肯定会有903啊",
+      "music": 0
+    },
+    {
+      "from": 1169.2,
+      "to": 1171.18,
+      "sid": 524,
+      "location": 2,
+      "content": "只不过因为我们这个打印是多线程打印的",
+      "music": 0
+    },
+    {
+      "from": 1171.18,
+      "to": 1172.32,
+      "sid": 525,
+      "location": 2,
+      "content": "所以它乱序了",
+      "music": 0
+    },
+    {
+      "from": 1172.32,
+      "to": 1173.449,
+      "sid": 526,
+      "location": 2,
+      "content": "看是不是有903",
+      "music": 0
+    },
+    {
+      "from": 1173.449,
+      "to": 1175.129,
+      "sid": 527,
+      "location": 2,
+      "content": "那么903对应的这个呢",
+      "music": 0
+    },
+    {
+      "from": 1175.129,
+      "to": 1176.809,
+      "sid": 528,
+      "location": 2,
+      "content": "刚才这个计数器是110",
+      "music": 0
+    },
+    {
+      "from": 1176.809,
+      "to": 1177.289,
+      "sid": 529,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 1177.289,
+      "to": 1178.26,
+      "sid": 530,
+      "location": 2,
+      "content": "我们再来看一下",
+      "music": 0
+    },
+    {
+      "from": 1178.26,
+      "to": 1180,
+      "sid": 531,
+      "location": 2,
+      "content": "如果是903会怎么样啊",
+      "music": 0
+    },
+    {
+      "from": 1180,
+      "to": 1181.62,
+      "sid": 532,
+      "location": 2,
+      "content": "这里就可以删掉吧",
+      "music": 0
+    },
+    {
+      "from": 1183.52,
+      "to": 1185.76,
+      "sid": 533,
+      "location": 2,
+      "content": "站起来903好",
+      "music": 0
+    },
+    {
+      "from": 1185.76,
+      "to": 1188.07,
+      "sid": 534,
+      "location": 2,
+      "content": "你看计数器是不是变111了",
+      "music": 0
+    },
+    {
+      "from": 1188.07,
+      "to": 1190.31,
+      "sid": 535,
+      "location": 2,
+      "content": "说明这个地方是不是增了一啊",
+      "music": 0
+    },
+    {
+      "from": 1190.31,
+      "to": 1192.08,
+      "sid": 536,
+      "location": 2,
+      "content": "前面其实是整体是不变的",
+      "music": 0
+    },
+    {
+      "from": 1192.08,
+      "to": 1193.31,
+      "sid": 537,
+      "location": 2,
+      "content": "所以说呢我们可以看到",
+      "music": 0
+    },
+    {
+      "from": 1193.31,
+      "to": 1195.89,
+      "sid": 538,
+      "location": 2,
+      "content": "确实是符合我们之前推测的规律的啊",
+      "music": 0
+    },
+    {
+      "from": 1195.89,
+      "to": 1197.88,
+      "sid": 539,
+      "location": 2,
+      "content": "后半部分计数器不断递增",
+      "music": 0
+    },
+    {
+      "from": 1197.88,
+      "to": 1200.07,
+      "sid": 540,
+      "location": 2,
+      "content": "然后前半部分呢是哪个时间戳",
+      "music": 0
+    },
+    {
+      "from": 1200.07,
+      "to": 1201.72,
+      "sid": 541,
+      "location": 2,
+      "content": "那在同一秒钟内生成的",
+      "music": 0
+    },
+    {
+      "from": 1201.72,
+      "to": 1204.71,
+      "sid": 542,
+      "location": 2,
+      "content": "它的前缀应该是一样的好",
+      "music": 0
+    },
+    {
+      "from": 1204.71,
+      "to": 1207.29,
+      "sid": 543,
+      "location": 2,
+      "content": "那么这就是我们这个id的一个结构了",
+      "music": 0
+    },
+    {
+      "from": 1207.29,
+      "to": 1208.73,
+      "sid": 544,
+      "location": 2,
+      "content": "啊啊呃",
+      "music": 0
+    },
+    {
+      "from": 1208.73,
+      "to": 1211.79,
+      "sid": 545,
+      "location": 2,
+      "content": "因为呢我们这个id生成肯定不是一秒钟类型的",
+      "music": 0
+    },
+    {
+      "from": 1211.79,
+      "to": 1213.899,
+      "sid": 546,
+      "location": 2,
+      "content": "所以说它的id好像是会有变化的",
+      "music": 0
+    },
+    {
+      "from": 1214.18,
+      "to": 1215.77,
+      "sid": 547,
+      "location": 2,
+      "content": "前面是208",
+      "music": 0
+    },
+    {
+      "from": 1215.77,
+      "to": 1219.32,
+      "sid": 548,
+      "location": 2,
+      "content": "后面变成了33693369诶",
+      "music": 0
+    },
+    {
+      "from": 1219.32,
+      "to": 1220.88,
+      "sid": 549,
+      "location": 2,
+      "content": "总共是不是就有两个前缀",
+      "music": 0
+    },
+    {
+      "from": 1220.88,
+      "to": 1223.64,
+      "sid": 550,
+      "location": 2,
+      "content": "证明我们总共大概也就花费了两秒钟啊",
+      "music": 0
+    },
+    {
+      "from": 1223.64,
+      "to": 1225.2,
+      "sid": 551,
+      "location": 2,
+      "content": "这里之所以是显示三秒",
+      "music": 0
+    },
+    {
+      "from": 1225.2,
+      "to": 1226.76,
+      "sid": 552,
+      "location": 2,
+      "content": "应该是因为还有打印呀",
+      "music": 0
+    },
+    {
+      "from": 1226.76,
+      "to": 1229.389,
+      "sid": 553,
+      "location": 2,
+      "content": "还有其他的一些各种各样的一些时间的花费",
+      "music": 0
+    },
+    {
+      "from": 1229.389,
+      "to": 1230.829,
+      "sid": 554,
+      "location": 2,
+      "content": "其实真正的生成id呢",
+      "music": 0
+    },
+    {
+      "from": 1230.829,
+      "to": 1234,
+      "sid": 555,
+      "location": 2,
+      "content": "可能也就是两秒钟以内就生成了200左右啊",
+      "music": 0
+    },
+    {
+      "from": 1234,
+      "to": 1235.5,
+      "sid": 556,
+      "location": 2,
+      "content": "好那剩下多少个id呢",
+      "music": 0
+    },
+    {
+      "from": 1235.5,
+      "to": 1236.85,
+      "sid": 557,
+      "location": 2,
+      "content": "我们去rise看一下",
+      "music": 0
+    },
+    {
+      "from": 1236.85,
+      "to": 1239.04,
+      "sid": 558,
+      "location": 2,
+      "content": "好我们在这刷新好",
+      "music": 0
+    },
+    {
+      "from": 1239.04,
+      "to": 1241.38,
+      "sid": 559,
+      "location": 2,
+      "content": "点进来可以看到生成了3万个id吗",
+      "music": 0
+    },
+    {
+      "from": 1241.38,
+      "to": 1242.61,
+      "sid": 560,
+      "location": 2,
+      "content": "自增长到3万",
+      "music": 0
+    },
+    {
+      "from": 1242.61,
+      "to": 1243.6,
+      "sid": 561,
+      "location": 2,
+      "content": "那也就是说",
+      "music": 0
+    },
+    {
+      "from": 1243.6,
+      "to": 1247.55,
+      "sid": 562,
+      "location": 2,
+      "content": "我们在两秒钟左右的时间生成了3万个id啊",
+      "music": 0
+    },
+    {
+      "from": 1247.55,
+      "to": 1249.47,
+      "sid": 563,
+      "location": 2,
+      "content": "每秒钟还是能生成1万多的啊",
+      "music": 0
+    },
+    {
+      "from": 1249.47,
+      "to": 1250.7,
+      "sid": 564,
+      "location": 2,
+      "content": "还是可以的对吧",
+      "music": 0
+    },
+    {
+      "from": 1250.7,
+      "to": 1252.59,
+      "sid": 565,
+      "location": 2,
+      "content": "尽管我的电脑性能并不是特别好",
+      "music": 0
+    },
+    {
+      "from": 1252.59,
+      "to": 1255.659,
+      "sid": 566,
+      "location": 2,
+      "content": "但是啊可以看到效率还是不错的啊",
+      "music": 0
+    },
+    {
+      "from": 1255.7,
+      "to": 1258.34,
+      "sid": 567,
+      "location": 2,
+      "content": "啊ok这个还没有达到他的上限啊",
+      "music": 0
+    },
+    {
+      "from": 1258.34,
+      "to": 1260.92,
+      "sid": 568,
+      "location": 2,
+      "content": "其实呢它还是可以更高的啊",
+      "music": 0
+    },
+    {
+      "from": 1260.92,
+      "to": 1262.89,
+      "sid": 569,
+      "location": 2,
+      "content": "那么这个就是我们嗯",
+      "music": 0
+    },
+    {
+      "from": 1262.89,
+      "to": 1266.85,
+      "sid": 570,
+      "location": 2,
+      "content": "redis的这种v i d生成的一个策略了啊",
+      "music": 0
+    },
+    {
+      "from": 1266.85,
+      "to": 1269.62,
+      "sid": 571,
+      "location": 2,
+      "content": "那我们呢去做一个简单的总结",
+      "music": 0
+    },
+    {
+      "from": 1269.64,
+      "to": 1271.62,
+      "sid": 572,
+      "location": 2,
+      "content": "我们回到这个ppt",
+      "music": 0
+    },
+    {
+      "from": 1271.7,
+      "to": 1273.98,
+      "sid": 573,
+      "location": 2,
+      "content": "那全局唯一id生成的策略呢",
+      "music": 0
+    },
+    {
+      "from": 1273.98,
+      "to": 1277.1,
+      "sid": 574,
+      "location": 2,
+      "content": "这节课呢我们其实讲的是基于redis自增的策略",
+      "music": 0
+    },
+    {
+      "from": 1277.1,
+      "to": 1277.55,
+      "sid": 575,
+      "location": 2,
+      "content": "对吧",
+      "music": 0
+    },
+    {
+      "from": 1277.55,
+      "to": 1279.53,
+      "sid": 576,
+      "location": 2,
+      "content": "事实上除了这种策略以外啊",
+      "music": 0
+    },
+    {
+      "from": 1279.53,
+      "to": 1282.17,
+      "sid": 577,
+      "location": 2,
+      "content": "全球e i d的策略还有很多种别的",
+      "music": 0
+    },
+    {
+      "from": 1282.17,
+      "to": 1284.35,
+      "sid": 578,
+      "location": 2,
+      "content": "比方说u u i d uid",
+      "music": 0
+    },
+    {
+      "from": 1284.35,
+      "to": 1286.54,
+      "sid": 579,
+      "location": 2,
+      "content": "是大家非常熟悉的一种方案了对吧",
+      "music": 0
+    },
+    {
+      "from": 1286.54,
+      "to": 1289.87,
+      "sid": 580,
+      "location": 2,
+      "content": "直接利用jdk自带的u i d工具类啊",
+      "music": 0
+    },
+    {
+      "from": 1289.87,
+      "to": 1290.83,
+      "sid": 581,
+      "location": 2,
+      "content": "就能够生成了",
+      "music": 0
+    },
+    {
+      "from": 1290.83,
+      "to": 1292.33,
+      "sid": 582,
+      "location": 2,
+      "content": "那这种生成策略呢",
+      "music": 0
+    },
+    {
+      "from": 1292.33,
+      "to": 1296.04,
+      "sid": 583,
+      "location": 2,
+      "content": "它生成的其实是一个16进制的一长串的数值",
+      "music": 0
+    },
+    {
+      "from": 1296.04,
+      "to": 1298.14,
+      "sid": 584,
+      "location": 2,
+      "content": "那这时候因为是16进制啊",
+      "music": 0
+    },
+    {
+      "from": 1298.14,
+      "to": 1301.139,
+      "sid": 585,
+      "location": 2,
+      "content": "所以说呢它返回的结果其实是个字符串结构",
+      "music": 0
+    },
+    {
+      "from": 1301.139,
+      "to": 1304.589,
+      "sid": 586,
+      "location": 2,
+      "content": "并且的话呢也不是这种单调递增的一种特性",
+      "music": 0
+    },
+    {
+      "from": 1304.589,
+      "to": 1307.139,
+      "sid": 587,
+      "location": 2,
+      "content": "因此呢虽然可以做b a d哦",
+      "music": 0
+    },
+    {
+      "from": 1307.139,
+      "to": 1309.05,
+      "sid": 588,
+      "location": 2,
+      "content": "但是呢并不够啊",
+      "music": 0
+    },
+    {
+      "from": 1309.05,
+      "to": 1309.95,
+      "sid": 589,
+      "location": 2,
+      "content": "友好啊",
+      "music": 0
+    },
+    {
+      "from": 1309.95,
+      "to": 1313.49,
+      "sid": 590,
+      "location": 2,
+      "content": "没有满足我们之前所说的那些个特性啊",
+      "music": 0
+    },
+    {
+      "from": 1313.49,
+      "to": 1315.93,
+      "sid": 591,
+      "location": 2,
+      "content": "嗯所以说呢这种用的比较少啊",
+      "music": 0
+    },
+    {
+      "from": 1315.93,
+      "to": 1319.32,
+      "sid": 592,
+      "location": 2,
+      "content": "啊我们呢采用的是race的自增方案",
+      "music": 0
+    },
+    {
+      "from": 1319.32,
+      "to": 1322.32,
+      "sid": 593,
+      "location": 2,
+      "content": "这种方案相对来讲各种特性都能够满足",
+      "music": 0
+    },
+    {
+      "from": 1322.32,
+      "to": 1324.17,
+      "sid": 594,
+      "location": 2,
+      "content": "而且整体是单调递增的",
+      "music": 0
+    },
+    {
+      "from": 1324.17,
+      "to": 1325.85,
+      "sid": 595,
+      "location": 2,
+      "content": "数值的长度也不大啊",
+      "music": 0
+    },
+    {
+      "from": 1325.85,
+      "to": 1327.28,
+      "sid": 596,
+      "location": 2,
+      "content": "总共也不超过了",
+      "music": 0
+    },
+    {
+      "from": 1327.28,
+      "to": 1329.5,
+      "sid": 597,
+      "location": 2,
+      "content": "而且它是一个数字类型",
+      "music": 0
+    },
+    {
+      "from": 1329.5,
+      "to": 1331.9,
+      "sid": 598,
+      "location": 2,
+      "content": "它存储的数据库里占的空间相对来讲也比较小",
+      "music": 0
+    },
+    {
+      "from": 1331.9,
+      "to": 1333.23,
+      "sid": 599,
+      "location": 2,
+      "content": "也比较友好一些",
+      "music": 0
+    },
+    {
+      "from": 1333.23,
+      "to": 1335.33,
+      "sid": 600,
+      "location": 2,
+      "content": "然后呢其实除了这些以外呢",
+      "music": 0
+    },
+    {
+      "from": 1335.33,
+      "to": 1337.34,
+      "sid": 601,
+      "location": 2,
+      "content": "还会有这种snowflake雪花算法",
+      "music": 0
+    },
+    {
+      "from": 1337.34,
+      "to": 1341.05,
+      "sid": 602,
+      "location": 2,
+      "content": "snowflake算法呢哈也是世界知名的一种嗯",
+      "music": 0
+    },
+    {
+      "from": 1341.05,
+      "to": 1343.66,
+      "sid": 603,
+      "location": 2,
+      "content": "全全局v e i d的一种生存策略啊",
+      "music": 0
+    },
+    {
+      "from": 1343.66,
+      "to": 1347.47,
+      "sid": 604,
+      "location": 2,
+      "content": "它也采用的是一个long类型的64位的数字啊",
+      "music": 0
+    },
+    {
+      "from": 1347.47,
+      "to": 1349.809,
+      "sid": 605,
+      "location": 2,
+      "content": "有兴趣的同学呢可以去百度1下",
+      "music": 0
+    },
+    {
+      "from": 1349.809,
+      "to": 1351.069,
+      "sid": 606,
+      "location": 2,
+      "content": "看一看它的一个原理",
+      "music": 0
+    },
+    {
+      "from": 1351.069,
+      "to": 1354.45,
+      "sid": 607,
+      "location": 2,
+      "content": "你会发现啊跟我们这个还是有一些接近的啊",
+      "music": 0
+    },
+    {
+      "from": 1354.45,
+      "to": 1354.99,
+      "sid": 608,
+      "location": 2,
+      "content": "啊",
+      "music": 0
+    },
+    {
+      "from": 1354.99,
+      "to": 1358.17,
+      "sid": 609,
+      "location": 2,
+      "content": "只不过它的自尊采用是当前机器的这种自增啊",
+      "music": 0
+    },
+    {
+      "from": 1358.17,
+      "to": 1359.01,
+      "sid": 610,
+      "location": 2,
+      "content": "内部维护的",
+      "music": 0
+    },
+    {
+      "from": 1359.01,
+      "to": 1360.81,
+      "sid": 611,
+      "location": 2,
+      "content": "所以说他需要维护一个机械id",
+      "music": 0
+    },
+    {
+      "from": 1360.81,
+      "to": 1362.38,
+      "sid": 612,
+      "location": 2,
+      "content": "因为我们是用的race",
+      "music": 0
+    },
+    {
+      "from": 1362.38,
+      "to": 1364.78,
+      "sid": 613,
+      "location": 2,
+      "content": "都是不管你是任何的分布式系统",
+      "music": 0
+    },
+    {
+      "from": 1364.78,
+      "to": 1366.22,
+      "sid": 614,
+      "location": 2,
+      "content": "它都是用race作为自动",
+      "music": 0
+    },
+    {
+      "from": 1366.22,
+      "to": 1367.81,
+      "sid": 615,
+      "location": 2,
+      "content": "所以它不需要维护机器id",
+      "music": 0
+    },
+    {
+      "from": 1367.81,
+      "to": 1370.15,
+      "sid": 616,
+      "location": 2,
+      "content": "现在来讲结构更简单一点啊",
+      "music": 0
+    },
+    {
+      "from": 1370.15,
+      "to": 1372.53,
+      "sid": 617,
+      "location": 2,
+      "content": "学术算法也是一个非常不错的一个算法",
+      "music": 0
+    },
+    {
+      "from": 1372.53,
+      "to": 1373.97,
+      "sid": 618,
+      "location": 2,
+      "content": "它不依赖于rise",
+      "music": 0
+    },
+    {
+      "from": 1373.97,
+      "to": 1375.53,
+      "sid": 619,
+      "location": 2,
+      "content": "所以说呢它的性能来讲",
+      "music": 0
+    },
+    {
+      "from": 1375.53,
+      "to": 1378.199,
+      "sid": 620,
+      "location": 2,
+      "content": "可能理论上讲会比rise要更好一点",
+      "music": 0
+    },
+    {
+      "from": 1378.199,
+      "to": 1379.699,
+      "sid": 621,
+      "location": 2,
+      "content": "但是它也有自己的缺点",
+      "music": 0
+    },
+    {
+      "from": 1379.699,
+      "to": 1382.339,
+      "sid": 622,
+      "location": 2,
+      "content": "就是对于时钟啊依赖比较高的",
+      "music": 0
+    },
+    {
+      "from": 1382.339,
+      "to": 1383.599,
+      "sid": 623,
+      "location": 2,
+      "content": "如果时间不准确",
+      "music": 0
+    },
+    {
+      "from": 1383.599,
+      "to": 1386.52,
+      "sid": 624,
+      "location": 2,
+      "content": "可能会出现一些异常的问题啊",
+      "music": 0
+    },
+    {
+      "from": 1387.6,
+      "to": 1390.26,
+      "sid": 625,
+      "location": 2,
+      "content": "最后一种方法是利用数据库自增啊",
+      "music": 0
+    },
+    {
+      "from": 1390.26,
+      "to": 1392.9,
+      "sid": 626,
+      "location": 2,
+      "content": "嗯我们刚才不是说数据库自增不行吗",
+      "music": 0
+    },
+    {
+      "from": 1392.9,
+      "to": 1395.68,
+      "sid": 627,
+      "location": 2,
+      "content": "这怎么还说还能使用数据库自增等",
+      "music": 0
+    },
+    {
+      "from": 1395.68,
+      "to": 1399.33,
+      "sid": 628,
+      "location": 2,
+      "content": "这其实是因为我们在这儿用数据库自增啊",
+      "music": 0
+    },
+    {
+      "from": 1399.33,
+      "to": 1402.03,
+      "sid": 629,
+      "location": 2,
+      "content": "不是说我们在新增这个订单表的时候",
+      "music": 0
+    },
+    {
+      "from": 1402.03,
+      "to": 1403.86,
+      "sid": 630,
+      "location": 2,
+      "content": "把订单的id设置成自增啊",
+      "music": 0
+    },
+    {
+      "from": 1403.86,
+      "to": 1405.9,
+      "sid": 631,
+      "location": 2,
+      "content": "而是呢单独整一张表",
+      "music": 0
+    },
+    {
+      "from": 1405.9,
+      "to": 1407.69,
+      "sid": 632,
+      "location": 2,
+      "content": "这张表专门用来做紫灯",
+      "music": 0
+    },
+    {
+      "from": 1407.69,
+      "to": 1408.41,
+      "sid": 633,
+      "location": 2,
+      "content": "这样一来",
+      "music": 0
+    },
+    {
+      "from": 1408.41,
+      "to": 1411.41,
+      "sid": 634,
+      "location": 2,
+      "content": "不管你的订单表是十张表还是八张表",
+      "music": 0
+    },
+    {
+      "from": 1411.41,
+      "to": 1413.75,
+      "sid": 635,
+      "location": 2,
+      "content": "他们的id其实还不是自动的",
+      "music": 0
+    },
+    {
+      "from": 1413.75,
+      "to": 1414.59,
+      "sid": 636,
+      "location": 2,
+      "content": "他们的id从哪来",
+      "music": 0
+    },
+    {
+      "from": 1414.59,
+      "to": 1418,
+      "sid": 637,
+      "location": 2,
+      "content": "从那个专门用来做自动的那张表拿去获取",
+      "music": 0
+    },
+    {
+      "from": 1418,
+      "to": 1421.679,
+      "sid": 638,
+      "location": 2,
+      "content": "等于是这n张表用的是不是同一个表的自动",
+      "music": 0
+    },
+    {
+      "from": 1421.679,
+      "to": 1422.819,
+      "sid": 639,
+      "location": 2,
+      "content": "这样的话呢",
+      "music": 0
+    },
+    {
+      "from": 1422.819,
+      "to": 1426.299,
+      "sid": 640,
+      "location": 2,
+      "content": "其实就可以实现这样的一个唯一效果了啊",
+      "music": 0
+    },
+    {
+      "from": 1426.299,
+      "to": 1428.039,
+      "sid": 641,
+      "location": 2,
+      "content": "其实你可以把它理解成是什么呢",
+      "music": 0
+    },
+    {
+      "from": 1428.039,
+      "to": 1429.959,
+      "sid": 642,
+      "location": 2,
+      "content": "就是release自增的数据库版",
+      "music": 0
+    },
+    {
+      "from": 1429.959,
+      "to": 1432.57,
+      "sid": 643,
+      "location": 2,
+      "content": "也就是因为它不再是用rise字段",
+      "music": 0
+    },
+    {
+      "from": 1432.57,
+      "to": 1434.88,
+      "sid": 644,
+      "location": 2,
+      "content": "而是用数据库的某一张啊",
+      "music": 0
+    },
+    {
+      "from": 1434.88,
+      "to": 1439.48,
+      "sid": 645,
+      "location": 2,
+      "content": "特定的表的字增来去代替了rise的来去实现",
+      "music": 0
+    },
+    {
+      "from": 1439.48,
+      "to": 1442.87,
+      "sid": 646,
+      "location": 2,
+      "content": "所以说呢嗯原理上来讲跟瑞士的很像",
+      "music": 0
+    },
+    {
+      "from": 1442.87,
+      "to": 1445.42,
+      "sid": 647,
+      "location": 2,
+      "content": "但是从性能的角度来考虑",
+      "music": 0
+    },
+    {
+      "from": 1445.42,
+      "to": 1448.33,
+      "sid": 648,
+      "location": 2,
+      "content": "数据库的智能肯定不如rs自动性能更好",
+      "music": 0
+    },
+    {
+      "from": 1448.33,
+      "to": 1448.9,
+      "sid": 649,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 1448.9,
+      "to": 1452.21,
+      "sid": 650,
+      "location": 2,
+      "content": "所以说呢嗯企业里再去使用税务自动的时候",
+      "music": 0
+    },
+    {
+      "from": 1452.21,
+      "to": 1453.89,
+      "sid": 651,
+      "location": 2,
+      "content": "往往会采取一些方案",
+      "music": 0
+    },
+    {
+      "from": 1453.89,
+      "to": 1456.05,
+      "sid": 652,
+      "location": 2,
+      "content": "比如说批量的去获取id",
+      "music": 0
+    },
+    {
+      "from": 1456.05,
+      "to": 1458.19,
+      "sid": 653,
+      "location": 2,
+      "content": "然后在内存就缓存起来",
+      "music": 0
+    },
+    {
+      "from": 1458.19,
+      "to": 1460.17,
+      "sid": 654,
+      "location": 2,
+      "content": "然后再去使用这样一种方案",
+      "music": 0
+    },
+    {
+      "from": 1460.17,
+      "to": 1463.17,
+      "sid": 655,
+      "location": 2,
+      "content": "所以也可以一定程度上提高它的性能啊",
+      "music": 0
+    },
+    {
+      "from": 1463.17,
+      "to": 1464.49,
+      "sid": 656,
+      "location": 2,
+      "content": "所以这些方案的话",
+      "music": 0
+    },
+    {
+      "from": 1464.49,
+      "to": 1465.81,
+      "sid": 657,
+      "location": 2,
+      "content": "后面这三种方案啊",
+      "music": 0
+    },
+    {
+      "from": 1465.81,
+      "to": 1467.37,
+      "sid": 658,
+      "location": 2,
+      "content": "在企业里都有去应用",
+      "music": 0
+    },
+    {
+      "from": 1467.37,
+      "to": 1469.5,
+      "sid": 659,
+      "location": 2,
+      "content": "同学们可以自己去百度1下",
+      "music": 0
+    },
+    {
+      "from": 1469.5,
+      "to": 1473.399,
+      "sid": 660,
+      "location": 2,
+      "content": "研究一下这些方案它的一些不同点啊",
+      "music": 0
+    },
+    {
+      "from": 1473.4,
+      "to": 1476.31,
+      "sid": 661,
+      "location": 2,
+      "content": "嗯那么我们的rise自动的策略呢",
+      "music": 0
+    },
+    {
+      "from": 1476.31,
+      "to": 1477.9,
+      "sid": 662,
+      "location": 2,
+      "content": "核心大家需要注意的就是",
+      "music": 0
+    },
+    {
+      "from": 1477.9,
+      "to": 1482.17,
+      "sid": 663,
+      "location": 2,
+      "content": "首先它的整体结构时间戳加自增id对吧啊",
+      "music": 0
+    },
+    {
+      "from": 1482.17,
+      "to": 1483.76,
+      "sid": 664,
+      "location": 2,
+      "content": "实际上线自动id是整体结构",
+      "music": 0
+    },
+    {
+      "from": 1483.76,
+      "to": 1487.29,
+      "sid": 665,
+      "location": 2,
+      "content": "然后呢这个在rise保存这个key的时候呢",
+      "music": 0
+    },
+    {
+      "from": 1487.29,
+      "to": 1488.43,
+      "sid": 666,
+      "location": 2,
+      "content": "有一个需要注意的事项",
+      "music": 0
+    },
+    {
+      "from": 1488.43,
+      "to": 1491.3,
+      "sid": 667,
+      "location": 2,
+      "content": "就是我们是每天一个key",
+      "music": 0
+    },
+    {
+      "from": 1491.36,
+      "to": 1492.74,
+      "sid": 668,
+      "location": 2,
+      "content": "它有两个优势",
+      "music": 0
+    },
+    {
+      "from": 1492.74,
+      "to": 1495.38,
+      "sid": 669,
+      "location": 2,
+      "content": "第一呢是方便统计每天的订单量",
+      "music": 0
+    },
+    {
+      "from": 1495.38,
+      "to": 1497.09,
+      "sid": 670,
+      "location": 2,
+      "content": "每月订单量和每年订单量",
+      "music": 0
+    },
+    {
+      "from": 1497.09,
+      "to": 1500.46,
+      "sid": 671,
+      "location": 2,
+      "content": "第二呢它还可以去限定什么呢",
+      "music": 0
+    },
+    {
+      "from": 1500.46,
+      "to": 1503.4,
+      "sid": 672,
+      "location": 2,
+      "content": "这个key自动的一个值不会让它呀太大",
+      "music": 0
+    },
+    {
+      "from": 1503.4,
+      "to": 1506.63,
+      "sid": 673,
+      "location": 2,
+      "content": "以至于超过了我们存储上限好啊",
+      "music": 0
+    },
+    {
+      "from": 1506.63,
+      "to": 1508.07,
+      "sid": 674,
+      "location": 2,
+      "content": "另外就是它的结构啊",
+      "music": 0
+    },
+    {
+      "from": 1508.07,
+      "to": 1510,
+      "sid": 675,
+      "location": 2,
+      "content": "刚才说了实验出现计数器的方式",
+      "music": 0
+    },
+    {
+      "from": 1510.1,
+      "to": 1513.96,
+      "sid": 676,
+      "location": 2,
+      "content": "ok那我们有关全局v i d啊",
+      "music": 0
+    },
+    {
+      "from": 1513.96,
+      "to": 1516.06,
+      "sid": 677,
+      "location": 2,
+      "content": "这种race的方案我们就讲完了",
+      "music": 0
+    },
+    {
+      "from": 1516.06,
+      "to": 1517.77,
+      "sid": 678,
+      "location": 2,
+      "content": "这也是我们rise应用当中",
+      "music": 0
+    },
+    {
+      "from": 1517.77,
+      "to": 1520.28,
+      "sid": 679,
+      "location": 2,
+      "content": "比较常见的一种应用场景了",
+      "music": 0
+    },
+    {
+      "from": 1520.28,
+      "to": 1521.72,
+      "sid": 680,
+      "location": 2,
+      "content": "那这节课内容就到这里",
+      "music": 0
+    }
+  ]
+}

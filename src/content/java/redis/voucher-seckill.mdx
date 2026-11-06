@@ -1,0 +1,473 @@
+# 全局唯一 ID 与优惠券基础下单
+
+本文整理 P48–P51，接续 [缓存重建与工具封装](/docs/java/redis/cache-rebuild/)。主线是为订单生成 ID、添加秒杀券、校验活动时间和库存、扣库存并创建订单。
+
+**范围终点是基础下单。** 本段尚未解决并发超卖、一人一单，也未实现支付、异步秒杀或完整分布式锁。正常请求跑通与高并发安全是不同的验收。
+
+> **材料说明：** 已读取四节完整中文字幕，在 Chrome 核对 ID 结构、生成器及券、订单的关键画面；没有逐帧核验所有代码。下文代码按现有工程整理，复现和准确性补充明确标出，不能据笔记生成宣称本地已运行。
+
+## 一、工程范围与前置检查
+
+| 选集 | 内容 | 产出 |
+| --- | --- | --- |
+| P48 | 全局唯一 ID 的动机、特性、结构 | 解释为何订单不直接用各表独立自增 |
+| P49 | Redis 自增生成 ID，位运算与并发测试 | `RedisIdWorker.nextId` |
+| P50 | 普通券与秒杀券，添加活动券 | 两张表中关联的一张秒杀券 |
+| P51 | 活动时间、库存校验，扣减并插入订单 | 返回订单 ID，库存减少、订单入库 |
+
+沿用本地 `D:/myspace/hmdp` 的 Java 8 / Boot 2.7.4 / MyBatis-Plus 3.5.2 / Hutool 5.8.8，不创建 Boot 3 工程替代课程。需要 MySQL、Redis、课程前端及 Nginx；启动配置沿用 [商户缓存项目准备](/docs/java/redis/shop-cache/)。
+
+```text
+src/main/java/com/hmdp/
+├─ utils/RedisIdWorker.java
+├─ utils/UserHolder.java
+├─ controller/
+│  ├─ VoucherController.java
+│  └─ VoucherOrderController.java
+├─ service/
+│  ├─ IVoucherService.java
+│  ├─ ISeckillVoucherService.java
+│  ├─ IVoucherOrderService.java
+│  └─ impl/
+│     ├─ VoucherServiceImpl.java
+│     └─ VoucherOrderServiceImpl.java
+└─ entity/
+   ├─ Voucher.java
+   ├─ SeckillVoucher.java
+   └─ VoucherOrder.java
+```
+
+### 登录是本地尚缺的前置链路
+
+视频从前面已完成登录的工程继续，P48–P51 不重写登录。本地静态检查发现：`UserController` 的验证码、登录和 `/me` 仍返回“功能未完成”，`UserServiceImpl` 为空，尚无登录恢复拦截器。`UserHolder` 虽存在，但没有相应的用户写入链路。
+
+缓存和 ID 生成器可先学习。进入浏览器下单前，需按本课程前置登录章节或配套的课前工程补齐：
+
+1. 验证码校验、查询/注册用户，生成 token。
+2. Redis 保存 token 对应的 `UserDTO`，前端随请求传 `authorization` 请求头。
+3. 拦截器读取 token、恢复用户到 `UserHolder`，按课程规则刷新 TTL。
+4. 登录校验拒绝匿名下单；请求结束后 `UserHolder.removeUser()`，避免线程复用串用户。
+5. 用 `GET /user/me` 确认当前用户，再进行下单。
+
+不要把用户 ID 写死进正式 Service，也不要只创建一个 `UserHolder` 类就认为登录完成。必要时可先用测试线程写入真实测试用户验证 Service，但这不能替代前端登录与 HTTP 链路验收。
+
+## 二、P48：为什么需要全局唯一 ID
+
+### 1. 单表自增在什么情况下不够
+
+订单量增长后可能分库分表。如果每张订单表都独立从 1 自增，跨表订单编号就可能重复；暴露连续编号也容易让人推测业务量。
+
+“全局”需要明确范围：同一订单业务的所有实例、所有分表共用一套生成规则。不同业务若使用不同计数器，本课程并不保证跨业务 ID 也绝对不同；需要跨业务统一唯一时，必须统一命名和分配规则。
+
+课程提出唯一性、高可用、高性能、递增性和不易直接猜测五个要求。选型取决于业务，不是所有实体都必须放弃数据库自增。
+
+### 2. 64 位数值的结构
+
+```text
+| 1 位符号位：0 | 31 位：相对起点的秒数 | 32 位：Redis 自增序列 |
+```
+
+时间戳不是“第几秒的字符串”，而是当前时间距离固定起点的秒差。低位序列区分相同时间内生成的多个 ID。用 Java `long` 保存，映射数据库 `bigint`。
+
+课程后续实际采用**每天一个计数键**，同一天跨秒仍继续递增，并非每秒从 1 重置。32 位无符号区间为 `0～4294967295`；从 1 开始计数时，一天最多使用 `4294967295` 个正序列值，实际能力还受 Redis 和网络限制。
+
+31 位秒差约覆盖 68 年。时间起点和所有实例的时间口径必须固定。
+
+> **准确性补充：** 时间与自增数的组合没有密码学保密性，不能用来代替鉴权。多节点时钟、Redis 计数的持久性和故障切换都会影响实际保证；课程结构主要用于理解分配机制。
+
+## 三、P49：RedisIdWorker
+
+### 1. 按业务和日期组织计数键
+
+```text
+icr:order:2026:11:03 → 当天已分配的序列数
+icr:order:2026:11:04 → 新一天独立计数
+```
+
+`INCR` 对整数值加 1，键不存在时以 0 为起点，因此首次返回 1；它不是先读出数字、Java 加 1、再写回。多实例必须连接同一个受协调的 Redis 计数源。参见 [Redis INCR](https://redis.io/docs/latest/commands/incr/)。
+
+按天拆分避免一个键无限累积，同时便于观察每天的 ID 分配量。该值包括失败业务、测试和回滚之前分配的 ID，**不等于成功订单数**。按月统计需在应用端汇总对应日期计数，冒号本身只是一种键名约定。
+
+不要随意删除当日业务计数器，或给它设置会在当天失效的 TTL。计数归零与时钟异常叠加可能破坏唯一性。
+
+### 2. 用位移和按位或组合
+
+```java
+return (timestamp << 32) | count;
+```
+
+左移 32 位为序列腾出低 32 位；空出的位为 0，按位或把 `count` 填进去。它是二进制位组合，不是十进制字符串拼接。
+
+例如用缩小的“低 4 位”模型理解：时间差 `3` 为 `0011`，左移 4 位得到 `0011 0000`；序列 `5` 为 `0000 0101`；或运算得到 `0011 0101`。实际实现使用低 32 位。
+
+### 3. 参考代码与时区补充
+
+新建 `src/main/java/com/hmdp/utils/RedisIdWorker.java`：
+
+```java
+package com.hmdp.utils;
+
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+
+@Component
+public class RedisIdWorker {
+    // 2022-01-01T00:00:00Z，所有实例保持同一起点。
+    private static final long BEGIN_TIMESTAMP = 1640995200L;
+    private static final int COUNT_BITS = 32;
+    private static final long MAX_COUNT = 0xffffffffL;
+    private static final DateTimeFormatter DATE =
+        DateTimeFormatter.ofPattern("yyyy:MM:dd");
+    private final StringRedisTemplate redis;
+
+    public RedisIdWorker(StringRedisTemplate redis) {
+        this.redis = redis;
+    }
+
+    public long nextId(String keyPrefix) {
+        // 复现补充：统一使用 UTC 的当前时间和日期。
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        long timestamp = now.toEpochSecond(ZoneOffset.UTC) - BEGIN_TIMESTAMP;
+        if (timestamp < 0 || timestamp > Integer.MAX_VALUE) {
+            throw new IllegalStateException("时间戳超出 ID 结构范围");
+        }
+        String key = "icr:" + keyPrefix + ":" + now.format(DATE);
+        Long count = redis.opsForValue().increment(key);
+        if (count == null || count < 1 || count > MAX_COUNT) {
+            throw new IllegalStateException("ID 序列不可用或超出范围");
+        }
+        return (timestamp << COUNT_BITS) | count;
+    }
+}
+```
+
+视频通过 `LocalDateTime.of(2022,1,1,0,0,0).toEpochSecond(ZoneOffset.UTC)` 得到起点，当前时间使用 `LocalDateTime.now()` 再按 UTC 转秒。上方显式使用 `now(ZoneOffset.UTC)`，避免将服务器默认时区的墙上时间当成 UTC；这是复现补充，不是视频原样代码。
+
+日期键也统一按 UTC，因此北京时间凌晨可能仍归前一个 UTC 日期，这是此实现约定。需要自然日业务统计时另定业务时区，并让所有实例一致，不能混用不同口径的生成器。
+
+序列和时间戳的范围检查也是补充。Redis 故障应暴露为失败，不静默改用本机计数。`INCR` 是有符号 64 位整数操作，而不是完整的无符号 `2^64` 范围；本算法额外限制低 32 位。
+
+### 4. 测试并发生成，而不只观察日志
+
+课程示例提交 300 个任务，每任务生成 100 个 ID，借助 `CountDownLatch` 等任务结束后计时；打印先后顺序可能与生成顺序不同。
+
+下面是增加去重检查的复现测试。放入 `src/test/java/com/hmdp/RedisIdWorkerTest.java`。它使用独立的 `order-demo` 前缀，不修改正式 `order` 计数器：
+
+```java
+package com.hmdp;
+
+import com.hmdp.utils.RedisIdWorker;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import javax.annotation.Resource;
+import java.util.Set;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import static org.junit.jupiter.api.Assertions.*;
+
+@SpringBootTest
+class RedisIdWorkerTest {
+    @Resource
+    private RedisIdWorker worker;
+
+    @Test
+    void concurrentIds() throws InterruptedException {
+        int tasks = 300;
+        int perTask = 100;
+        Set<Long> ids = ConcurrentHashMap.newKeySet();
+        AtomicInteger failures = new AtomicInteger();
+        CountDownLatch done = new CountDownLatch(tasks);
+        ExecutorService pool = Executors.newFixedThreadPool(16);
+        long begin = System.nanoTime();
+        try {
+            for (int i = 0; i < tasks; i++) {
+                pool.submit(() -> {
+                    try {
+                        for (int j = 0; j < perTask; j++) {
+                            ids.add(worker.nextId("order-demo"));
+                        }
+                    } catch (RuntimeException e) {
+                        failures.incrementAndGet();
+                    } finally {
+                        done.countDown();
+                    }
+                });
+            }
+            assertTrue(done.await(60, TimeUnit.SECONDS), "任务超时");
+            assertEquals(0, failures.get(), "生成过程存在失败");
+            assertEquals(tasks * perTask, ids.size(), "存在重复或缺失");
+            assertTrue(ids.stream().allMatch(id -> id > 0));
+            System.out.println("耗时 ms=" +
+                (System.nanoTime() - begin) / 1_000_000);
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+}
+```
+
+只需理解：线程池并发提交，任务最后 `countDown`，主测试线程 `await`，全部完成后检查集合大小。异步提交后立刻计时只能测到提交成本。测试通过能证明本次样本，不能证明所有故障条件下绝无重复。
+
+反向查看一个结果：
+
+```java
+long timestampPart = id >>> 32;
+long sequencePart = id & 0xffffffffL;
+```
+
+打印耗时含网络、框架等成本，不能把视频机器的每秒生成量当成当前环境承诺。多节点时钟不一致时也不能据打印顺序判断严格全局单调。
+
+### 5. 其他 ID 方案只理解取舍
+
+| 方案 | 主要特点 | 当前深度 |
+| --- | --- | --- |
+| UUID | 可独立生成；随机形式不具备本例的递增局部性 | 认识差异 |
+| Redis 自增组合 | 共享计数源，结构直观 | 本节实现 |
+| Snowflake | 时间、节点标识、节点内序列 | 后续按需深入 |
+| 数据库统一发号/号段 | 所有业务节点从统一分配源取号 | 认识思路 |
+
+不把“UUID 一律不能做主键”“分布式只能用 Redis”当作结论。
+
+## 四、P50：添加一张秒杀券
+
+### 1. 三张表的关系
+
+| 表 | 保存内容 | 主键与关系 |
+| --- | --- | --- |
+| `tb_voucher` | 券标题、店铺、金额、规则、类型、状态 | `id` 自增；包含普通券和秒杀券 |
+| `tb_seckill_voucher` | 秒杀券的库存、活动起止时间 | `voucher_id` 与基础券 `id` 对应 |
+| `tb_voucher_order` | 哪个用户购买哪张券、支付与订单状态 | `id` 使用生成器；用户、券各有 ID |
+
+秒杀表是对基础券信息的扩展，不是把所有信息独立复制一份。普通券 `type=0`，秒杀券 `type=1`。金额以分存储：`8000` 是 80 元，`10000` 是 100 元。
+
+`Voucher` 中的 `stock/beginTime/endTime` 有 `@TableField(exist=false)`，它们可接收请求，但不写入 `tb_voucher`；Service 再把这些字段写入秒杀表。`SeckillVoucher.voucherId` 使用 `IdType.INPUT`，沿用刚创建的券 ID。
+
+### 2. 调用现有新增接口
+
+本地 `VoucherController` 已有 `POST /voucher/seckill`，调用 `VoucherServiceImpl.addSeckillVoucher`。其事务内先保存基础券，再使用回填的 `voucher.id` 保存秒杀信息，不需另造接口。
+
+请求示例：
+
+```http
+POST http://localhost:8081/voucher/seckill
+Content-Type: application/json
+```
+
+```json
+{
+  "shopId": 1,
+  "title": "100元代金券",
+  "subTitle": "周一至周五可用",
+  "rules": "全场通用，无需预约",
+  "payValue": 8000,
+  "actualValue": 10000,
+  "type": 1,
+  "status": 1,
+  "stock": 100,
+  "beginTime": "2026-11-03T00:00:00",
+  "endTime": "2026-11-03T23:59:59"
+}
+```
+
+日期仅为示例，跟做时按实际当前时间修改，确保开始时间早于现在、结束时间晚于现在。课程活动使用本地时间比较，需对齐应用、数据库及测试数据的时间口径。
+
+响应 `data` 是本次新券 ID。不要固定使用视频中的 `7`，也不要把它与商铺 ID、订单 ID 混淆。新增会写入测试数据库，重复调用会新增多张券。
+
+### 3. 核对两张表与页面
+
+用接口实际返回的券 ID 作为查询参数：
+
+```sql
+-- 将 10 替换为本次响应 data 中的实际券 ID。
+SET @voucher_id = 10;
+SELECT id, shop_id, type, pay_value, actual_value
+FROM tb_voucher WHERE id = @voucher_id;
+SELECT voucher_id, stock, begin_time, end_time
+FROM tb_seckill_voucher WHERE voucher_id = @voucher_id;
+```
+
+两张表中应有同一券 ID；库存为设置值。调用 `GET /voucher/list/1`，或刷新 1 号商铺详情，应出现这张限时券。
+
+课程原有新增方法使用 `@Transactional` 协调两次 MySQL 写入；复现补充是检查两次 `save` 的返回结果，失败时抛异常，避免只返回失败却提交前半段修改。
+
+## 五、P51：实现基础下单
+
+### 1. 请求和调用链
+
+```text
+已登录用户点击抢购
+  → POST /voucher-order/seckill/{voucherId}
+  → VoucherOrderController
+  → IVoucherOrderService.seckillVoucher
+  → 查询 tb_seckill_voucher
+  → 校验时间、校验库存
+  → UPDATE 库存 - 1
+  → RedisIdWorker 生成订单 ID
+  → UserHolder 获取当前用户
+  → INSERT tb_voucher_order
+  → 返回订单 ID
+```
+
+课程这一步的库存校验和扣减都在 MySQL，Redis 此时主要用于 ID 和此前的登录状态，不是“已经把库存放 Redis 做了异步秒杀”。
+
+### 2. 修改接口和 Controller
+
+在 `service/IVoucherOrderService.java` 增加声明，并导入 `com.hmdp.dto.Result`：
+
+```java
+Result seckillVoucher(Long voucherId);
+```
+
+在已有 `VoucherOrderController` 注入服务，把原“功能未完成”替换为：
+
+```java
+@Resource
+private IVoucherOrderService voucherOrderService;
+
+@PostMapping("seckill/{id}")
+public Result seckillVoucher(@PathVariable("id") Long voucherId) {
+    return voucherOrderService.seckillVoucher(voucherId);
+}
+```
+
+新增导入 `com.hmdp.service.IVoucherOrderService`、`javax.annotation.Resource`。保留类上的 `@RestController` 和 `@RequestMapping("/voucher-order")`。
+
+### 3. Service 参考实现
+
+在现有 `service/impl/VoucherOrderServiceImpl.java` 实现。以下保留 P51 的“先查库存，再按券 ID 扣减”方式，未提前加入 P52/P53 的并发控制。空用户、无效券和保存失败处理为复现补充。
+
+```java
+package com.hmdp.service.impl;
+
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.dto.Result;
+import com.hmdp.dto.UserDTO;
+import com.hmdp.entity.SeckillVoucher;
+import com.hmdp.entity.VoucherOrder;
+import com.hmdp.mapper.VoucherOrderMapper;
+import com.hmdp.service.ISeckillVoucherService;
+import com.hmdp.service.IVoucherOrderService;
+import com.hmdp.utils.RedisIdWorker;
+import com.hmdp.utils.UserHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import javax.annotation.Resource;
+import java.time.LocalDateTime;
+
+@Service
+public class VoucherOrderServiceImpl
+        extends ServiceImpl<VoucherOrderMapper, VoucherOrder>
+        implements IVoucherOrderService {
+    @Resource
+    private ISeckillVoucherService seckillVoucherService;
+    @Resource
+    private RedisIdWorker redisIdWorker;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result seckillVoucher(Long voucherId) {
+        UserDTO user = UserHolder.getUser();
+        if (user == null) {
+            return Result.fail("请先登录");
+        }
+        SeckillVoucher voucher = seckillVoucherService.getById(voucherId);
+        if (voucher == null) {
+            return Result.fail("秒杀券不存在");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (voucher.getBeginTime().isAfter(now)) {
+            return Result.fail("秒杀尚未开始");
+        }
+        if (voucher.getEndTime().isBefore(now)) {
+            return Result.fail("秒杀已经结束");
+        }
+        if (voucher.getStock() < 1) {
+            return Result.fail("库存不足");
+        }
+        boolean success = seckillVoucherService.update()
+            .setSql("stock = stock - 1")
+            .eq("voucher_id", voucherId)
+            .update();
+        if (!success) {
+            return Result.fail("库存扣减失败");
+        }
+        long orderId = redisIdWorker.nextId("order");
+        VoucherOrder order = new VoucherOrder();
+        order.setId(orderId);
+        order.setUserId(user.getId());
+        order.setVoucherId(voucherId);
+        if (!save(order)) {
+            throw new IllegalStateException("订单保存失败");
+        }
+        return Result.ok(orderId);
+    }
+}
+```
+
+`.eq("voucher_id", voucherId)` 使用的是数据库列名，不是 `voucherId`，也不是 `id`。这里的 `setSql` 是固定表达式，不拼接用户输入。
+
+`VoucherOrder` 现有 `@TableId(type=IdType.INPUT)` 表示 ID 由程序提供。数据库对支付方式、未支付状态、创建时间有默认值，所以本段设置订单 ID、用户 ID、券 ID 即可。没有创建支付链接或实际支付动作。
+
+### 4. 事务管什么、不管什么
+
+通过注入的 Spring Service 代理调用，方法内的库存更新和订单插入参与同一个数据库事务。插入抛出异常时，库存应回滚；“返回 `Result.fail`”本身不会触发回滚。
+
+本实现检查 `save` 返回值并在失败时抛异常。不要吞掉异常后仍正常返回成功。
+
+Redis 已分配的序列不会随着 MySQL 回滚而归还，ID 有空洞正常，不应为了连续编号回退计数器。数据库事务也没有让“先读库存再扣减”自动变成并发安全操作。
+
+### 5. 正常与边界验收
+
+先确认登录链路 `GET /user/me` 可用，再用同一身份发送：
+
+```http
+POST http://localhost:8081/voucher-order/seckill/实际券ID
+authorization: 本次登录的token
+```
+
+路径和 token 都替换为实际值，不在文档或聊天中公开真实 token。通过 Nginx 前端调用时沿用页面配置的 API 前缀，直连后端使用上面的端口和路径。
+
+成功应同时满足：
+
+- 响应 `success=true`，`data` 返回新订单 ID。
+- `tb_voucher_order` 有该订单，用户 ID 和券 ID 正确，初始状态为未支付。
+- `tb_seckill_voucher.stock` 恰好减少 1。
+
+隔离练习库中为不同测试准备独立券：
+
+| 条件 | 应观察结果 |
+| --- | --- |
+| 开始时间在未来 | “秒杀尚未开始”，不生成订单、不扣库存 |
+| 结束时间已过 | “秒杀已经结束”，不生成订单、不扣库存 |
+| 库存为 0 | “库存不足”，不生成订单 |
+| 券 ID 不存在 | 受控失败，不因空对象抛空指针 |
+| 未登录 | 拦截器返回 401 或当前补充代码受控拒绝，不写订单 |
+| 扣库存后、保存前人为抛异常 | 数据库库存回滚、无订单；Redis ID 可有空洞 |
+
+回滚验证只在测试工程临时插入异常，观察后移除；不要把故障注入留在正常下单逻辑。
+
+对大订单 ID，浏览器 `Number` 可能超出安全整数范围。复验时可对照原始响应与数据库字符串；工程对外 ID 的字符串序列化属于补充改进，不能把前端显示的舍入值当成生成器重复。
+
+## 六、本段未解决的并发问题
+
+库存只有 1 时，A 和 B 都可能先读到 1，然后各自执行一次 `stock = stock - 1`。事务会协调每次写入，但本段的 `UPDATE` 只检查券 ID，未把“库存仍大于 0”合入原子更新条件，因此仍可能超卖。
+
+同一用户重复下单也没有被本段代码拦截。即使 ID 全不重复，也不代表业务订单没有重复。
+
+后续 P52 起处理超卖，再处理一人一单和分布式锁。本轮先验收基础流程，理解上述失败时序即可，不把后续完整实现提前算作本段成果。
+
+## 七、学习与工程验收清单
+
+| 能力 | 完成证据 |
+| --- | --- |
+| 解释全局 ID | 说清时间差、自增序列、位移与或运算 |
+| 验证生成器 | 任务全部结束，样本数量和去重结果正确 |
+| 添加秒杀券 | 两张券表同 ID，金额和时间含义正确 |
+| 跑通下单 | 登录用户、响应、订单行和库存变化对应 |
+| 理解事务 | 插单失败可回滚库存，Redis 序列不归还 |
+| 识别范围 | 能解释为何本段仍可能超卖、重复购买 |
+
+笔记、视频、用户跟做和独立修改分别记录。当前本地工程只做了静态核对，本篇下单实现尚未替用户写入或运行。

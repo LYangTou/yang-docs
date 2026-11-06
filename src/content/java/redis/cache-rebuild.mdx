@@ -1,0 +1,497 @@
+# 缓存击穿实战：互斥重建、逻辑过期与工具封装
+
+本文整理 P44–P47，接续 [商户查询缓存](/docs/java/redis/shop-cache/)。工程仍是黑马点评：先在商铺查询中控制缓存重建，再把通用流程提取为 `CacheClient`。
+
+**阶段效果：** 普通 TTL 缓存失效时，由获取锁的请求重建；预热的热点缓存逻辑过期时，前台返回旧值，由后台线程刷新；工具类通过泛型和数据库回调复用这些流程。
+
+> **核对与代码说明：** 已读取四节完整中文字幕，并在 Chrome 对照关键流程、代码与演示画面；没有逐帧核验全部代码。下文按学习流程整理，包含明确标出的复现补充，并非逐字源码。视频演示不等于本地运行成功。
+
+## 一、范围与工程起点
+
+| 选集 | 内容 | 验收方向 |
+| --- | --- | --- |
+| P44 | 用互斥锁解决缓存击穿 | 热点缓存失效后，控制并发重建 |
+| P45 | 逻辑过期、预热、异步刷新 | 先返回旧数据，再由后台更新 |
+| P46 | 封装四个缓存方法 | 通过类型和数据库回调复用流程 |
+| P47 | 缓存总结 | 区分更新策略与穿透、雪崩、击穿 |
+
+课前需要能启动后端，连接 MySQL、Redis，调用 `GET http://localhost:8081/shop/1`。前端与 Nginx 沿用 [前一篇的项目准备](/docs/java/redis/shop-cache/)，不重新创建同名工程。
+
+本地静态核对的工程为 `D:/myspace/hmdp`：Java 8、Spring Boot 2.7.4、MyBatis-Plus 3.5.2、Hutool 5.8.8。它的 `ShopServiceImpl` 已有普通缓存、空值缓存、30–35 分钟随机 TTL 和更新后删缓存；尚未实现本篇的互斥查询和工具类。`RedisData`、锁常量已经存在。实际运行尚待验收，不能据代码存在判定已跑通。
+
+```text
+src/main/java/com/hmdp/
+├─ controller/ShopController.java          # 继续调用 queryById
+├─ service/impl/ShopServiceImpl.java       # P44/P45 先在这里实现
+└─ utils/
+   ├─ RedisConstants.java                 # 键名与有效期
+   ├─ RedisData.java                      # data + expireTime
+   └─ CacheClient.java                    # P46 提取的 Spring Bean
+src/test/java/com/hmdp/                    # 预热与验证
+```
+
+`queryWithPassThrough`、`queryWithMutex`、`queryWithLogicalExpire` 是可替换的读取策略。`queryById` 每次只启用一种，不能顺序调用三种。普通 JSON 与逻辑过期包装 JSON 的格式不同，切换策略时也要重建对应练习键。
+
+## 二、P44：互斥重建
+
+### 1. 为什么未命中后要争抢锁
+
+假设 `cache:shop:1` 到期，100 个请求同时进入。没有协调时，它们可能都未命中、都查询 MySQL、都回填。重建耗时越长，累积请求越多。
+
+```text
+查缓存 → 命中：返回
+       → 未命中：争抢 lock:shop:1
+                  ├─ 得锁：再次检查缓存 → 必要时查库 → 回填 → 释放
+                  └─ 未得锁：等待一小会，再从读缓存开始
+```
+
+锁放在 Service 的“未命中后重建”这段链路。命中的请求直接返回，不参加竞争。不同商铺用不同锁，避免互不相关的详情查询相互阻塞。
+
+### 2. 从 Redis 命令理解互斥
+
+在两个连接到同一实例、同一逻辑库的客户端操作本次实验键：
+
+```redis
+SET learn:p44:lock:shop:1 owner-A NX EX 10
+GET learn:p44:lock:shop:1
+TTL learn:p44:lock:shop:1
+SET learn:p44:lock:shop:1 owner-B NX EX 10
+GET learn:p44:lock:shop:1
+```
+
+第一条返回 `OK`，第二次条件写入通常返回 `(nil)`，原值仍为 `owner-A`。`NX` 表示仅键不存在时写入，`EX 10` 设置 10 秒有效期。视频先用 `SETNX` 演示，它的成功/失败显示为整数 `1/0`，与这里 `SET NX` 的显示不同。
+
+条件写入和过期应在同一条命令里完成。先 `SETNX`、再 `EXPIRE`，可能在两者之间崩溃而留下无过期锁。命令语义参见 [Redis SET](https://redis.io/docs/latest/commands/set/)。
+
+过期只是进程异常时的兜底，正常完成仍主动释放。当前课程通过删除锁键释放锁；后续才深入锁持有者和误删问题。
+
+### 3. 键名和辅助方法
+
+在 `utils/RedisConstants.java` 检查以下常量，已有则沿用：
+
+```java
+public static final String CACHE_SHOP_KEY = "cache:shop:";
+public static final Long CACHE_SHOP_TTL = 30L; // 分钟
+public static final Long CACHE_NULL_TTL = 2L;  // 分钟
+public static final String LOCK_SHOP_KEY = "lock:shop:";
+public static final Long LOCK_SHOP_TTL = 10L; // 秒
+```
+
+`cache:shop:1` 存商铺 JSON，`lock:shop:1` 存锁标记。误用缓存键加锁会导致加锁失败，释放时还可能删掉业务数据。
+
+在已有 `ShopServiceImpl` 内添加：
+
+```java
+private boolean tryLock(String key) {
+    Boolean success = stringRedisTemplate.opsForValue()
+        .setIfAbsent(key, "1", LOCK_SHOP_TTL, TimeUnit.SECONDS);
+    return Boolean.TRUE.equals(success);
+}
+
+private void unlock(String key) {
+    stringRedisTemplate.delete(key);
+}
+```
+
+视频使用 Hutool `BooleanUtil.isTrue`，上面使用等价的 `Boolean.TRUE.equals`，避免包装类型直接拆箱。`"1"` 只是本阶段的锁标记，不包含持有者身份。
+
+### 4. 保留空值处理，增加互斥重建
+
+视频采用“未得锁后休眠 50ms，递归重试”，并在查询附近暂加 200ms 延迟模拟慢重建。
+
+> **复现补充：** 以下改为最多 100 轮循环，得锁后再读缓存，并让只有得锁的路径进入释放逻辑。用于避免无限递归、过时的未命中判断和未得锁请求误删锁；不标作视频已经完整处理的内容。锁租期届满后的所有权问题仍未解决。
+
+在当前 `ShopServiceImpl` 增加：
+
+```java
+public Shop queryWithMutex(Long id) {
+    String key = CACHE_SHOP_KEY + id;
+    String lockKey = LOCK_SHOP_KEY + id;
+    for (int attempt = 0; attempt < 100; attempt++) {
+        String json = stringRedisTemplate.opsForValue().get(key);
+        if (StrUtil.isNotBlank(json)) {
+            return JSONUtil.toBean(json, Shop.class);
+        }
+        if (json != null) {
+            return null; // 命中空字符串标记
+        }
+        if (!tryLock(lockKey)) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("缓存等待被中断", e);
+            }
+            continue;
+        }
+        try {
+            // 等待期间其他请求可能已回填：得锁后 Double Check。
+            json = stringRedisTemplate.opsForValue().get(key);
+            if (StrUtil.isNotBlank(json)) {
+                return JSONUtil.toBean(json, Shop.class);
+            }
+            if (json != null) {
+                return null;
+            }
+            Shop shop = getById(id);
+            if (shop == null) {
+                stringRedisTemplate.opsForValue().set(
+                    key, "", CACHE_NULL_TTL, TimeUnit.MINUTES);
+                return null;
+            }
+            long ttl = CACHE_SHOP_TTL
+                + ThreadLocalRandom.current().nextInt(0, 6);
+            stringRedisTemplate.opsForValue().set(
+                key, JSONUtil.toJsonStr(shop), ttl, TimeUnit.MINUTES);
+            return shop;
+        } finally {
+            unlock(lockKey);
+        }
+    }
+    throw new IllegalStateException("缓存重建繁忙，请稍后重试");
+}
+```
+
+类型导入沿用当前类：`cn.hutool.core.util.StrUtil`、`cn.hutool.json.JSONUtil`、`java.util.concurrent.TimeUnit`、`java.util.concurrent.ThreadLocalRandom`，并静态导入 `RedisConstants.*`。入口改为：
+
+```java
+@Override
+public Result queryById(Long id) {
+    Shop shop = queryWithMutex(id);
+    return shop == null ? Result.fail("店铺不存在！") : Result.ok(shop);
+}
+```
+
+内部查询方法返回 `Shop/null`，入口包装 `Result`。原有穿透查询可保留为 `queryWithPassThrough` 作为对照。
+
+**得锁后为什么复查？** 请求 B 最初未命中，随后暂停；A 完成回填并放锁；B 恢复后拿到锁。如果仍沿用最初的判断，B 会重复查库。锁不会让锁外读到的状态自动更新。
+
+### 5. 验收一次冷缓存并发
+
+准备：选练习库里确认存在的商铺，在得锁后查库位置暂加 200ms 延迟和带 ID 的重建日志。人工延迟只用于实验，完成后移除。仅删除对应缓存：
+
+```redis
+DEL cache:shop:1
+```
+
+JMeter 添加 HTTP 请求：`GET`、`localhost`、`8081`、`/shop/1`。视频示例为 1000 线程、5 秒启动、循环一次。初次可先用 20–100 个线程观察竞争，再逐步增加。线程数除以启动时间不是实测吞吐量。
+
+检查请求中的 `success` 与 ID，观察商铺 SQL 和重建日志，确认回填后不再反复回源；`TTL cache:shop:1` 为正数，重建结束后 `EXISTS lock:shop:1` 为 `0`。JMeter 绿色不能代替业务响应检查。
+
+再查询确认不存在的 ID，仍应写短期空值。视频一次测试展示只有一条商铺查询 SQL，这是该次演示结果，不是对任意调度和故障的安全证明。
+
+### 6. 这把锁的适用边界
+
+重建若超过 10 秒，旧锁先过期，新任务可能获得同名锁；旧任务再 `DEL` 会误删新锁。`finally` 和“本请求曾得锁”都不能解决租期届满后的误删。
+
+本节掌握互斥重建即可。持有者标识、原子校验释放、续期等后续再学，不把固定值加锁代码当作通用生产锁。
+
+## 三、P45：逻辑过期与异步刷新
+
+### 1. 两种过期机制
+
+| 维度 | Redis TTL | 逻辑过期 |
+| --- | --- | --- |
+| 保存位置 | 键的有效期元数据 | JSON 内的 `expireTime` |
+| 判断者 | Redis | Java 业务代码 |
+| 到期后读取 | 正常 GET 不再取得旧值 | 仍能读取旧数据 |
+| 重建期间 | 请求等待或降级 | 返回旧值，后台刷新 |
+| 课程前提 | 按需回填 | 提前预热热点数据 |
+
+适用于可容忍短时间旧值的商铺简介、活动展示、榜单。库存扣减、余额校验不能依据旧缓存做最终决定。
+
+没有 TTL 只表示不按键有效期删除；主动删除、内存淘汰、故障仍可能使键消失，不能理解成必然永久存在。
+
+### 2. 包装数据而不修改 Shop
+
+`utils/RedisData.java` 已存在，结构为：
+
+```java
+package com.hmdp.utils;
+
+import lombok.Data;
+import java.time.LocalDateTime;
+
+@Data
+public class RedisData {
+    private LocalDateTime expireTime;
+    private Object data;
+}
+```
+
+结构示意：
+
+```json
+{
+  "expireTime": "2026-11-03T16:00:20",
+  "data": { "id": 1, "name": "演示商铺" }
+}
+```
+
+示意不是完整的商铺缓存，不要手动拿它替换真实数据。Hutool 的时间表示可能因配置显示为数字或字符串。
+
+### 3. 先预热再查询
+
+P45 在 `ShopServiceImpl` 定义预热方法，由测试调用：
+
+```java
+public void saveShop2Redis(Long id, Long expireSeconds) {
+    Shop shop = getById(id);
+    if (shop == null) {
+        throw new IllegalArgumentException("预热商铺不存在"); // 复现补充
+    }
+    RedisData wrapper = new RedisData();
+    wrapper.setData(shop);
+    wrapper.setExpireTime(LocalDateTime.now().plusSeconds(expireSeconds));
+    stringRedisTemplate.opsForValue().set(
+        CACHE_SHOP_KEY + id, JSONUtil.toJsonStr(wrapper));
+}
+```
+
+导入 `RedisData`、`java.time.LocalDateTime`。刻意不传 Redis TTL。在 `src/test/java/com/hmdp/` 的 `@SpringBootTest` 测试类中注入 `ShopServiceImpl`，使用 JUnit Jupiter `@Test`，执行：
+
+```java
+shopService.saveShop2Redis(1L, 10L);
+```
+
+`GET cache:shop:1` 应有 `data`、`expireTime`，`TTL` 为 `-1`。超过 10 秒后键仍在，Java 查询时才判断逻辑过期。
+
+切换策略时必须重新预热。普通商铺 JSON 没有包装字段，不能直接交给逻辑过期方法；切回普通策略，也应只重置该练习键再回填。
+
+### 4. 查询流程与对象还原
+
+```text
+查 Redis → 缺失：课程预热方案直接返回 null
+         → 存在：还原数据，判断 expireTime
+                  ├─ 未过期：返回数据
+                  └─ 已过期：尝试得锁
+                             ├─ 失败：返回旧数据
+                             └─ 成功：提交后台重建，当前请求也返回旧数据
+                                      └─ 查库、写新包装对象、finally 释放锁
+```
+
+因为 `RedisData.data` 声明为 `Object`，反序列化时不能直接强转成 `Shop`。视频使用：
+
+```java
+RedisData wrapper = JSONUtil.toBean(json, RedisData.class);
+Shop shop = JSONUtil.toBean((JSONObject) wrapper.getData(), Shop.class);
+boolean fresh = wrapper.getExpireTime().isAfter(LocalDateTime.now());
+```
+
+`JSONObject` 来自 `cn.hutool.json`。后台通过复用的 `Executors.newFixedThreadPool(10)` 提交任务，不在每次请求中新建线程池。任务内调用 `saveShop2Redis`，在 `finally` 释放锁。
+
+只需理解“提交后台任务后前台可以先返回”，不把整套 JUC 恢复为前置课程。异步任务异常不会自动变成已返回请求的错误，应记录日志。
+
+P45 先在 `ShopServiceImpl.queryWithLogicalExpire(Long id)` 实现上述流程：返回类型固定为 `Shop`，回源用 `getById(id)`。P46 再迁入下一节的通用方法；二者不要同时重复执行。
+
+### 5. 新旧数据对照实验
+
+预热真实商铺，逻辑有效期 10 秒，回源暂加 200ms 延迟。记下旧名称，在隔离练习库手动修改数据库名称，暂不调用会删除缓存的更新接口。
+
+等逻辑到期后，用 100 线程、1 秒启动访问 `/shop/1`。应看到开始的一些请求返回旧名称，刷新完成后返回新名称，`expireTime` 更新；同时核对重建日志和 SQL 次数。具体耗时以实际结果为准。
+
+完成后恢复测试数据。若调用原 `update` 删除了热点键，课程“未命中返回 null”的方法不会自己预热，需要配套重建。逻辑过期不能直接替换所有普通缓存的更新流程。
+
+## 四、P46：提取 CacheClient
+
+### 1. 四个方法与两个变化点
+
+| 方法 | 作用 |
+| --- | --- |
+| `set` | 对象转 JSON，写 String，并设置 TTL |
+| `setWithLogicalExpire` | 写包装对象，设置逻辑过期 |
+| `queryWithPassThrough` | 命中直接返回；未命中回源；不存在写空值 |
+| `queryWithLogicalExpire` | 读取预热数据，过期后互斥异步刷新 |
+
+工具不知道数据类型，也不知道如何查数据库。类型交给泛型和 `Class<R>`，查询交给 `Function<ID,R>`：
+
+```java
+public <R, ID> R queryWithPassThrough(
+    String keyPrefix, ID id, Class<R> type,
+    Function<ID, R> dbFallback, Long time, TimeUnit unit)
+```
+
+商铺业务中 `R=Shop`、`ID=Long`、`type=Shop.class`。`this::getById` 传入方法引用，此时不查库；工具执行 `dbFallback.apply(id)` 才调用它。这里的 fallback 主要用于缓存未命中，不是自动吞掉所有 Redis 故障后无限查库。参见 [Java 8 Function](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html)。
+
+### 2. 可跟做的参考实现
+
+新建 `utils/CacheClient.java`。以下保留课程四方法结构，补充得锁后复查、异常日志、提交失败释放和线程池销毁。仍沿用教学锁，不能解决锁租期不足后的所有权问题。
+
+```java
+package com.hmdp.utils;
+
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
+import javax.annotation.PreDestroy;
+import java.time.LocalDateTime;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import static com.hmdp.utils.RedisConstants.*;
+
+@Slf4j
+@Component
+public class CacheClient {
+    private final StringRedisTemplate redis;
+    private final ExecutorService executor = Executors.newFixedThreadPool(10);
+
+    public CacheClient(StringRedisTemplate redis) {
+        this.redis = redis;
+    }
+
+    public void set(String key, Object value, Long time, TimeUnit unit) {
+        redis.opsForValue().set(key, JSONUtil.toJsonStr(value), time, unit);
+    }
+
+    public void setWithLogicalExpire(
+            String key, Object value, Long time, TimeUnit unit) {
+        RedisData wrapper = new RedisData();
+        wrapper.setData(value);
+        wrapper.setExpireTime(
+            LocalDateTime.now().plusSeconds(unit.toSeconds(time)));
+        redis.opsForValue().set(key, JSONUtil.toJsonStr(wrapper));
+    }
+
+    public <R, ID> R queryWithPassThrough(
+            String prefix, ID id, Class<R> type,
+            Function<ID, R> dbFallback, Long time, TimeUnit unit) {
+        String key = prefix + id;
+        String json = redis.opsForValue().get(key);
+        if (StrUtil.isNotBlank(json)) return JSONUtil.toBean(json, type);
+        if (json != null) return null;
+        R value = dbFallback.apply(id);
+        if (value == null) {
+            redis.opsForValue().set(
+                key, "", CACHE_NULL_TTL, TimeUnit.MINUTES);
+            return null;
+        }
+        set(key, value, time, unit);
+        return value;
+    }
+
+    public <R, ID> R queryWithLogicalExpire(
+            String prefix, ID id, Class<R> type,
+            Function<ID, R> dbFallback, Long time, TimeUnit unit) {
+        String key = prefix + id;
+        String json = redis.opsForValue().get(key);
+        if (StrUtil.isBlank(json)) return null;
+        RedisData wrapper = JSONUtil.toBean(json, RedisData.class);
+        R old = JSONUtil.toBean(JSONUtil.toJsonStr(wrapper.getData()), type);
+        if (wrapper.getExpireTime().isAfter(LocalDateTime.now())) return old;
+
+        // 复现补充：锁名包含缓存命名空间，避免不同业务相同 ID 冲突。
+        String lockKey = "lock:rebuild:" + key;
+        if (!tryLock(lockKey)) return old;
+        try {
+            String latestJson = redis.opsForValue().get(key);
+            if (StrUtil.isNotBlank(latestJson)) {
+                RedisData latest = JSONUtil.toBean(latestJson, RedisData.class);
+                if (latest.getExpireTime().isAfter(LocalDateTime.now())) {
+                    R result = JSONUtil.toBean(
+                        JSONUtil.toJsonStr(latest.getData()), type);
+                    unlock(lockKey);
+                    return result;
+                }
+            }
+            executor.submit(() -> {
+                try {
+                    R fresh = dbFallback.apply(id);
+                    if (fresh == null) {
+                        redis.delete(key); // 源数据被删除，不无限保留旧值
+                    } else {
+                        setWithLogicalExpire(key, fresh, time, unit);
+                    }
+                } catch (Exception e) {
+                    log.error("缓存刷新失败，key={}", key, e);
+                } finally {
+                    unlock(lockKey);
+                }
+            });
+        } catch (RuntimeException e) {
+            unlock(lockKey); // 复查或任务提交失败，未转交后台
+            throw e;
+        }
+        return old;
+    }
+
+    private boolean tryLock(String key) {
+        return Boolean.TRUE.equals(redis.opsForValue()
+            .setIfAbsent(key, "1", LOCK_SHOP_TTL, TimeUnit.SECONDS));
+    }
+
+    private void unlock(String key) {
+        redis.delete(key);
+    }
+
+    @PreDestroy
+    public void destroy() {
+        executor.shutdown();
+    }
+}
+```
+
+这里把内部数据转 JSON 再按目标类型还原，视频用 `JSONObject` 转换，均需明确目标类型。`setWithLogicalExpire` 必须序列化 `wrapper`，不是仅序列化原 `value`。
+
+`unit.toSeconds(time)` 会截断不足一秒部分，本例使用秒或分钟。`newFixedThreadPool` 是课程规模的写法，生产需要另行配置有界队列、拒绝和监控。本篇不展开线程池专题。
+
+### 3. Service 的调用方式
+
+注入 `CacheClient`，以下二选一：
+
+```java
+Shop shop = cacheClient.queryWithPassThrough(
+    CACHE_SHOP_KEY, id, Shop.class,
+    this::getById, CACHE_SHOP_TTL, TimeUnit.MINUTES);
+```
+
+```java
+Shop shop = cacheClient.queryWithLogicalExpire(
+    CACHE_SHOP_KEY, id, Shop.class,
+    this::getById, 20L, TimeUnit.SECONDS);
+```
+
+20 秒是实验参数。逻辑策略先在测试中查出真实 `Shop`，再调用：
+
+```java
+cacheClient.setWithLogicalExpire(
+    CACHE_SHOP_KEY + 1L, shop, 10L, TimeUnit.SECONDS);
+```
+
+`queryWithPassThrough` 解决穿透，不自动解决有效数据同时过期的击穿。P46 的 `set` 使用传入 TTL；本地原有随机 TTL 若需保留，由业务计算后传入，不偷偷改变全部业务的过期规则。
+
+## 五、P47：把缓存问题放回业务
+
+| 问题 | 数据状态 | 压力来源 | 处理方向 |
+| --- | --- | --- | --- |
+| 穿透 | 数据库也没有 | 无效请求反复回源 | 空值短 TTL、布隆过滤、参数与权限校验 |
+| 雪崩 | 多个键同时失效或 Redis 故障 | 多业务集中回源 | 随机 TTL、高可用、限流降级、隔离、多级缓存 |
+| 击穿 | 一个热点键重建中 | 同键并发回源 | 互斥等待、逻辑过期异步刷新 |
+
+Cache Aside：读先缓存、未命中查库回填；写先更新数据库，再删除缓存，TTL 辅助兜底。缓存降低后端负载、减少响应时间，同时增加一致性、开发、运维与内存成本。
+
+> **准确性补充：** P47 对“事务保证数据库与缓存原子性”的概括不能直接套用本工程。默认 `RedisTemplate` 不参加 Spring 托管事务；普通 `@Transactional` 不会让 MySQL 更新和 Redis 删除拥有跨存储原子提交。参见 [Spring Data Redis 事务说明](https://docs.spring.io/spring-data/redis/reference/redis/transactions.html)。
+
+内存淘汰也不是固定“默认 LRU”，取决于内存限制和 `maxmemory-policy`；`noeviction` 不自动淘汰键。
+
+| 比较 | 互斥重建 | 逻辑过期 |
+| --- | --- | --- |
+| 重建期间 | 请求等待或超时降级 | 返回旧值 |
+| 主要代价 | 等待时间与锁竞争 | 预热、后台刷新、短期旧值 |
+| 适用判断 | 更重视当前回源结果 | 允许短期旧值的热点展示 |
+
+两者都要处理锁异常、回源失败和 Redis 故障，不提供数据库意义上的强一致性。逻辑过期减少前台等待，不等于没有锁风险。
+
+## 六、阶段验收
+
+| 里程碑 | 正常路径 | 边界验证 |
+| --- | --- | --- |
+| 互斥重建 | 冷缓存并发的回源受控 | 未得锁不释放；等待有界；不存在数据仍缓存空值 |
+| 逻辑过期 | 旧值 → 后台刷新 → 新值 | 没预热、旧格式、更新接口删键时能解释结果 |
+| 工具封装 | 类型与回调正确 | 普通 JSON 和逻辑 JSON 分别测试 |
+| 场景迁移 | 能为商铺简介选择策略 | 知道不能用旧缓存决定库存是否可扣 |
+
+资料覆盖、代码写入、工程运行与独立修改分别记录。下一阶段进入 [全局唯一 ID 与优惠券基础下单](/docs/java/redis/voucher-seckill/)。

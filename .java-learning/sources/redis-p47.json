@@ -1,0 +1,3232 @@
+{
+  "page": 47,
+  "title": "实战篇-商户查询缓存-13.缓存总结",
+  "duration": 821,
+  "basis": "Public Bilibili AI Chinese subtitle; verify identifiers against frames",
+  "body": [
+    {
+      "from": 1.44,
+      "to": 5.37,
+      "sid": 1,
+      "location": 2,
+      "content": "好那么在本章的最后呢给大家总结一下啊",
+      "music": 0
+    },
+    {
+      "from": 5.37,
+      "to": 8.34,
+      "sid": 2,
+      "location": 2,
+      "content": "我们整个这一章所学的一个知识点",
+      "music": 0
+    },
+    {
+      "from": 8.34,
+      "to": 10.08,
+      "sid": 3,
+      "location": 2,
+      "content": "在这呢就罗列了一下啊",
+      "music": 0
+    },
+    {
+      "from": 10.08,
+      "to": 11.94,
+      "sid": 4,
+      "location": 2,
+      "content": "嗯我们总共是有七张",
+      "music": 0
+    },
+    {
+      "from": 11.94,
+      "to": 13.83,
+      "sid": 5,
+      "location": 2,
+      "content": "首先是带人家去认识缓存",
+      "music": 0
+    },
+    {
+      "from": 13.83,
+      "to": 16.5,
+      "sid": 6,
+      "location": 2,
+      "content": "然后呢就是去实现这个瑞士缓存啊",
+      "music": 0
+    },
+    {
+      "from": 16.5,
+      "to": 18.71,
+      "sid": 7,
+      "location": 2,
+      "content": "解决这个上诉查询内问题",
+      "music": 0
+    },
+    {
+      "from": 18.71,
+      "to": 20.75,
+      "sid": 8,
+      "location": 2,
+      "content": "然后呢就是缓存更新呀",
+      "music": 0
+    },
+    {
+      "from": 20.75,
+      "to": 24.469,
+      "sid": 9,
+      "location": 2,
+      "content": "穿透雪崩击穿啊等等这些热点的一个问题了啊",
+      "music": 0
+    },
+    {
+      "from": 24.469,
+      "to": 25.789,
+      "sid": 10,
+      "location": 2,
+      "content": "那在认识缓存这一块呢",
+      "music": 0
+    },
+    {
+      "from": 25.789,
+      "to": 28.68,
+      "sid": 11,
+      "location": 2,
+      "content": "我们其实是主要啊讲了三个点啊",
+      "music": 0
+    },
+    {
+      "from": 28.68,
+      "to": 30.42,
+      "sid": 12,
+      "location": 2,
+      "content": "第一就是什么是缓存啊",
+      "music": 0
+    },
+    {
+      "from": 30.42,
+      "to": 33.54,
+      "sid": 13,
+      "location": 2,
+      "content": "缓存呢就是一种具备高效读写能力的数据",
+      "music": 0
+    },
+    {
+      "from": 33.54,
+      "to": 34.71,
+      "sid": 14,
+      "location": 2,
+      "content": "缓存区啊",
+      "music": 0
+    },
+    {
+      "from": 34.71,
+      "to": 37.64,
+      "sid": 15,
+      "location": 2,
+      "content": "它可以去啊把数据暂存起来",
+      "music": 0
+    },
+    {
+      "from": 37.64,
+      "to": 39.269,
+      "sid": 16,
+      "location": 2,
+      "content": "因为它的读写能力比较强",
+      "music": 0
+    },
+    {
+      "from": 39.269,
+      "to": 41.609,
+      "sid": 17,
+      "location": 2,
+      "content": "所以说呢他嗯查询的效率啊",
+      "music": 0
+    },
+    {
+      "from": 41.609,
+      "to": 43.47,
+      "sid": 18,
+      "location": 2,
+      "content": "写的效率都会比较高啊",
+      "music": 0
+    },
+    {
+      "from": 43.47,
+      "to": 47.04,
+      "sid": 19,
+      "location": 2,
+      "content": "同时也可以减轻啊对于我们后端的压力啊",
+      "music": 0
+    },
+    {
+      "from": 47.04,
+      "to": 48.24,
+      "sid": 20,
+      "location": 2,
+      "content": "所以这是它的一个作用啊",
+      "music": 0
+    },
+    {
+      "from": 48.24,
+      "to": 50.4,
+      "sid": 21,
+      "location": 2,
+      "content": "降低后端负载和提高多少显应速度",
+      "music": 0
+    },
+    {
+      "from": 50.4,
+      "to": 53.28,
+      "sid": 22,
+      "location": 2,
+      "content": "那它带来的一个成本呢主要就是三点啊",
+      "music": 0
+    },
+    {
+      "from": 53.28,
+      "to": 54.72,
+      "sid": 23,
+      "location": 2,
+      "content": "一般是开发的成本",
+      "music": 0
+    },
+    {
+      "from": 54.72,
+      "to": 55.86,
+      "sid": 24,
+      "location": 2,
+      "content": "那加了缓存以后啊",
+      "music": 0
+    },
+    {
+      "from": 55.86,
+      "to": 58.11,
+      "sid": 25,
+      "location": 2,
+      "content": "啊它的代码就会比较复杂了",
+      "music": 0
+    },
+    {
+      "from": 58.11,
+      "to": 59.4,
+      "sid": 26,
+      "location": 2,
+      "content": "那通过我们后面讲解",
+      "music": 0
+    },
+    {
+      "from": 59.4,
+      "to": 60.57,
+      "sid": 27,
+      "location": 2,
+      "content": "大家也发现了对吧",
+      "music": 0
+    },
+    {
+      "from": 60.57,
+      "to": 62.489,
+      "sid": 28,
+      "location": 2,
+      "content": "那第二个呢是运维的成本啊",
+      "music": 0
+    },
+    {
+      "from": 62.489,
+      "to": 65.309,
+      "sid": 29,
+      "location": 2,
+      "content": "那首先呢rise为了保证高可用",
+      "music": 0
+    },
+    {
+      "from": 65.309,
+      "to": 66.389,
+      "sid": 30,
+      "location": 2,
+      "content": "将来要去做集群",
+      "music": 0
+    },
+    {
+      "from": 66.389,
+      "to": 67.799,
+      "sid": 31,
+      "location": 2,
+      "content": "那么这些集群的部署",
+      "music": 0
+    },
+    {
+      "from": 67.799,
+      "to": 70.559,
+      "sid": 32,
+      "location": 2,
+      "content": "其实就会给运维带来很多的麻烦啊",
+      "music": 0
+    },
+    {
+      "from": 70.559,
+      "to": 72.899,
+      "sid": 33,
+      "location": 2,
+      "content": "并且呢你去部署这些啊",
+      "music": 0
+    },
+    {
+      "from": 72.899,
+      "to": 75.989,
+      "sid": 34,
+      "location": 2,
+      "content": "大量的集群还需要一些这个呃机器",
+      "music": 0
+    },
+    {
+      "from": 75.989,
+      "to": 78.56,
+      "sid": 35,
+      "location": 2,
+      "content": "这样一些经济上的一些成本对吧啊",
+      "music": 0
+    },
+    {
+      "from": 78.56,
+      "to": 79.1,
+      "sid": 36,
+      "location": 2,
+      "content": "那最后呢",
+      "music": 0
+    },
+    {
+      "from": 79.1,
+      "to": 82.89,
+      "sid": 37,
+      "location": 2,
+      "content": "还有就是s会有这样一个一致性的问题",
+      "music": 0
+    },
+    {
+      "from": 82.89,
+      "to": 85.29,
+      "sid": 38,
+      "location": 2,
+      "content": "这就是我们传说中的双写一致性对吧",
+      "music": 0
+    },
+    {
+      "from": 85.29,
+      "to": 87.09,
+      "sid": 39,
+      "location": 2,
+      "content": "数据库和缓存里都有数据",
+      "music": 0
+    },
+    {
+      "from": 87.09,
+      "to": 89.62,
+      "sid": 40,
+      "location": 2,
+      "content": "能怎么保证两者数据是一致的啊",
+      "music": 0
+    },
+    {
+      "from": 89.62,
+      "to": 92.32,
+      "sid": 41,
+      "location": 2,
+      "content": "那这其实就要靠我们缓存更新的一个策略",
+      "music": 0
+    },
+    {
+      "from": 92.32,
+      "to": 93.43,
+      "sid": 42,
+      "location": 2,
+      "content": "去维护了啊",
+      "music": 0
+    },
+    {
+      "from": 93.43,
+      "to": 94.81,
+      "sid": 43,
+      "location": 2,
+      "content": "好这是第一部分",
+      "music": 0
+    },
+    {
+      "from": 94.81,
+      "to": 97.03,
+      "sid": 44,
+      "location": 2,
+      "content": "第二部分呢我们就是添加缓存这块",
+      "music": 0
+    },
+    {
+      "from": 97.03,
+      "to": 97.99,
+      "sid": 45,
+      "location": 2,
+      "content": "没什么好聊的",
+      "music": 0
+    },
+    {
+      "from": 97.99,
+      "to": 99.43,
+      "sid": 46,
+      "location": 2,
+      "content": "就是呢在查询数据的时候",
+      "music": 0
+    },
+    {
+      "from": 99.43,
+      "to": 100.39,
+      "sid": 47,
+      "location": 2,
+      "content": "优先查缓存",
+      "music": 0
+    },
+    {
+      "from": 100.39,
+      "to": 101.35,
+      "sid": 48,
+      "location": 2,
+      "content": "缓存未命中啊",
+      "music": 0
+    },
+    {
+      "from": 101.35,
+      "to": 102.81,
+      "sid": 49,
+      "location": 2,
+      "content": "再查数据库啊",
+      "music": 0
+    },
+    {
+      "from": 102.81,
+      "to": 103.32,
+      "sid": 50,
+      "location": 2,
+      "content": "当然了",
+      "music": 0
+    },
+    {
+      "from": 103.32,
+      "to": 104.97,
+      "sid": 51,
+      "location": 2,
+      "content": "这样是一个基本模型啊",
+      "music": 0
+    },
+    {
+      "from": 104.97,
+      "to": 107.759,
+      "sid": 52,
+      "location": 2,
+      "content": "那后来我们发现这个模型存在好多好多问题",
+      "music": 0
+    },
+    {
+      "from": 107.759,
+      "to": 109.739,
+      "sid": 53,
+      "location": 2,
+      "content": "所以呢我们就去解决它对吧",
+      "music": 0
+    },
+    {
+      "from": 109.739,
+      "to": 111.479,
+      "sid": 54,
+      "location": 2,
+      "content": "那在我们3456啊",
+      "music": 0
+    },
+    {
+      "from": 111.479,
+      "to": 113.11,
+      "sid": 55,
+      "location": 2,
+      "content": "这几节都是在解决问题的",
+      "music": 0
+    },
+    {
+      "from": 113.11,
+      "to": 114.46,
+      "sid": 56,
+      "location": 2,
+      "content": "比方说缓存更新",
+      "music": 0
+    },
+    {
+      "from": 114.46,
+      "to": 117.21,
+      "sid": 57,
+      "location": 2,
+      "content": "那么它解决的其实就是一致性的问题啊",
+      "music": 0
+    },
+    {
+      "from": 117.21,
+      "to": 118.53,
+      "sid": 58,
+      "location": 2,
+      "content": "在缓存更新里边呢",
+      "music": 0
+    },
+    {
+      "from": 118.53,
+      "to": 119.97,
+      "sid": 59,
+      "location": 2,
+      "content": "我们讲了有三种策略啊",
+      "music": 0
+    },
+    {
+      "from": 119.97,
+      "to": 120.51,
+      "sid": 60,
+      "location": 2,
+      "content": "内存淘汰",
+      "music": 0
+    },
+    {
+      "from": 120.51,
+      "to": 122.14,
+      "sid": 61,
+      "location": 2,
+      "content": "过期淘汰和主动更新",
+      "music": 0
+    },
+    {
+      "from": 122.36,
+      "to": 126.26,
+      "sid": 62,
+      "location": 2,
+      "content": "n淘汰呢是rate里面自带的一种这样一种机制啊",
+      "music": 0
+    },
+    {
+      "from": 126.26,
+      "to": 129.27,
+      "sid": 63,
+      "location": 2,
+      "content": "默认呢它可以采用l r u的一种方式啊",
+      "music": 0
+    },
+    {
+      "from": 129.27,
+      "to": 131.61,
+      "sid": 64,
+      "location": 2,
+      "content": "当然我们也可以自己配各种不同的策略啊",
+      "music": 0
+    },
+    {
+      "from": 131.61,
+      "to": 133.77,
+      "sid": 65,
+      "location": 2,
+      "content": "那么当rise的内存不足的时候",
+      "music": 0
+    },
+    {
+      "from": 133.77,
+      "to": 137.09,
+      "sid": 66,
+      "location": 2,
+      "content": "它就会呃将部分数据给它淘汰掉",
+      "music": 0
+    },
+    {
+      "from": 137.09,
+      "to": 138.59,
+      "sid": 67,
+      "location": 2,
+      "content": "清空一些空间出来啊",
+      "music": 0
+    },
+    {
+      "from": 138.59,
+      "to": 140.3,
+      "sid": 68,
+      "location": 2,
+      "content": "然后去存储新的数据",
+      "music": 0
+    },
+    {
+      "from": 140.3,
+      "to": 141.95,
+      "sid": 69,
+      "location": 2,
+      "content": "那利用这种方式呢",
+      "music": 0
+    },
+    {
+      "from": 141.95,
+      "to": 146.63,
+      "sid": 70,
+      "location": 2,
+      "content": "可以一定程度上保证这个数据可以得到更新",
+      "music": 0
+    },
+    {
+      "from": 146.63,
+      "to": 151.08,
+      "sid": 71,
+      "location": 2,
+      "content": "但是呢嗯他的这种更新的时间也好啊",
+      "music": 0
+    },
+    {
+      "from": 151.08,
+      "to": 151.74,
+      "sid": 72,
+      "location": 2,
+      "content": "周期也好",
+      "music": 0
+    },
+    {
+      "from": 151.74,
+      "to": 152.79,
+      "sid": 73,
+      "location": 2,
+      "content": "都是不可控的",
+      "music": 0
+    },
+    {
+      "from": 152.79,
+      "to": 156.39,
+      "sid": 74,
+      "location": 2,
+      "content": "所以说呢这种方案呢它的一致性是比较差的啊",
+      "music": 0
+    },
+    {
+      "from": 156.39,
+      "to": 157.5,
+      "sid": 75,
+      "location": 2,
+      "content": "但它的好处就是简单",
+      "music": 0
+    },
+    {
+      "from": 157.5,
+      "to": 158.649,
+      "sid": 76,
+      "location": 2,
+      "content": "你不用管哈",
+      "music": 0
+    },
+    {
+      "from": 158.649,
+      "to": 160.239,
+      "sid": 77,
+      "location": 2,
+      "content": "那第二种方法过去淘汰",
+      "music": 0
+    },
+    {
+      "from": 160.239,
+      "to": 162.969,
+      "sid": 78,
+      "location": 2,
+      "content": "过去淘汰呢是利用pl命令给我们的",
+      "music": 0
+    },
+    {
+      "from": 162.969,
+      "to": 165.32,
+      "sid": 79,
+      "location": 2,
+      "content": "key是指ttl过期时间",
+      "music": 0
+    },
+    {
+      "from": 165.32,
+      "to": 167.42,
+      "sid": 80,
+      "location": 2,
+      "content": "那么到期以后自动就会清除",
+      "music": 0
+    },
+    {
+      "from": 167.42,
+      "to": 168.92,
+      "sid": 81,
+      "location": 2,
+      "content": "那一旦清除了缓存",
+      "music": 0
+    },
+    {
+      "from": 168.92,
+      "to": 172.649,
+      "sid": 82,
+      "location": 2,
+      "content": "下次再查询自然就会查数据库得到最新数据了",
+      "music": 0
+    },
+    {
+      "from": 172.649,
+      "to": 174.089,
+      "sid": 83,
+      "location": 2,
+      "content": "所以呢这种方案的话",
+      "music": 0
+    },
+    {
+      "from": 174.089,
+      "to": 176.76,
+      "sid": 84,
+      "location": 2,
+      "content": "它是可以人为控制ttl时间",
+      "music": 0
+    },
+    {
+      "from": 176.76,
+      "to": 179.67,
+      "sid": 85,
+      "location": 2,
+      "content": "从而来保证这个更新频率的",
+      "music": 0
+    },
+    {
+      "from": 179.67,
+      "to": 182.46,
+      "sid": 86,
+      "location": 2,
+      "content": "不过呢在更新时间啊",
+      "music": 0
+    },
+    {
+      "from": 182.46,
+      "to": 184.68,
+      "sid": 87,
+      "location": 2,
+      "content": "ttl过期之前的这一段时间啊",
+      "music": 0
+    },
+    {
+      "from": 184.68,
+      "to": 186.39,
+      "sid": 88,
+      "location": 2,
+      "content": "如果数据库发生变更",
+      "music": 0
+    },
+    {
+      "from": 186.39,
+      "to": 188.79,
+      "sid": 89,
+      "location": 2,
+      "content": "还是会出现不一致的情况",
+      "music": 0
+    },
+    {
+      "from": 188.79,
+      "to": 191.64,
+      "sid": 90,
+      "location": 2,
+      "content": "所以说呢它的一致性比内存淘汰这种方法好",
+      "music": 0
+    },
+    {
+      "from": 191.64,
+      "to": 194.84,
+      "sid": 91,
+      "location": 2,
+      "content": "但还不是啊强的这种一致性",
+      "music": 0
+    },
+    {
+      "from": 195.559,
+      "to": 198.219,
+      "sid": 92,
+      "location": 2,
+      "content": "并且呢这种方式也会存在一些问题啊",
+      "music": 0
+    },
+    {
+      "from": 198.219,
+      "to": 200.079,
+      "sid": 93,
+      "location": 2,
+      "content": "后期呢我们也讲过啊",
+      "music": 0
+    },
+    {
+      "from": 200.079,
+      "to": 201.829,
+      "sid": 94,
+      "location": 2,
+      "content": "怎么去解决定的这些问题",
+      "music": 0
+    },
+    {
+      "from": 201.829,
+      "to": 203.569,
+      "sid": 95,
+      "location": 2,
+      "content": "第三种方法是主动更新",
+      "music": 0
+    },
+    {
+      "from": 203.569,
+      "to": 207.46,
+      "sid": 96,
+      "location": 2,
+      "content": "主动更新呢就是我们去嗯写代码的时候",
+      "music": 0
+    },
+    {
+      "from": 207.46,
+      "to": 209.44,
+      "sid": 97,
+      "location": 2,
+      "content": "主动的在更新数据库的同时",
+      "music": 0
+    },
+    {
+      "from": 209.44,
+      "to": 211.56,
+      "sid": 98,
+      "location": 2,
+      "content": "把缓存也给更新了啊",
+      "music": 0
+    },
+    {
+      "from": 211.56,
+      "to": 212.61,
+      "sid": 99,
+      "location": 2,
+      "content": "这是主动更新",
+      "music": 0
+    },
+    {
+      "from": 212.61,
+      "to": 215.89,
+      "sid": 100,
+      "location": 2,
+      "content": "但是呢主动更新实现起来比较复杂",
+      "music": 0
+    },
+    {
+      "from": 215.89,
+      "to": 219.61,
+      "sid": 101,
+      "location": 2,
+      "content": "我们讲过主动更新有很多种不同的方案对吧",
+      "music": 0
+    },
+    {
+      "from": 219.61,
+      "to": 222.19,
+      "sid": 102,
+      "location": 2,
+      "content": "那么在地质需求的情况下",
+      "music": 0
+    },
+    {
+      "from": 222.19,
+      "to": 224.35,
+      "sid": 103,
+      "location": 2,
+      "content": "我们建议大家使用内存淘汰和过期",
+      "music": 0
+    },
+    {
+      "from": 224.35,
+      "to": 225.49,
+      "sid": 104,
+      "location": 2,
+      "content": "这种方式就行了啊",
+      "music": 0
+    },
+    {
+      "from": 225.49,
+      "to": 226.89,
+      "sid": 105,
+      "location": 2,
+      "content": "因为它比较简单啊",
+      "music": 0
+    },
+    {
+      "from": 226.89,
+      "to": 229.77,
+      "sid": 106,
+      "location": 2,
+      "content": "而对于一些数据啊有高一致性需求的了",
+      "music": 0
+    },
+    {
+      "from": 229.77,
+      "to": 232.02,
+      "sid": 107,
+      "location": 2,
+      "content": "你再去使用主动更新啊",
+      "music": 0
+    },
+    {
+      "from": 232.02,
+      "to": 233.1,
+      "sid": 108,
+      "location": 2,
+      "content": "主动更新为主",
+      "music": 0
+    },
+    {
+      "from": 233.1,
+      "to": 234.45,
+      "sid": 109,
+      "location": 2,
+      "content": "过期淘汰去兜底",
+      "music": 0
+    },
+    {
+      "from": 234.45,
+      "to": 238.2,
+      "sid": 110,
+      "location": 2,
+      "content": "因为主动更新啊啊他也不能百分之百保证一致",
+      "music": 0
+    },
+    {
+      "from": 238.2,
+      "to": 239.58,
+      "sid": 111,
+      "location": 2,
+      "content": "万一出现问题了呢",
+      "music": 0
+    },
+    {
+      "from": 239.58,
+      "to": 241.27,
+      "sid": 112,
+      "location": 2,
+      "content": "还有一个过期的策略",
+      "music": 0
+    },
+    {
+      "from": 241.27,
+      "to": 242.88,
+      "sid": 113,
+      "location": 2,
+      "content": "就做一个兜底啊",
+      "music": 0
+    },
+    {
+      "from": 242.88,
+      "to": 245.94,
+      "sid": 114,
+      "location": 2,
+      "content": "而主动更新呢我们讲常见的有三种方",
+      "music": 0
+    },
+    {
+      "from": 245.94,
+      "to": 249.24,
+      "sid": 115,
+      "location": 2,
+      "content": "catch said read rush through和rebe呃",
+      "music": 0
+    },
+    {
+      "from": 249.24,
+      "to": 253.759,
+      "sid": 116,
+      "location": 2,
+      "content": "这三种方案呢后两种虽然都嗯挺优秀的",
+      "music": 0
+    },
+    {
+      "from": 253.759,
+      "to": 255.619,
+      "sid": 117,
+      "location": 2,
+      "content": "但是实现起来相对比较复杂",
+      "music": 0
+    },
+    {
+      "from": 255.619,
+      "to": 259.37,
+      "sid": 118,
+      "location": 2,
+      "content": "而且呢最后一种right back呢它的一致性还比较差",
+      "music": 0
+    },
+    {
+      "from": 259.37,
+      "to": 262.13,
+      "sid": 119,
+      "location": 2,
+      "content": "所以说呢我们一般呢没有选择后两种",
+      "music": 0
+    },
+    {
+      "from": 262.13,
+      "to": 263.99,
+      "sid": 120,
+      "location": 2,
+      "content": "都是选择第一种catch set",
+      "music": 0
+    },
+    {
+      "from": 263.99,
+      "to": 265.19,
+      "sid": 121,
+      "location": 2,
+      "content": "那个cch set呢",
+      "music": 0
+    },
+    {
+      "from": 265.19,
+      "to": 268.67,
+      "sid": 122,
+      "location": 2,
+      "content": "它其实就是由调用者自己更新数据库的同时",
+      "music": 0
+    },
+    {
+      "from": 268.67,
+      "to": 269.81,
+      "sid": 123,
+      "location": 2,
+      "content": "去更新缓存",
+      "music": 0
+    },
+    {
+      "from": 269.81,
+      "to": 272.27,
+      "sid": 124,
+      "location": 2,
+      "content": "但是呢这种方案在实现的时候呢",
+      "music": 0
+    },
+    {
+      "from": 272.27,
+      "to": 273.98,
+      "sid": 125,
+      "location": 2,
+      "content": "他就需要考虑几个问题啊",
+      "music": 0
+    },
+    {
+      "from": 273.98,
+      "to": 278.06,
+      "sid": 126,
+      "location": 2,
+      "content": "就是你更新缓存是删缓存还是更新缓存啊",
+      "music": 0
+    },
+    {
+      "from": 278.06,
+      "to": 281.789,
+      "sid": 127,
+      "location": 2,
+      "content": "那这两个呢其实它的区别主要就在于什么呢",
+      "music": 0
+    },
+    {
+      "from": 281.789,
+      "to": 282.269,
+      "sid": 128,
+      "location": 2,
+      "content": "啊",
+      "music": 0
+    },
+    {
+      "from": 282.269,
+      "to": 283.349,
+      "sid": 129,
+      "location": 2,
+      "content": "你更新的话",
+      "music": 0
+    },
+    {
+      "from": 283.349,
+      "to": 285.989,
+      "sid": 130,
+      "location": 2,
+      "content": "在于是每次更新数据库都要更新缓存",
+      "music": 0
+    },
+    {
+      "from": 285.989,
+      "to": 288.32,
+      "sid": 131,
+      "location": 2,
+      "content": "这样来如果用户不查啊",
+      "music": 0
+    },
+    {
+      "from": 288.32,
+      "to": 289.28,
+      "sid": 132,
+      "location": 2,
+      "content": "他只是在更新",
+      "music": 0
+    },
+    {
+      "from": 289.28,
+      "to": 291.26,
+      "sid": 133,
+      "location": 2,
+      "content": "那你就有很多无效的更新",
+      "music": 0
+    },
+    {
+      "from": 291.26,
+      "to": 292.28,
+      "sid": 134,
+      "location": 2,
+      "content": "对不对啊",
+      "music": 0
+    },
+    {
+      "from": 292.28,
+      "to": 294.5,
+      "sid": 135,
+      "location": 2,
+      "content": "所以说呢有很多无效操作啊",
+      "music": 0
+    },
+    {
+      "from": 294.5,
+      "to": 295.25,
+      "sid": 136,
+      "location": 2,
+      "content": "另外呢",
+      "music": 0
+    },
+    {
+      "from": 295.25,
+      "to": 297.69,
+      "sid": 137,
+      "location": 2,
+      "content": "其实我们没有给大家分析",
+      "music": 0
+    },
+    {
+      "from": 297.69,
+      "to": 299.13,
+      "sid": 138,
+      "location": 2,
+      "content": "更新缓存的安全问题啊",
+      "music": 0
+    },
+    {
+      "from": 299.13,
+      "to": 301.3,
+      "sid": 139,
+      "location": 2,
+      "content": "大家可以自己尝试去分析一下啊",
+      "music": 0
+    },
+    {
+      "from": 301.3,
+      "to": 305.08,
+      "sid": 140,
+      "location": 2,
+      "content": "采用更新缓存方案会有很大的线程安全的问题",
+      "music": 0
+    },
+    {
+      "from": 305.08,
+      "to": 305.8,
+      "sid": 141,
+      "location": 2,
+      "content": "呃",
+      "music": 0
+    },
+    {
+      "from": 305.8,
+      "to": 306.66,
+      "sid": 142,
+      "location": 2,
+      "content": "所以说呢",
+      "music": 0
+    },
+    {
+      "from": 306.78,
+      "to": 309.33,
+      "sid": 143,
+      "location": 2,
+      "content": "这也是我们不选择更新缓存的一个原因",
+      "music": 0
+    },
+    {
+      "from": 309.33,
+      "to": 311.8,
+      "sid": 144,
+      "location": 2,
+      "content": "而删除缓存呢相对来讲嗯",
+      "music": 0
+    },
+    {
+      "from": 311.8,
+      "to": 314.47,
+      "sid": 145,
+      "location": 2,
+      "content": "他第一呢是没有这种无效的更新",
+      "music": 0
+    },
+    {
+      "from": 314.47,
+      "to": 315.94,
+      "sid": 146,
+      "location": 2,
+      "content": "因为你更新完了数据库",
+      "music": 0
+    },
+    {
+      "from": 315.94,
+      "to": 317.11,
+      "sid": 147,
+      "location": 2,
+      "content": "我只是删缓存",
+      "music": 0
+    },
+    {
+      "from": 317.11,
+      "to": 317.86,
+      "sid": 148,
+      "location": 2,
+      "content": "我不更新",
+      "music": 0
+    },
+    {
+      "from": 317.86,
+      "to": 319.37,
+      "sid": 149,
+      "location": 2,
+      "content": "它什么时候更新呢",
+      "music": 0
+    },
+    {
+      "from": 319.37,
+      "to": 320.81,
+      "sid": 150,
+      "location": 2,
+      "content": "当用户查的时候再更新",
+      "music": 0
+    },
+    {
+      "from": 320.81,
+      "to": 322.2,
+      "sid": 151,
+      "location": 2,
+      "content": "没有人查我就不更新",
+      "music": 0
+    },
+    {
+      "from": 322.2,
+      "to": 323.79,
+      "sid": 152,
+      "location": 2,
+      "content": "所以没有无效更新",
+      "music": 0
+    },
+    {
+      "from": 323.79,
+      "to": 324.57,
+      "sid": 153,
+      "location": 2,
+      "content": "其次呢",
+      "music": 0
+    },
+    {
+      "from": 324.57,
+      "to": 327.66,
+      "sid": 154,
+      "location": 2,
+      "content": "它的线程安全问题出现的概率相对比较低",
+      "music": 0
+    },
+    {
+      "from": 327.66,
+      "to": 330.35,
+      "sid": 155,
+      "location": 2,
+      "content": "而且我们还可以去控制它",
+      "music": 0
+    },
+    {
+      "from": 330.35,
+      "to": 331.25,
+      "sid": 156,
+      "location": 2,
+      "content": "对吧好",
+      "music": 0
+    },
+    {
+      "from": 331.25,
+      "to": 332.81,
+      "sid": 157,
+      "location": 2,
+      "content": "这是这两个选择",
+      "music": 0
+    },
+    {
+      "from": 332.81,
+      "to": 334.85,
+      "sid": 158,
+      "location": 2,
+      "content": "然后选择了删除或者更新以后",
+      "music": 0
+    },
+    {
+      "from": 334.85,
+      "to": 337.85,
+      "sid": 159,
+      "location": 2,
+      "content": "你还要判断是先删除还是先投的数据库",
+      "music": 0
+    },
+    {
+      "from": 337.85,
+      "to": 339.49,
+      "sid": 160,
+      "location": 2,
+      "content": "还是先投的缓存好",
+      "music": 0
+    },
+    {
+      "from": 339.49,
+      "to": 340.75,
+      "sid": 161,
+      "location": 2,
+      "content": "先操作数据库啊",
+      "music": 0
+    },
+    {
+      "from": 340.75,
+      "to": 341.83,
+      "sid": 162,
+      "location": 2,
+      "content": "再去操作缓存",
+      "music": 0
+    },
+    {
+      "from": 341.83,
+      "to": 345.04,
+      "sid": 163,
+      "location": 2,
+      "content": "这种方案呢它的安全性相对较高",
+      "music": 0
+    },
+    {
+      "from": 345.04,
+      "to": 346.72,
+      "sid": 164,
+      "location": 2,
+      "content": "出现问题的概率比较低",
+      "music": 0
+    },
+    {
+      "from": 346.72,
+      "to": 349.27,
+      "sid": 165,
+      "location": 2,
+      "content": "而先删缓存再操作数据库呢",
+      "music": 0
+    },
+    {
+      "from": 349.27,
+      "to": 353.25,
+      "sid": 166,
+      "location": 2,
+      "content": "它的安全问题出现的概率会相对较高一点啊",
+      "music": 0
+    },
+    {
+      "from": 353.25,
+      "to": 355.23,
+      "sid": 167,
+      "location": 2,
+      "content": "所以说最终我们选择第一种啊",
+      "music": 0
+    },
+    {
+      "from": 355.23,
+      "to": 356.19,
+      "sid": 168,
+      "location": 2,
+      "content": "先更新数据库",
+      "music": 0
+    },
+    {
+      "from": 356.19,
+      "to": 357.28,
+      "sid": 169,
+      "location": 2,
+      "content": "再删缓存方案",
+      "music": 0
+    },
+    {
+      "from": 357.28,
+      "to": 358.96,
+      "sid": 170,
+      "location": 2,
+      "content": "当然这里是有个前提的",
+      "music": 0
+    },
+    {
+      "from": 358.96,
+      "to": 361.78,
+      "sid": 171,
+      "location": 2,
+      "content": "就是这两个操作要确保原子性",
+      "music": 0
+    },
+    {
+      "from": 361.78,
+      "to": 363.4,
+      "sid": 172,
+      "location": 2,
+      "content": "如果你不能确保原子性的话",
+      "music": 0
+    },
+    {
+      "from": 363.4,
+      "to": 364.57,
+      "sid": 173,
+      "location": 2,
+      "content": "那就白扯啊",
+      "music": 0
+    },
+    {
+      "from": 364.57,
+      "to": 365.669,
+      "sid": 174,
+      "location": 2,
+      "content": "那就完蛋了",
+      "music": 0
+    },
+    {
+      "from": 365.669,
+      "to": 367.409,
+      "sid": 175,
+      "location": 2,
+      "content": "那怎么保证原子性呢",
+      "music": 0
+    },
+    {
+      "from": 367.409,
+      "to": 369.989,
+      "sid": 176,
+      "location": 2,
+      "content": "这里单体系统我们是利用了事物的机制",
+      "music": 0
+    },
+    {
+      "from": 369.989,
+      "to": 370.769,
+      "sid": 177,
+      "location": 2,
+      "content": "分布式系统的话",
+      "music": 0
+    },
+    {
+      "from": 370.769,
+      "to": 372.509,
+      "sid": 178,
+      "location": 2,
+      "content": "我们就利用分布式事务机制",
+      "music": 0
+    },
+    {
+      "from": 372.509,
+      "to": 375.05,
+      "sid": 179,
+      "location": 2,
+      "content": "来确保整体的一个原子性啊",
+      "music": 0
+    },
+    {
+      "from": 375.05,
+      "to": 375.89,
+      "sid": 180,
+      "location": 2,
+      "content": "要么都成功",
+      "music": 0
+    },
+    {
+      "from": 375.89,
+      "to": 378.78,
+      "sid": 181,
+      "location": 2,
+      "content": "要么都失败是吧好",
+      "music": 0
+    },
+    {
+      "from": 378.78,
+      "to": 381.3,
+      "sid": 182,
+      "location": 2,
+      "content": "那么最后的最佳时间呢其实就是这样了",
+      "music": 0
+    },
+    {
+      "from": 381.3,
+      "to": 382.62,
+      "sid": 183,
+      "location": 2,
+      "content": "在查询的时候呢",
+      "music": 0
+    },
+    {
+      "from": 382.62,
+      "to": 383.4,
+      "sid": 184,
+      "location": 2,
+      "content": "先查缓存",
+      "music": 0
+    },
+    {
+      "from": 383.4,
+      "to": 384.24,
+      "sid": 185,
+      "location": 2,
+      "content": "缓存命中",
+      "music": 0
+    },
+    {
+      "from": 384.24,
+      "to": 385.62,
+      "sid": 186,
+      "location": 2,
+      "content": "直接返回缓存未命中",
+      "music": 0
+    },
+    {
+      "from": 385.62,
+      "to": 386.6,
+      "sid": 187,
+      "location": 2,
+      "content": "再去查数据库",
+      "music": 0
+    },
+    {
+      "from": 386.6,
+      "to": 390.14,
+      "sid": 188,
+      "location": 2,
+      "content": "然后呢将数据库数据啊还给他写到缓存里去",
+      "music": 0
+    },
+    {
+      "from": 390.14,
+      "to": 392.07,
+      "sid": 189,
+      "location": 2,
+      "content": "确保下一次能够命中",
+      "music": 0
+    },
+    {
+      "from": 392.07,
+      "to": 393.99,
+      "sid": 190,
+      "location": 2,
+      "content": "而在修改的时候呢",
+      "music": 0
+    },
+    {
+      "from": 393.99,
+      "to": 395.37,
+      "sid": 191,
+      "location": 2,
+      "content": "我们会先修改数据库",
+      "music": 0
+    },
+    {
+      "from": 395.37,
+      "to": 396.21,
+      "sid": 192,
+      "location": 2,
+      "content": "再删缓存",
+      "music": 0
+    },
+    {
+      "from": 396.21,
+      "to": 398.73,
+      "sid": 193,
+      "location": 2,
+      "content": "确保两者的原则性唉",
+      "music": 0
+    },
+    {
+      "from": 398.73,
+      "to": 401.27,
+      "sid": 194,
+      "location": 2,
+      "content": "这是缓存更新的一个策略啊",
+      "music": 0
+    },
+    {
+      "from": 401.27,
+      "to": 403.31,
+      "sid": 195,
+      "location": 2,
+      "content": "那缓存穿透啊",
+      "music": 0
+    },
+    {
+      "from": 403.31,
+      "to": 407.75,
+      "sid": 196,
+      "location": 2,
+      "content": "那么它产生的原因主要是在于用户查询的数据",
+      "music": 0
+    },
+    {
+      "from": 407.75,
+      "to": 409.76,
+      "sid": 197,
+      "location": 2,
+      "content": "在缓存和数据库中都没有",
+      "music": 0
+    },
+    {
+      "from": 409.76,
+      "to": 411.08,
+      "sid": 198,
+      "location": 2,
+      "content": "那既然都没有",
+      "music": 0
+    },
+    {
+      "from": 411.08,
+      "to": 412.82,
+      "sid": 199,
+      "location": 2,
+      "content": "那就永远不可能有缓存",
+      "music": 0
+    },
+    {
+      "from": 412.82,
+      "to": 414.5,
+      "sid": 200,
+      "location": 2,
+      "content": "那就永远查的数据库",
+      "music": 0
+    },
+    {
+      "from": 414.5,
+      "to": 415.94,
+      "sid": 201,
+      "location": 2,
+      "content": "那那些不怀好意的人啊",
+      "music": 0
+    },
+    {
+      "from": 415.94,
+      "to": 417.59,
+      "sid": 202,
+      "location": 2,
+      "content": "不停的去访问这样的数据",
+      "music": 0
+    },
+    {
+      "from": 417.59,
+      "to": 420.6,
+      "sid": 203,
+      "location": 2,
+      "content": "那就会给你的数据库带来巨大压力啊",
+      "music": 0
+    },
+    {
+      "from": 420.659,
+      "to": 423.059,
+      "sid": 204,
+      "location": 2,
+      "content": "所以说呢那我们要解决它呢",
+      "music": 0
+    },
+    {
+      "from": 423.059,
+      "to": 424.94,
+      "sid": 205,
+      "location": 2,
+      "content": "就有两种常见方案",
+      "music": 0
+    },
+    {
+      "from": 424.94,
+      "to": 426.5,
+      "sid": 206,
+      "location": 2,
+      "content": "一种是缓存空对象",
+      "music": 0
+    },
+    {
+      "from": 426.5,
+      "to": 427.47,
+      "sid": 207,
+      "location": 2,
+      "content": "一种是布隆过滤",
+      "music": 0
+    },
+    {
+      "from": 427.47,
+      "to": 429.39,
+      "sid": 208,
+      "location": 2,
+      "content": "很多空对象比较简单暴力",
+      "music": 0
+    },
+    {
+      "from": 429.39,
+      "to": 431.01,
+      "sid": 209,
+      "location": 2,
+      "content": "就是你来查不存在不存在",
+      "music": 0
+    },
+    {
+      "from": 431.01,
+      "to": 433.13,
+      "sid": 210,
+      "location": 2,
+      "content": "我就给你放个空的进去不就好了",
+      "music": 0
+    },
+    {
+      "from": 433.13,
+      "to": 435.38,
+      "sid": 211,
+      "location": 2,
+      "content": "下次来我就照样给你返回空",
+      "music": 0
+    },
+    {
+      "from": 435.38,
+      "to": 437.27,
+      "sid": 212,
+      "location": 2,
+      "content": "那这样来缓存就有了啊",
+      "music": 0
+    },
+    {
+      "from": 437.27,
+      "to": 438.799,
+      "sid": 213,
+      "location": 2,
+      "content": "就不会查数据库了啊",
+      "music": 0
+    },
+    {
+      "from": 438.799,
+      "to": 441.769,
+      "sid": 214,
+      "location": 2,
+      "content": "所以呢它的优点就是简单啊方便",
+      "music": 0
+    },
+    {
+      "from": 441.769,
+      "to": 445.519,
+      "sid": 215,
+      "location": 2,
+      "content": "但它的缺点呢就是会带来额外的内存消耗啊",
+      "music": 0
+    },
+    {
+      "from": 445.519,
+      "to": 446.899,
+      "sid": 216,
+      "location": 2,
+      "content": "因为你空直接存进去了",
+      "music": 0
+    },
+    {
+      "from": 446.899,
+      "to": 448.04,
+      "sid": 217,
+      "location": 2,
+      "content": "对不对啊",
+      "music": 0
+    },
+    {
+      "from": 448.04,
+      "to": 451.47,
+      "sid": 218,
+      "location": 2,
+      "content": "而且呢嗯还会有一定数据不一致的情况发生",
+      "music": 0
+    },
+    {
+      "from": 451.47,
+      "to": 453.27,
+      "sid": 219,
+      "location": 2,
+      "content": "比方说你一开始是没有",
+      "music": 0
+    },
+    {
+      "from": 453.27,
+      "to": 454.17,
+      "sid": 220,
+      "location": 2,
+      "content": "后来有了",
+      "music": 0
+    },
+    {
+      "from": 454.17,
+      "to": 455.79,
+      "sid": 221,
+      "location": 2,
+      "content": "而你存的还是那个空值",
+      "music": 0
+    },
+    {
+      "from": 455.79,
+      "to": 457.24,
+      "sid": 222,
+      "location": 2,
+      "content": "这不就不一致了吗",
+      "music": 0
+    },
+    {
+      "from": 457.24,
+      "to": 460.1,
+      "sid": 223,
+      "location": 2,
+      "content": "所以啊会存在这样的一些问题",
+      "music": 0
+    },
+    {
+      "from": 460.1,
+      "to": 461.96,
+      "sid": 224,
+      "location": 2,
+      "content": "而第二种的布隆过滤啊",
+      "music": 0
+    },
+    {
+      "from": 461.96,
+      "to": 463.7,
+      "sid": 225,
+      "location": 2,
+      "content": "它是利用布隆过滤的算法",
+      "music": 0
+    },
+    {
+      "from": 463.7,
+      "to": 466.28,
+      "sid": 226,
+      "location": 2,
+      "content": "在进入rise之前先判断存不存在",
+      "music": 0
+    },
+    {
+      "from": 466.28,
+      "to": 467,
+      "sid": 227,
+      "location": 2,
+      "content": "如果不存在啊",
+      "music": 0
+    },
+    {
+      "from": 467,
+      "to": 469.8,
+      "sid": 228,
+      "location": 2,
+      "content": "根本就不给你往后访问的机会",
+      "music": 0
+    },
+    {
+      "from": 470.08,
+      "to": 472.15,
+      "sid": 229,
+      "location": 2,
+      "content": "所以呢他这种方案的话",
+      "music": 0
+    },
+    {
+      "from": 472.15,
+      "to": 474.82,
+      "sid": 230,
+      "location": 2,
+      "content": "嗯是在前置去做了拦截的啊",
+      "music": 0
+    },
+    {
+      "from": 474.82,
+      "to": 477.07,
+      "sid": 231,
+      "location": 2,
+      "content": "但是呢它有一个问题就是什么",
+      "music": 0
+    },
+    {
+      "from": 477.07,
+      "to": 478.66,
+      "sid": 232,
+      "location": 2,
+      "content": "它实现起来比较复杂",
+      "music": 0
+    },
+    {
+      "from": 478.66,
+      "to": 480.54,
+      "sid": 233,
+      "location": 2,
+      "content": "而且还有误判的可能",
+      "music": 0
+    },
+    {
+      "from": 480.7,
+      "to": 484.84,
+      "sid": 234,
+      "location": 2,
+      "content": "因为它采用这种不同过滤算法是一种统计的啊",
+      "music": 0
+    },
+    {
+      "from": 484.84,
+      "to": 487.57,
+      "sid": 235,
+      "location": 2,
+      "content": "基于二进制位的方式进行一个统计",
+      "music": 0
+    },
+    {
+      "from": 487.57,
+      "to": 489.59,
+      "sid": 236,
+      "location": 2,
+      "content": "它不一定百分之百是准确的啊",
+      "music": 0
+    },
+    {
+      "from": 489.59,
+      "to": 493.04,
+      "sid": 237,
+      "location": 2,
+      "content": "所以说呢这种方案呢存在误判可能性",
+      "music": 0
+    },
+    {
+      "from": 493.04,
+      "to": 495.95,
+      "sid": 238,
+      "location": 2,
+      "content": "因此呢嗯从这个角度考虑啊",
+      "music": 0
+    },
+    {
+      "from": 495.95,
+      "to": 497.6,
+      "sid": 239,
+      "location": 2,
+      "content": "我们一般选择缓存空对象",
+      "music": 0
+    },
+    {
+      "from": 497.6,
+      "to": 498.62,
+      "sid": 240,
+      "location": 2,
+      "content": "因为它比较简单",
+      "music": 0
+    },
+    {
+      "from": 498.62,
+      "to": 502.359,
+      "sid": 241,
+      "location": 2,
+      "content": "而且呢嗯这个实现起来也比较方便一点啊",
+      "music": 0
+    },
+    {
+      "from": 502.359,
+      "to": 503.799,
+      "sid": 242,
+      "location": 2,
+      "content": "虽然说有额外内存消耗",
+      "music": 0
+    },
+    {
+      "from": 503.799,
+      "to": 506.169,
+      "sid": 243,
+      "location": 2,
+      "content": "但是我们可以通过设置过期时间的方式",
+      "music": 0
+    },
+    {
+      "from": 506.169,
+      "to": 507.38,
+      "sid": 244,
+      "location": 2,
+      "content": "来去弥补啊",
+      "music": 0
+    },
+    {
+      "from": 507.659,
+      "to": 509.459,
+      "sid": 245,
+      "location": 2,
+      "content": "那当然还有一些其他的方案",
+      "music": 0
+    },
+    {
+      "from": 509.459,
+      "to": 510.479,
+      "sid": 246,
+      "location": 2,
+      "content": "我们以前也聊到过",
+      "music": 0
+    },
+    {
+      "from": 510.479,
+      "to": 513.86,
+      "sid": 247,
+      "location": 2,
+      "content": "比如说是嗯做好这种基础的数据格式的校验",
+      "music": 0
+    },
+    {
+      "from": 513.86,
+      "to": 515.57,
+      "sid": 248,
+      "location": 2,
+      "content": "如果id不符合我们的规范",
+      "music": 0
+    },
+    {
+      "from": 515.57,
+      "to": 516.59,
+      "sid": 249,
+      "location": 2,
+      "content": "比如说传了个零",
+      "music": 0
+    },
+    {
+      "from": 516.59,
+      "to": 517.91,
+      "sid": 250,
+      "location": 2,
+      "content": "那你就应该直接拒绝",
+      "music": 0
+    },
+    {
+      "from": 517.91,
+      "to": 518.93,
+      "sid": 251,
+      "location": 2,
+      "content": "而不是让他访问",
+      "music": 0
+    },
+    {
+      "from": 518.93,
+      "to": 519.62,
+      "sid": 252,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 519.7,
+      "to": 521.8,
+      "sid": 253,
+      "location": 2,
+      "content": "还有呢做一些用户权限的经验",
+      "music": 0
+    },
+    {
+      "from": 521.8,
+      "to": 523.72,
+      "sid": 254,
+      "location": 2,
+      "content": "还有热电参数的一些限流啊",
+      "music": 0
+    },
+    {
+      "from": 523.72,
+      "to": 525.87,
+      "sid": 255,
+      "location": 2,
+      "content": "这些都是可以去做的好",
+      "music": 0
+    },
+    {
+      "from": 525.87,
+      "to": 527.82,
+      "sid": 256,
+      "location": 2,
+      "content": "那么很多血崩的问题呢",
+      "music": 0
+    },
+    {
+      "from": 527.82,
+      "to": 530.01,
+      "sid": 257,
+      "location": 2,
+      "content": "他是因为k过期导致的",
+      "music": 0
+    },
+    {
+      "from": 530.01,
+      "to": 531.93,
+      "sid": 258,
+      "location": 2,
+      "content": "比如说有无数的k啊",
+      "music": 0
+    },
+    {
+      "from": 531.93,
+      "to": 533.61,
+      "sid": 259,
+      "location": 2,
+      "content": "非常非常多同时到期",
+      "music": 0
+    },
+    {
+      "from": 533.61,
+      "to": 535.55,
+      "sid": 260,
+      "location": 2,
+      "content": "那这样一来这也可以",
+      "music": 0
+    },
+    {
+      "from": 535.55,
+      "to": 537.44,
+      "sid": 261,
+      "location": 2,
+      "content": "虽然单个可以访问量不大",
+      "music": 0
+    },
+    {
+      "from": 537.44,
+      "to": 539.38,
+      "sid": 262,
+      "location": 2,
+      "content": "但是因为过期的比较多",
+      "music": 0
+    },
+    {
+      "from": 539.38,
+      "to": 541.12,
+      "sid": 263,
+      "location": 2,
+      "content": "这样一来访问量就大了",
+      "music": 0
+    },
+    {
+      "from": 541.12,
+      "to": 544.14,
+      "sid": 264,
+      "location": 2,
+      "content": "那么就会给数据库带来积攒一下压力啊",
+      "music": 0
+    },
+    {
+      "from": 544.14,
+      "to": 546.57,
+      "sid": 265,
+      "location": 2,
+      "content": "还有一种可能性呢就是rise直接挂了",
+      "music": 0
+    },
+    {
+      "from": 546.57,
+      "to": 547.68,
+      "sid": 266,
+      "location": 2,
+      "content": "race一旦挂了",
+      "music": 0
+    },
+    {
+      "from": 547.68,
+      "to": 550.7,
+      "sid": 267,
+      "location": 2,
+      "content": "那请求肯定直接打到数据库了呀是吧",
+      "music": 0
+    },
+    {
+      "from": 550.7,
+      "to": 553.41,
+      "sid": 268,
+      "location": 2,
+      "content": "这两种情况呢可能就是导致雪崩",
+      "music": 0
+    },
+    {
+      "from": 553.41,
+      "to": 556.62,
+      "sid": 269,
+      "location": 2,
+      "content": "好直接呢就是把数据库给整卡了",
+      "music": 0
+    },
+    {
+      "from": 556.62,
+      "to": 558.78,
+      "sid": 270,
+      "location": 2,
+      "content": "那它的解决方案就是针对这两个点",
+      "music": 0
+    },
+    {
+      "from": 558.78,
+      "to": 560.07,
+      "sid": 271,
+      "location": 2,
+      "content": "第一个是同时过期",
+      "music": 0
+    },
+    {
+      "from": 560.07,
+      "to": 561.919,
+      "sid": 272,
+      "location": 2,
+      "content": "第二是宕机站在亭",
+      "music": 0
+    },
+    {
+      "from": 561.919,
+      "to": 564.49,
+      "sid": 273,
+      "location": 2,
+      "content": "同时当同时过期的这个问题呢",
+      "music": 0
+    },
+    {
+      "from": 564.49,
+      "to": 566.35,
+      "sid": 274,
+      "location": 2,
+      "content": "你可以给他的过期时间啊",
+      "music": 0
+    },
+    {
+      "from": 566.35,
+      "to": 567.19,
+      "sid": 275,
+      "location": 2,
+      "content": "加上随机值",
+      "music": 0
+    },
+    {
+      "from": 567.19,
+      "to": 568.93,
+      "sid": 276,
+      "location": 2,
+      "content": "让他们的过期时间不一样",
+      "music": 0
+    },
+    {
+      "from": 568.93,
+      "to": 570.68,
+      "sid": 277,
+      "location": 2,
+      "content": "这样就不会同时过期了",
+      "music": 0
+    },
+    {
+      "from": 570.68,
+      "to": 572.3,
+      "sid": 278,
+      "location": 2,
+      "content": "而针对宕机的情况呢",
+      "music": 0
+    },
+    {
+      "from": 572.3,
+      "to": 574.94,
+      "sid": 279,
+      "location": 2,
+      "content": "我们首先是要建立集群对吧",
+      "music": 0
+    },
+    {
+      "from": 574.94,
+      "to": 576.5,
+      "sid": 280,
+      "location": 2,
+      "content": "利用我们瑞士哨兵啊",
+      "music": 0
+    },
+    {
+      "from": 576.5,
+      "to": 577.7,
+      "sid": 281,
+      "location": 2,
+      "content": "而是集群啊",
+      "music": 0
+    },
+    {
+      "from": 577.7,
+      "to": 580.2,
+      "sid": 282,
+      "location": 2,
+      "content": "这样的方案确保高可用性啊",
+      "music": 0
+    },
+    {
+      "from": 580.2,
+      "to": 582.03,
+      "sid": 283,
+      "location": 2,
+      "content": "另外呢我们还可以给缓存的业务啊",
+      "music": 0
+    },
+    {
+      "from": 582.03,
+      "to": 583.17,
+      "sid": 284,
+      "location": 2,
+      "content": "去添加这种限流",
+      "music": 0
+    },
+    {
+      "from": 583.17,
+      "to": 583.71,
+      "sid": 285,
+      "location": 2,
+      "content": "降级",
+      "music": 0
+    },
+    {
+      "from": 583.71,
+      "to": 585.57,
+      "sid": 286,
+      "location": 2,
+      "content": "还有隔离的这种策略啊",
+      "music": 0
+    },
+    {
+      "from": 585.57,
+      "to": 587.76,
+      "sid": 287,
+      "location": 2,
+      "content": "那么这种隔离和降级的策略呢",
+      "music": 0
+    },
+    {
+      "from": 587.76,
+      "to": 589.57,
+      "sid": 288,
+      "location": 2,
+      "content": "在陈瑞斯失败的时候",
+      "music": 0
+    },
+    {
+      "from": 589.57,
+      "to": 591.45,
+      "sid": 289,
+      "location": 2,
+      "content": "他不会说直接就去啊",
+      "music": 0
+    },
+    {
+      "from": 591.45,
+      "to": 592.05,
+      "sid": 290,
+      "location": 2,
+      "content": "打到数据库了",
+      "music": 0
+    },
+    {
+      "from": 592.05,
+      "to": 593.91,
+      "sid": 291,
+      "location": 2,
+      "content": "有可能呢可以去做一个降级",
+      "music": 0
+    },
+    {
+      "from": 593.91,
+      "to": 594.87,
+      "sid": 292,
+      "location": 2,
+      "content": "快速失败啊",
+      "music": 0
+    },
+    {
+      "from": 594.87,
+      "to": 596.52,
+      "sid": 293,
+      "location": 2,
+      "content": "避免的业务继续往后进行",
+      "music": 0
+    },
+    {
+      "from": 596.52,
+      "to": 598.59,
+      "sid": 294,
+      "location": 2,
+      "content": "这样就可以给我们的数据库带来一些",
+      "music": 0
+    },
+    {
+      "from": 598.59,
+      "to": 599.37,
+      "sid": 295,
+      "location": 2,
+      "content": "保护措施了",
+      "music": 0
+    },
+    {
+      "from": 599.37,
+      "to": 600.45,
+      "sid": 296,
+      "location": 2,
+      "content": "是吧啊",
+      "music": 0
+    },
+    {
+      "from": 600.45,
+      "to": 602.97,
+      "sid": 297,
+      "location": 2,
+      "content": "另外呢我们也可以利用这种多级缓存的方案啊",
+      "music": 0
+    },
+    {
+      "from": 602.97,
+      "to": 603.93,
+      "sid": 298,
+      "location": 2,
+      "content": "那多级缓存方案呢",
+      "music": 0
+    },
+    {
+      "from": 603.93,
+      "to": 607.05,
+      "sid": 299,
+      "location": 2,
+      "content": "就是在我们从请求进入浏览器发出",
+      "music": 0
+    },
+    {
+      "from": 607.05,
+      "to": 611.06,
+      "sid": 300,
+      "location": 2,
+      "content": "一直到最后到我们服务端的这整个流程当中啊",
+      "music": 0
+    },
+    {
+      "from": 611.06,
+      "to": 612.98,
+      "sid": 301,
+      "location": 2,
+      "content": "添加多种不同的缓存啊",
+      "music": 0
+    },
+    {
+      "from": 612.98,
+      "to": 613.64,
+      "sid": 302,
+      "location": 2,
+      "content": "一个不行",
+      "music": 0
+    },
+    {
+      "from": 613.64,
+      "to": 614.84,
+      "sid": 303,
+      "location": 2,
+      "content": "总有另外一个缓存吧",
+      "music": 0
+    },
+    {
+      "from": 614.84,
+      "to": 616.22,
+      "sid": 304,
+      "location": 2,
+      "content": "总不可能所有缓存都挂了",
+      "music": 0
+    },
+    {
+      "from": 616.22,
+      "to": 616.7,
+      "sid": 305,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 616.7,
+      "to": 618.38,
+      "sid": 306,
+      "location": 2,
+      "content": "所以说呢通过这种方案呢",
+      "music": 0
+    },
+    {
+      "from": 620.42,
+      "to": 621.47,
+      "sid": 307,
+      "location": 2,
+      "content": "一级一的去拦",
+      "music": 0
+    },
+    {
+      "from": 621.47,
+      "to": 624.4,
+      "sid": 308,
+      "location": 2,
+      "content": "从而保证整个后端的一个安全啊",
+      "music": 0
+    },
+    {
+      "from": 625.18,
+      "to": 626.64,
+      "sid": 309,
+      "location": 2,
+      "content": "那么缓存击穿呢",
+      "music": 0
+    },
+    {
+      "from": 626.64,
+      "to": 628.14,
+      "sid": 310,
+      "location": 2,
+      "content": "嗯这个问题产生的原因",
+      "music": 0
+    },
+    {
+      "from": 628.14,
+      "to": 630,
+      "sid": 311,
+      "location": 2,
+      "content": "往往是因为一些热点的k啊",
+      "music": 0
+    },
+    {
+      "from": 630,
+      "to": 631.53,
+      "sid": 312,
+      "location": 2,
+      "content": "热点可以满足两个特点",
+      "music": 0
+    },
+    {
+      "from": 631.53,
+      "to": 633.39,
+      "sid": 313,
+      "location": 2,
+      "content": "首先呢就是高并发",
+      "music": 0
+    },
+    {
+      "from": 633.39,
+      "to": 636.61,
+      "sid": 314,
+      "location": 2,
+      "content": "其次呢就是缓存的重建时间比较长啊",
+      "music": 0
+    },
+    {
+      "from": 636.61,
+      "to": 638.59,
+      "sid": 315,
+      "location": 2,
+      "content": "那么因为缓存重建时间比较长",
+      "music": 0
+    },
+    {
+      "from": 638.59,
+      "to": 640.75,
+      "sid": 316,
+      "location": 2,
+      "content": "那么在它重建的过程当中",
+      "music": 0
+    },
+    {
+      "from": 640.75,
+      "to": 642.31,
+      "sid": 317,
+      "location": 2,
+      "content": "缓存是不存在的",
+      "music": 0
+    },
+    {
+      "from": 642.31,
+      "to": 644.79,
+      "sid": 318,
+      "location": 2,
+      "content": "那这个时候又因为它时间比较长",
+      "music": 0
+    },
+    {
+      "from": 644.79,
+      "to": 645.81,
+      "sid": 319,
+      "location": 2,
+      "content": "在这一段时间内",
+      "music": 0
+    },
+    {
+      "from": 645.81,
+      "to": 647.49,
+      "sid": 320,
+      "location": 2,
+      "content": "无数的请求就会涌进来对吧",
+      "music": 0
+    },
+    {
+      "from": 647.49,
+      "to": 648.66,
+      "sid": 321,
+      "location": 2,
+      "content": "因为它高并发嘛",
+      "music": 0
+    },
+    {
+      "from": 648.66,
+      "to": 649.83,
+      "sid": 322,
+      "location": 2,
+      "content": "那么这样一来呢",
+      "music": 0
+    },
+    {
+      "from": 649.83,
+      "to": 651.21,
+      "sid": 323,
+      "location": 2,
+      "content": "这些请求查不到缓存",
+      "music": 0
+    },
+    {
+      "from": 651.21,
+      "to": 652.39,
+      "sid": 324,
+      "location": 2,
+      "content": "都会去查数据库",
+      "music": 0
+    },
+    {
+      "from": 652.39,
+      "to": 654.76,
+      "sid": 325,
+      "location": 2,
+      "content": "那么就会导致我们的数据库啊",
+      "music": 0
+    },
+    {
+      "from": 654.76,
+      "to": 657.13,
+      "sid": 326,
+      "location": 2,
+      "content": "产生啊这个巨大的一个压力啊",
+      "music": 0
+    },
+    {
+      "from": 657.13,
+      "to": 658.73,
+      "sid": 327,
+      "location": 2,
+      "content": "甚至出现宕机的情况",
+      "music": 0
+    },
+    {
+      "from": 658.73,
+      "to": 660.35,
+      "sid": 328,
+      "location": 2,
+      "content": "那针对这种问题呢",
+      "music": 0
+    },
+    {
+      "from": 660.35,
+      "to": 661.91,
+      "sid": 329,
+      "location": 2,
+      "content": "我们要解决的就是干什么呢",
+      "music": 0
+    },
+    {
+      "from": 661.91,
+      "to": 663.89,
+      "sid": 330,
+      "location": 2,
+      "content": "就是热点key再去重建的时候",
+      "music": 0
+    },
+    {
+      "from": 663.89,
+      "to": 665.53,
+      "sid": 331,
+      "location": 2,
+      "content": "不要有无数的先生进来",
+      "music": 0
+    },
+    {
+      "from": 665.53,
+      "to": 667.66,
+      "sid": 332,
+      "location": 2,
+      "content": "那怎么让它不要有无数性能进来呢",
+      "music": 0
+    },
+    {
+      "from": 667.66,
+      "to": 669.01,
+      "sid": 333,
+      "location": 2,
+      "content": "第一种方案会是锁",
+      "music": 0
+    },
+    {
+      "from": 669.01,
+      "to": 670.69,
+      "sid": 334,
+      "location": 2,
+      "content": "那也就是说加个锁呗",
+      "music": 0
+    },
+    {
+      "from": 670.69,
+      "to": 672.43,
+      "sid": 335,
+      "location": 2,
+      "content": "重建的时候我加个锁",
+      "music": 0
+    },
+    {
+      "from": 672.43,
+      "to": 674.35,
+      "sid": 336,
+      "location": 2,
+      "content": "只能一个线程来重建",
+      "music": 0
+    },
+    {
+      "from": 674.35,
+      "to": 676.21,
+      "sid": 337,
+      "location": 2,
+      "content": "其他线程等待不就好了",
+      "music": 0
+    },
+    {
+      "from": 676.21,
+      "to": 678.46,
+      "sid": 338,
+      "location": 2,
+      "content": "这个思路是非常简单粗暴的",
+      "music": 0
+    },
+    {
+      "from": 678.46,
+      "to": 680.2,
+      "sid": 339,
+      "location": 2,
+      "content": "所以它的优点就是实现简单",
+      "music": 0
+    },
+    {
+      "from": 680.2,
+      "to": 683.64,
+      "sid": 340,
+      "location": 2,
+      "content": "但是呢它会带来啊一些其他的问题啊",
+      "music": 0
+    },
+    {
+      "from": 683.64,
+      "to": 685.53,
+      "sid": 341,
+      "location": 2,
+      "content": "因为你要等你要等的话",
+      "music": 0
+    },
+    {
+      "from": 685.53,
+      "to": 686.79,
+      "sid": 342,
+      "location": 2,
+      "content": "就会有性能的下降",
+      "music": 0
+    },
+    {
+      "from": 686.79,
+      "to": 689.6,
+      "sid": 343,
+      "location": 2,
+      "content": "并且还有死锁的一个风险啊",
+      "music": 0
+    },
+    {
+      "from": 689.6,
+      "to": 691.79,
+      "sid": 344,
+      "location": 2,
+      "content": "而第二种方案是逻辑过期",
+      "music": 0
+    },
+    {
+      "from": 691.79,
+      "to": 694.44,
+      "sid": 345,
+      "location": 2,
+      "content": "逻辑过期呢就是我们甚至可以永不过期",
+      "music": 0
+    },
+    {
+      "from": 694.44,
+      "to": 695.37,
+      "sid": 346,
+      "location": 2,
+      "content": "不过期",
+      "music": 0
+    },
+    {
+      "from": 695.37,
+      "to": 696.54,
+      "sid": 347,
+      "location": 2,
+      "content": "那就不需要重建",
+      "music": 0
+    },
+    {
+      "from": 696.54,
+      "to": 697.2,
+      "sid": 348,
+      "location": 2,
+      "content": "不需要重建",
+      "music": 0
+    },
+    {
+      "from": 697.2,
+      "to": 699.67,
+      "sid": 349,
+      "location": 2,
+      "content": "是不是就不会给数据库带来压力了啊",
+      "music": 0
+    },
+    {
+      "from": 699.67,
+      "to": 700.18,
+      "sid": 350,
+      "location": 2,
+      "content": "当然了",
+      "music": 0
+    },
+    {
+      "from": 700.18,
+      "to": 701.59,
+      "sid": 351,
+      "location": 2,
+      "content": "那如果说不做重建",
+      "music": 0
+    },
+    {
+      "from": 701.59,
+      "to": 703.75,
+      "sid": 352,
+      "location": 2,
+      "content": "那永远都是旧的数据也不行",
+      "music": 0
+    },
+    {
+      "from": 703.75,
+      "to": 706.65,
+      "sid": 353,
+      "location": 2,
+      "content": "所以我们会加一个逻辑过期时间啊",
+      "music": 0
+    },
+    {
+      "from": 706.65,
+      "to": 708.21,
+      "sid": 354,
+      "location": 2,
+      "content": "每次查到数据以后呢",
+      "music": 0
+    },
+    {
+      "from": 708.21,
+      "to": 711.27,
+      "sid": 355,
+      "location": 2,
+      "content": "我们会判断一下这个k啊是不是已经过期了",
+      "music": 0
+    },
+    {
+      "from": 711.27,
+      "to": 712.65,
+      "sid": 356,
+      "location": 2,
+      "content": "需要更新啊",
+      "music": 0
+    },
+    {
+      "from": 712.65,
+      "to": 714.64,
+      "sid": 357,
+      "location": 2,
+      "content": "如果是我再去更新",
+      "music": 0
+    },
+    {
+      "from": 714.64,
+      "to": 717.46,
+      "sid": 358,
+      "location": 2,
+      "content": "那么这个时候如果有n多的线程都来判断",
+      "music": 0
+    },
+    {
+      "from": 717.46,
+      "to": 718.3,
+      "sid": 359,
+      "location": 2,
+      "content": "发现要更新",
+      "music": 0
+    },
+    {
+      "from": 718.3,
+      "to": 719.5,
+      "sid": 360,
+      "location": 2,
+      "content": "那不还会有问题吗",
+      "music": 0
+    },
+    {
+      "from": 719.5,
+      "to": 721.06,
+      "sid": 361,
+      "location": 2,
+      "content": "所以我们还要加互斥锁",
+      "music": 0
+    },
+    {
+      "from": 721.06,
+      "to": 722.38,
+      "sid": 362,
+      "location": 2,
+      "content": "但是呢你加了护士",
+      "music": 0
+    },
+    {
+      "from": 722.38,
+      "to": 724.62,
+      "sid": 363,
+      "location": 2,
+      "content": "所以后那不就跟之前一样",
+      "music": 0
+    },
+    {
+      "from": 724.62,
+      "to": 726.48,
+      "sid": 364,
+      "location": 2,
+      "content": "所以呢为了避免这个问题呢",
+      "music": 0
+    },
+    {
+      "from": 726.48,
+      "to": 727.26,
+      "sid": 365,
+      "location": 2,
+      "content": "我们加了护士",
+      "music": 0
+    },
+    {
+      "from": 727.26,
+      "to": 729.42,
+      "sid": 366,
+      "location": 2,
+      "content": "所以后不是自己去更新",
+      "music": 0
+    },
+    {
+      "from": 729.42,
+      "to": 733.3,
+      "sid": 367,
+      "location": 2,
+      "content": "我们会让他啊开启一个独立的线程去做更新",
+      "music": 0
+    },
+    {
+      "from": 733.3,
+      "to": 734.68,
+      "sid": 368,
+      "location": 2,
+      "content": "那么我们的呃",
+      "music": 0
+    },
+    {
+      "from": 734.68,
+      "to": 738.71,
+      "sid": 369,
+      "location": 2,
+      "content": "在这个独立线程去更新缓存的这个时间段内",
+      "music": 0
+    },
+    {
+      "from": 738.71,
+      "to": 740.42,
+      "sid": 370,
+      "location": 2,
+      "content": "其他所有的行程不用等",
+      "music": 0
+    },
+    {
+      "from": 740.42,
+      "to": 743.03,
+      "sid": 371,
+      "location": 2,
+      "content": "而是直接查到什么就用什么就行了",
+      "music": 0
+    },
+    {
+      "from": 743.03,
+      "to": 744,
+      "sid": 372,
+      "location": 2,
+      "content": "而是用旧的数据",
+      "music": 0
+    },
+    {
+      "from": 744,
+      "to": 746.52,
+      "sid": 373,
+      "location": 2,
+      "content": "这样呢就解决了这个等待",
+      "music": 0
+    },
+    {
+      "from": 746.52,
+      "to": 748.61,
+      "sid": 374,
+      "location": 2,
+      "content": "导致的性能下降和死锁的问题了",
+      "music": 0
+    },
+    {
+      "from": 748.61,
+      "to": 750.71,
+      "sid": 375,
+      "location": 2,
+      "content": "不过呢同样是因为这个问题",
+      "music": 0
+    },
+    {
+      "from": 750.71,
+      "to": 753.59,
+      "sid": 376,
+      "location": 2,
+      "content": "那么因为你不用等查拿到什么就用什么",
+      "music": 0
+    },
+    {
+      "from": 753.59,
+      "to": 755.09,
+      "sid": 377,
+      "location": 2,
+      "content": "那很有可能你拿到的就是旧数据",
+      "music": 0
+    },
+    {
+      "from": 755.09,
+      "to": 755.61,
+      "sid": 378,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 755.61,
+      "to": 759.26,
+      "sid": 379,
+      "location": 2,
+      "content": "实际上它会有这样的一个不一致的情况发生啊",
+      "music": 0
+    },
+    {
+      "from": 759.26,
+      "to": 763.41,
+      "sid": 380,
+      "location": 2,
+      "content": "好嗯这是缓存击穿的这些解决方案啊",
+      "music": 0
+    },
+    {
+      "from": 763.41,
+      "to": 766.17,
+      "sid": 381,
+      "location": 2,
+      "content": "嗯那么最后我们还带着大家封装的工具类",
+      "music": 0
+    },
+    {
+      "from": 766.17,
+      "to": 767.25,
+      "sid": 382,
+      "location": 2,
+      "content": "在封装工具类的时候",
+      "music": 0
+    },
+    {
+      "from": 767.25,
+      "to": 771.76,
+      "sid": 383,
+      "location": 2,
+      "content": "主要是利用了我们啊java提供的这个函数式编程",
+      "music": 0
+    },
+    {
+      "from": 771.76,
+      "to": 772.66,
+      "sid": 384,
+      "location": 2,
+      "content": "这种思想啊",
+      "music": 0
+    },
+    {
+      "from": 772.66,
+      "to": 775.39,
+      "sid": 385,
+      "location": 2,
+      "content": "去将数据库查询啊传递给我们的工具类",
+      "music": 0
+    },
+    {
+      "from": 775.39,
+      "to": 776.46,
+      "sid": 386,
+      "location": 2,
+      "content": "从而实现啊",
+      "music": 0
+    },
+    {
+      "from": 776.46,
+      "to": 779.94,
+      "sid": 387,
+      "location": 2,
+      "content": "呃任意数据的这样一个数据库查询",
+      "music": 0
+    },
+    {
+      "from": 779.94,
+      "to": 783.54,
+      "sid": 388,
+      "location": 2,
+      "content": "缓存的这种同步策略都给他加入进去了",
+      "music": 0
+    },
+    {
+      "from": 783.54,
+      "to": 785.46,
+      "sid": 389,
+      "location": 2,
+      "content": "所以说呢这是一个小技巧啊",
+      "music": 0
+    },
+    {
+      "from": 785.46,
+      "to": 790.65,
+      "sid": 390,
+      "location": 2,
+      "content": "嗯那么以上呢就是我们raise缓存的常见的一些",
+      "music": 0
+    },
+    {
+      "from": 790.65,
+      "to": 792.96,
+      "sid": 391,
+      "location": 2,
+      "content": "使用技巧和解决方案啊",
+      "music": 0
+    },
+    {
+      "from": 792.96,
+      "to": 794.46,
+      "sid": 392,
+      "location": 2,
+      "content": "嗯除了这些以外",
+      "music": 0
+    },
+    {
+      "from": 794.46,
+      "to": 796.86,
+      "sid": 393,
+      "location": 2,
+      "content": "还有一些像多级缓存啊啊",
+      "music": 0
+    },
+    {
+      "from": 796.86,
+      "to": 799.49,
+      "sid": 394,
+      "location": 2,
+      "content": "还有rise的缓存集群等等",
+      "music": 0
+    },
+    {
+      "from": 799.49,
+      "to": 801.29,
+      "sid": 395,
+      "location": 2,
+      "content": "这样的一些高级的知识点啊",
+      "music": 0
+    },
+    {
+      "from": 801.29,
+      "to": 804.17,
+      "sid": 396,
+      "location": 2,
+      "content": "我们呢也会在rise的高级课程当中啊",
+      "music": 0
+    },
+    {
+      "from": 804.17,
+      "to": 806.2,
+      "sid": 397,
+      "location": 2,
+      "content": "继续给大家去讲解",
+      "music": 0
+    },
+    {
+      "from": 806.2,
+      "to": 809.35,
+      "sid": 398,
+      "location": 2,
+      "content": "所以说呢大家呢嗯紧跟我们的课程啊",
+      "music": 0
+    },
+    {
+      "from": 809.35,
+      "to": 811.45,
+      "sid": 399,
+      "location": 2,
+      "content": "啊千万不要半途而废",
+      "music": 0
+    },
+    {
+      "from": 811.45,
+      "to": 815.099,
+      "sid": 400,
+      "location": 2,
+      "content": "那么学完以后绝对会给大家带来巨大的收获啊",
+      "music": 0
+    },
+    {
+      "from": 815.42,
+      "to": 816.08,
+      "sid": 401,
+      "location": 2,
+      "content": "行吧",
+      "music": 0
+    },
+    {
+      "from": 816.08,
+      "to": 817.7,
+      "sid": 402,
+      "location": 2,
+      "content": "那我们这章内容呢就到这里",
+      "music": 0
+    },
+    {
+      "from": 818.9,
+      "to": 820.12,
+      "sid": 403,
+      "location": 2,
+      "content": "我们下周再见啊",
+      "music": 0
+    }
+  ]
+}

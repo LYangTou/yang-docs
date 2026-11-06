@@ -1,0 +1,5064 @@
+{
+  "page": 44,
+  "title": "实战篇-商户查询缓存-10.利用互斥锁解决缓存击穿问题",
+  "duration": 1320,
+  "basis": "Public Bilibili AI Chinese subtitle; verify identifiers against frames",
+  "body": [
+    {
+      "from": 1.44,
+      "to": 2.31,
+      "sid": 1,
+      "location": 2,
+      "content": "好同学问",
+      "music": 0
+    },
+    {
+      "from": 2.31,
+      "to": 5.7,
+      "sid": 2,
+      "location": 2,
+      "content": "下节课呢我们已经分析了缓存击穿问题",
+      "music": 0
+    },
+    {
+      "from": 5.7,
+      "to": 7.29,
+      "sid": 3,
+      "location": 2,
+      "content": "它的两种解决方案啊",
+      "music": 0
+    },
+    {
+      "from": 7.29,
+      "to": 9.89,
+      "sid": 4,
+      "location": 2,
+      "content": "下边呢我们就一起动手实践一下",
+      "music": 0
+    },
+    {
+      "from": 9.89,
+      "to": 13.07,
+      "sid": 5,
+      "location": 2,
+      "content": "首先呢我们基于护士所的这种方案",
+      "music": 0
+    },
+    {
+      "from": 13.07,
+      "to": 15.62,
+      "sid": 6,
+      "location": 2,
+      "content": "来去解决缓存计算问题啊",
+      "music": 0
+    },
+    {
+      "from": 15.62,
+      "to": 15.98,
+      "sid": 7,
+      "location": 2,
+      "content": "当然了",
+      "music": 0
+    },
+    {
+      "from": 15.98,
+      "to": 18.68,
+      "sid": 8,
+      "location": 2,
+      "content": "还是基于我们之前产品商铺的这个业务啊",
+      "music": 0
+    },
+    {
+      "from": 18.68,
+      "to": 20.93,
+      "sid": 9,
+      "location": 2,
+      "content": "那下面呢我们先来分析一下",
+      "music": 0
+    },
+    {
+      "from": 20.93,
+      "to": 23.66,
+      "sid": 10,
+      "location": 2,
+      "content": "整个业务流程上会有什么样的一个变化",
+      "music": 0
+    },
+    {
+      "from": 23.66,
+      "to": 25.36,
+      "sid": 11,
+      "location": 2,
+      "content": "首先与以前一样",
+      "music": 0
+    },
+    {
+      "from": 25.36,
+      "to": 28.15,
+      "sid": 12,
+      "location": 2,
+      "content": "前端呢还是会提交这个商铺的id",
+      "music": 0
+    },
+    {
+      "from": 28.15,
+      "to": 29.35,
+      "sid": 13,
+      "location": 2,
+      "content": "到我们的服务端",
+      "music": 0
+    },
+    {
+      "from": 29.35,
+      "to": 32.59,
+      "sid": 14,
+      "location": 2,
+      "content": "那服务端呢肯定还是先查缓存啊",
+      "music": 0
+    },
+    {
+      "from": 32.59,
+      "to": 36.42,
+      "sid": 15,
+      "location": 2,
+      "content": "缓存查询完了以后去判断一下他是否命中",
+      "music": 0
+    },
+    {
+      "from": 36.42,
+      "to": 39.47,
+      "sid": 16,
+      "location": 2,
+      "content": "那根据是否命中再去做下一步的处理啊",
+      "music": 0
+    },
+    {
+      "from": 39.47,
+      "to": 41.87,
+      "sid": 17,
+      "location": 2,
+      "content": "那如果说这个地方直接命中了",
+      "music": 0
+    },
+    {
+      "from": 41.87,
+      "to": 44.6,
+      "sid": 18,
+      "location": 2,
+      "content": "咱二话不说返回数据到前端",
+      "music": 0
+    },
+    {
+      "from": 44.6,
+      "to": 45.97,
+      "sid": 19,
+      "location": 2,
+      "content": "是不是就ok了呀",
+      "music": 0
+    },
+    {
+      "from": 45.97,
+      "to": 48.489,
+      "sid": 20,
+      "location": 2,
+      "content": "但是如果他未命中呢",
+      "music": 0
+    },
+    {
+      "from": 48.489,
+      "to": 50.289,
+      "sid": 21,
+      "location": 2,
+      "content": "啊这个地方就复杂了",
+      "music": 0
+    },
+    {
+      "from": 50.289,
+      "to": 51.789,
+      "sid": 22,
+      "location": 2,
+      "content": "那如果未命中",
+      "music": 0
+    },
+    {
+      "from": 51.789,
+      "to": 54.6,
+      "sid": 23,
+      "location": 2,
+      "content": "我们以前的话是直接就去查数据库了对吧",
+      "music": 0
+    },
+    {
+      "from": 54.6,
+      "to": 56.88,
+      "sid": 24,
+      "location": 2,
+      "content": "但是现在呢为了解决这个集成的问题啊",
+      "music": 0
+    },
+    {
+      "from": 56.88,
+      "to": 59.48,
+      "sid": 25,
+      "location": 2,
+      "content": "我们还需要去判断一下啊",
+      "music": 0
+    },
+    {
+      "from": 59.48,
+      "to": 60.71,
+      "sid": 26,
+      "location": 2,
+      "content": "能不能拿到锁",
+      "music": 0
+    },
+    {
+      "from": 60.71,
+      "to": 62.54,
+      "sid": 27,
+      "location": 2,
+      "content": "拿到锁了以后才可以去执行",
+      "music": 0
+    },
+    {
+      "from": 62.54,
+      "to": 63.05,
+      "sid": 28,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 63.05,
+      "to": 64.82,
+      "sid": 29,
+      "location": 2,
+      "content": "所以这块呢要先做一件事情",
+      "music": 0
+    },
+    {
+      "from": 64.82,
+      "to": 67.58,
+      "sid": 30,
+      "location": 2,
+      "content": "就是去获取这个互斥锁啊",
+      "music": 0
+    },
+    {
+      "from": 67.58,
+      "to": 70.37,
+      "sid": 31,
+      "location": 2,
+      "content": "然后去判断有没有真的拿到锁好",
+      "music": 0
+    },
+    {
+      "from": 70.37,
+      "to": 73.81,
+      "sid": 32,
+      "location": 2,
+      "content": "如果这个地方没有拿到锁",
+      "music": 0
+    },
+    {
+      "from": 73.81,
+      "to": 76.72,
+      "sid": 33,
+      "location": 2,
+      "content": "那也就是说等于是有别的人正在执行",
+      "music": 0
+    },
+    {
+      "from": 76.72,
+      "to": 77.509,
+      "sid": 34,
+      "location": 2,
+      "content": "更新的动作了",
+      "music": 0
+    },
+    {
+      "from": 77.509,
+      "to": 79.849,
+      "sid": 35,
+      "location": 2,
+      "content": "那么这个时候你就不应该继续往下执行了",
+      "music": 0
+    },
+    {
+      "from": 79.849,
+      "to": 80.749,
+      "sid": 36,
+      "location": 2,
+      "content": "你该干什么",
+      "music": 0
+    },
+    {
+      "from": 80.749,
+      "to": 81.289,
+      "sid": 37,
+      "location": 2,
+      "content": "我们这样说",
+      "music": 0
+    },
+    {
+      "from": 81.289,
+      "to": 82.729,
+      "sid": 38,
+      "location": 2,
+      "content": "是不是要休眠一会啊",
+      "music": 0
+    },
+    {
+      "from": 82.729,
+      "to": 83.419,
+      "sid": 39,
+      "location": 2,
+      "content": "休眠完了",
+      "music": 0
+    },
+    {
+      "from": 83.419,
+      "to": 85.69,
+      "sid": 40,
+      "location": 2,
+      "content": "然后重新尝试啊",
+      "music": 0
+    },
+    {
+      "from": 85.69,
+      "to": 86.29,
+      "sid": 41,
+      "location": 2,
+      "content": "去查询",
+      "music": 0
+    },
+    {
+      "from": 86.29,
+      "to": 88.33,
+      "sid": 42,
+      "location": 2,
+      "content": "看看别人是不是已经更新好了",
+      "music": 0
+    },
+    {
+      "from": 88.33,
+      "to": 88.9,
+      "sid": 43,
+      "location": 2,
+      "content": "好",
+      "music": 0
+    },
+    {
+      "from": 88.9,
+      "to": 91.09,
+      "sid": 44,
+      "location": 2,
+      "content": "那如果说你这个地方拿到锁了",
+      "music": 0
+    },
+    {
+      "from": 91.09,
+      "to": 92.59,
+      "sid": 45,
+      "location": 2,
+      "content": "证明你是第一个对吧",
+      "music": 0
+    },
+    {
+      "from": 92.59,
+      "to": 94.05,
+      "sid": 46,
+      "location": 2,
+      "content": "你是第一个来啊",
+      "music": 0
+    },
+    {
+      "from": 94.05,
+      "to": 95.25,
+      "sid": 47,
+      "location": 2,
+      "content": "尝试做这个动作的",
+      "music": 0
+    },
+    {
+      "from": 95.25,
+      "to": 96.51,
+      "sid": 48,
+      "location": 2,
+      "content": "那么你就可以干什么了",
+      "music": 0
+    },
+    {
+      "from": 96.51,
+      "to": 97.53,
+      "sid": 49,
+      "location": 2,
+      "content": "放心大胆的",
+      "music": 0
+    },
+    {
+      "from": 97.53,
+      "to": 99.61,
+      "sid": 50,
+      "location": 2,
+      "content": "是不是去执行缓存重建了",
+      "music": 0
+    },
+    {
+      "from": 99.61,
+      "to": 101.74,
+      "sid": 51,
+      "location": 2,
+      "content": "缓存重建呢就要去数据库里查询",
+      "music": 0
+    },
+    {
+      "from": 101.74,
+      "to": 102.85,
+      "sid": 52,
+      "location": 2,
+      "content": "查完了以后呢",
+      "music": 0
+    },
+    {
+      "from": 102.85,
+      "to": 104.89,
+      "sid": 53,
+      "location": 2,
+      "content": "将这个查到的数据写到release里",
+      "music": 0
+    },
+    {
+      "from": 104.89,
+      "to": 108.25,
+      "sid": 54,
+      "location": 2,
+      "content": "最后呢啊我们再去释放这个锁啊",
+      "music": 0
+    },
+    {
+      "from": 108.25,
+      "to": 111.66,
+      "sid": 55,
+      "location": 2,
+      "content": "释放锁别人下次才能够进来对吧好",
+      "music": 0
+    },
+    {
+      "from": 111.66,
+      "to": 114.819,
+      "sid": 56,
+      "location": 2,
+      "content": "然后呢我们就可以去返回结果了啊",
+      "music": 0
+    },
+    {
+      "from": 114.819,
+      "to": 118.619,
+      "sid": 57,
+      "location": 2,
+      "content": "这是我们整个基于互出所方案的一个业务流程",
+      "music": 0
+    },
+    {
+      "from": 118.82,
+      "to": 122,
+      "sid": 58,
+      "location": 2,
+      "content": "不过在这个地方有一个非常关键的点",
+      "music": 0
+    },
+    {
+      "from": 122,
+      "to": 123.38,
+      "sid": 59,
+      "location": 2,
+      "content": "就是锁",
+      "music": 0
+    },
+    {
+      "from": 123.46,
+      "to": 126.52,
+      "sid": 60,
+      "location": 2,
+      "content": "那么这个锁了不是我们平常用的那个锁啊",
+      "music": 0
+    },
+    {
+      "from": 126.52,
+      "to": 128.92,
+      "sid": 61,
+      "location": 2,
+      "content": "我们平常用这个synchronize或者用lock",
+      "music": 0
+    },
+    {
+      "from": 128.92,
+      "to": 130.84,
+      "sid": 62,
+      "location": 2,
+      "content": "那个呢你拿到锁了",
+      "music": 0
+    },
+    {
+      "from": 130.84,
+      "to": 131.56,
+      "sid": 63,
+      "location": 2,
+      "content": "你可以执行",
+      "music": 0
+    },
+    {
+      "from": 131.56,
+      "to": 132.1,
+      "sid": 64,
+      "location": 2,
+      "content": "没拿到锁",
+      "music": 0
+    },
+    {
+      "from": 132.1,
+      "to": 133.31,
+      "sid": 65,
+      "location": 2,
+      "content": "你是不是要一直等待",
+      "music": 0
+    },
+    {
+      "from": 133.31,
+      "to": 136.49,
+      "sid": 66,
+      "location": 2,
+      "content": "而我们当前这块呢拿到锁和不拿到锁",
+      "music": 0
+    },
+    {
+      "from": 136.49,
+      "to": 138.53,
+      "sid": 67,
+      "location": 2,
+      "content": "它的一个执行逻辑啊",
+      "music": 0
+    },
+    {
+      "from": 138.53,
+      "to": 140.149,
+      "sid": 68,
+      "location": 2,
+      "content": "是要我们自己去自定义的",
+      "music": 0
+    },
+    {
+      "from": 140.149,
+      "to": 142.669,
+      "sid": 69,
+      "location": 2,
+      "content": "所以说呢我们不能使用那种方式了",
+      "music": 0
+    },
+    {
+      "from": 142.669,
+      "to": 145.96,
+      "sid": 70,
+      "location": 2,
+      "content": "那我们要采用一个自定义的这种锁",
+      "music": 0
+    },
+    {
+      "from": 146.079,
+      "to": 151.44,
+      "sid": 71,
+      "location": 2,
+      "content": "那么用什么方式来实现这种自定义的互斥锁呢",
+      "music": 0
+    },
+    {
+      "from": 151.44,
+      "to": 153.54,
+      "sid": 72,
+      "location": 2,
+      "content": "啊所谓的这种互斥锁呀",
+      "music": 0
+    },
+    {
+      "from": 153.54,
+      "to": 156.92,
+      "sid": 73,
+      "location": 2,
+      "content": "也就是说在多个线程并行执行的时候",
+      "music": 0
+    },
+    {
+      "from": 156.92,
+      "to": 158.18,
+      "sid": 74,
+      "location": 2,
+      "content": "只能有一个人成功",
+      "music": 0
+    },
+    {
+      "from": 158.18,
+      "to": 159.08,
+      "sid": 75,
+      "location": 2,
+      "content": "其他人失败",
+      "music": 0
+    },
+    {
+      "from": 159.08,
+      "to": 159.56,
+      "sid": 76,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 159.56,
+      "to": 160.64,
+      "sid": 77,
+      "location": 2,
+      "content": "那么大家思考一下",
+      "music": 0
+    },
+    {
+      "from": 160.64,
+      "to": 163.1,
+      "sid": 78,
+      "location": 2,
+      "content": "在我们以前所学的这些知识里",
+      "music": 0
+    },
+    {
+      "from": 163.1,
+      "to": 166.7,
+      "sid": 79,
+      "location": 2,
+      "content": "有没有什么东西能够达成这样的一个效果",
+      "music": 0
+    },
+    {
+      "from": 167.98,
+      "to": 169.59,
+      "sid": 80,
+      "location": 2,
+      "content": "ok啊不知道大家有没有印象",
+      "music": 0
+    },
+    {
+      "from": 169.59,
+      "to": 173.4,
+      "sid": 81,
+      "location": 2,
+      "content": "其实呢在我们以前所学习redis的string数据类型的时",
+      "music": 0
+    },
+    {
+      "from": 173.4,
+      "to": 173.76,
+      "sid": 82,
+      "location": 2,
+      "content": "候",
+      "music": 0
+    },
+    {
+      "from": 173.76,
+      "to": 176.029,
+      "sid": 83,
+      "location": 2,
+      "content": "它里边啊就有一个命令啊",
+      "music": 0
+    },
+    {
+      "from": 176.029,
+      "to": 178.279,
+      "sid": 84,
+      "location": 2,
+      "content": "跟这个效果是非常接近的",
+      "music": 0
+    },
+    {
+      "from": 178.279,
+      "to": 179.42,
+      "sid": 85,
+      "location": 2,
+      "content": "什么命令呢",
+      "music": 0
+    },
+    {
+      "from": 179.42,
+      "to": 181.52,
+      "sid": 86,
+      "location": 2,
+      "content": "set nx命令啊",
+      "music": 0
+    },
+    {
+      "from": 181.52,
+      "to": 185.91,
+      "sid": 87,
+      "location": 2,
+      "content": "我们一起来看一下help set nx好",
+      "music": 0
+    },
+    {
+      "from": 185.91,
+      "to": 188.959,
+      "sid": 88,
+      "location": 2,
+      "content": "你看这个命令它的一个解释",
+      "music": 0
+    },
+    {
+      "from": 188.959,
+      "to": 192.12,
+      "sid": 89,
+      "location": 2,
+      "content": "sa value of a key only the key does not exi",
+      "music": 0
+    },
+    {
+      "from": 192.12,
+      "to": 194.19,
+      "sid": 90,
+      "location": 2,
+      "content": "就是说我们给一个key啊赋值",
+      "music": 0
+    },
+    {
+      "from": 194.19,
+      "to": 198.9,
+      "sid": 91,
+      "location": 2,
+      "content": "当且仅当这个key不存在的时候去执行",
+      "music": 0
+    },
+    {
+      "from": 198.9,
+      "to": 200.04,
+      "sid": 92,
+      "location": 2,
+      "content": "那如果key存在",
+      "music": 0
+    },
+    {
+      "from": 200.04,
+      "to": 201.2,
+      "sid": 93,
+      "location": 2,
+      "content": "是不是就不执行了",
+      "music": 0
+    },
+    {
+      "from": 201.2,
+      "to": 203.51,
+      "sid": 94,
+      "location": 2,
+      "content": "那么他为什么能做到互斥呢",
+      "music": 0
+    },
+    {
+      "from": 203.51,
+      "to": 204.98,
+      "sid": 95,
+      "location": 2,
+      "content": "来我们一起演示一下",
+      "music": 0
+    },
+    {
+      "from": 204.98,
+      "to": 205.67,
+      "sid": 96,
+      "location": 2,
+      "content": "大家看啊",
+      "music": 0
+    },
+    {
+      "from": 205.67,
+      "to": 207.72,
+      "sid": 97,
+      "location": 2,
+      "content": "我现在用一个sn x",
+      "music": 0
+    },
+    {
+      "from": 207.72,
+      "to": 209.97,
+      "sid": 98,
+      "location": 2,
+      "content": "我们给啊一个key赋值",
+      "music": 0
+    },
+    {
+      "from": 209.97,
+      "to": 211.41,
+      "sid": 99,
+      "location": 2,
+      "content": "比如说这个key呢是lock",
+      "music": 0
+    },
+    {
+      "from": 211.41,
+      "to": 213.57,
+      "sid": 100,
+      "location": 2,
+      "content": "代表就是一把锁先啊",
+      "music": 0
+    },
+    {
+      "from": 213.57,
+      "to": 214.53,
+      "sid": 101,
+      "location": 2,
+      "content": "有一个人啊",
+      "music": 0
+    },
+    {
+      "from": 214.53,
+      "to": 215.67,
+      "sid": 102,
+      "location": 2,
+      "content": "比如说叫一啊",
+      "music": 0
+    },
+    {
+      "from": 215.67,
+      "to": 217.94,
+      "sid": 103,
+      "location": 2,
+      "content": "他要来去获取这把锁来",
+      "music": 0
+    },
+    {
+      "from": 218.999,
+      "to": 222.559,
+      "sid": 104,
+      "location": 2,
+      "content": "我们可以看到这个时候呢返回值是个一",
+      "music": 0
+    },
+    {
+      "from": 222.559,
+      "to": 225.559,
+      "sid": 105,
+      "location": 2,
+      "content": "这个返回值呢代表的就是成功啊",
+      "music": 0
+    },
+    {
+      "from": 225.559,
+      "to": 227.68,
+      "sid": 106,
+      "location": 2,
+      "content": "我们看一下是不是已经成功了",
+      "music": 0
+    },
+    {
+      "from": 227.68,
+      "to": 228.67,
+      "sid": 107,
+      "location": 2,
+      "content": "没错吧",
+      "music": 0
+    },
+    {
+      "from": 228.67,
+      "to": 231.73,
+      "sid": 108,
+      "location": 2,
+      "content": "好这时候又有一个人还想来set",
+      "music": 0
+    },
+    {
+      "from": 231.73,
+      "to": 233.8,
+      "sid": 109,
+      "location": 2,
+      "content": "那么他来改一下这个值",
+      "music": 0
+    },
+    {
+      "from": 233.8,
+      "to": 234.16,
+      "sid": 110,
+      "location": 2,
+      "content": "好",
+      "music": 0
+    },
+    {
+      "from": 234.16,
+      "to": 236.179,
+      "sid": 111,
+      "location": 2,
+      "content": "我们再看一下啊",
+      "music": 0
+    },
+    {
+      "from": 236.179,
+      "to": 237.739,
+      "sid": 112,
+      "location": 2,
+      "content": "他的反应值是零啊",
+      "music": 0
+    },
+    {
+      "from": 237.739,
+      "to": 239.55,
+      "sid": 113,
+      "location": 2,
+      "content": "你再来一个人好",
+      "music": 0
+    },
+    {
+      "from": 239.55,
+      "to": 240.39,
+      "sid": 114,
+      "location": 2,
+      "content": "都是零",
+      "music": 0
+    },
+    {
+      "from": 240.39,
+      "to": 243.27,
+      "sid": 115,
+      "location": 2,
+      "content": "这时候lock的值有没有发生改变呢",
+      "music": 0
+    },
+    {
+      "from": 243.27,
+      "to": 245.88,
+      "sid": 116,
+      "location": 2,
+      "content": "没有依然是原来那个值",
+      "music": 0
+    },
+    {
+      "from": 245.88,
+      "to": 246.84,
+      "sid": 117,
+      "location": 2,
+      "content": "看到了吗",
+      "music": 0
+    },
+    {
+      "from": 246.84,
+      "to": 248.46,
+      "sid": 118,
+      "location": 2,
+      "content": "那这就告诉我们什么了",
+      "music": 0
+    },
+    {
+      "from": 248.46,
+      "to": 249.57,
+      "sid": 119,
+      "location": 2,
+      "content": "sn x",
+      "music": 0
+    },
+    {
+      "from": 249.57,
+      "to": 254.09,
+      "sid": 120,
+      "location": 2,
+      "content": "它其实啊是在k不存在的时候才能往里面写",
+      "music": 0
+    },
+    {
+      "from": 254.09,
+      "to": 255.5,
+      "sid": 121,
+      "location": 2,
+      "content": "k如果已经存在了",
+      "music": 0
+    },
+    {
+      "from": 255.5,
+      "to": 256.93,
+      "sid": 122,
+      "location": 2,
+      "content": "是无法写的",
+      "music": 0
+    },
+    {
+      "from": 256.93,
+      "to": 259.21,
+      "sid": 123,
+      "location": 2,
+      "content": "那么如果现在并发的啊",
+      "music": 0
+    },
+    {
+      "from": 259.21,
+      "to": 263.65,
+      "sid": 124,
+      "location": 2,
+      "content": "有数百上千的线程一起来执行set nx操作",
+      "music": 0
+    },
+    {
+      "from": 263.65,
+      "to": 264.8,
+      "sid": 125,
+      "location": 2,
+      "content": "同学们思考一下",
+      "music": 0
+    },
+    {
+      "from": 264.8,
+      "to": 267.59,
+      "sid": 126,
+      "location": 2,
+      "content": "那是不是只有第一个人能够成功啊",
+      "music": 0
+    },
+    {
+      "from": 267.59,
+      "to": 269.74,
+      "sid": 127,
+      "location": 2,
+      "content": "他成功写入了以后",
+      "music": 0
+    },
+    {
+      "from": 269.82,
+      "to": 274.68,
+      "sid": 128,
+      "location": 2,
+      "content": "其他线程再来执行sn x得到的一定是一个零",
+      "music": 0
+    },
+    {
+      "from": 274.68,
+      "to": 276.24,
+      "sid": 129,
+      "location": 2,
+      "content": "也就是失败的结果",
+      "music": 0
+    },
+    {
+      "from": 276.24,
+      "to": 276.96,
+      "sid": 130,
+      "location": 2,
+      "content": "没错吧",
+      "music": 0
+    },
+    {
+      "from": 276.96,
+      "to": 280.2,
+      "sid": 131,
+      "location": 2,
+      "content": "是不是就类似于我们讲的互斥",
+      "music": 0
+    },
+    {
+      "from": 280.2,
+      "to": 281.34,
+      "sid": 132,
+      "location": 2,
+      "content": "只有一个人成功",
+      "music": 0
+    },
+    {
+      "from": 281.34,
+      "to": 282.74,
+      "sid": 133,
+      "location": 2,
+      "content": "其他人都失败了",
+      "music": 0
+    },
+    {
+      "from": 282.76,
+      "to": 287.31,
+      "sid": 134,
+      "location": 2,
+      "content": "唉这就是啊我们自己设计所的一个方案啊",
+      "music": 0
+    },
+    {
+      "from": 287.31,
+      "to": 290.22,
+      "sid": 135,
+      "location": 2,
+      "content": "事实上呢这个也是我们后期要讲到的",
+      "music": 0
+    },
+    {
+      "from": 290.22,
+      "to": 293.97,
+      "sid": 136,
+      "location": 2,
+      "content": "分布式锁的一个啊基本的一个原理",
+      "music": 0
+    },
+    {
+      "from": 293.97,
+      "to": 297.24,
+      "sid": 137,
+      "location": 2,
+      "content": "当然真正的分支所会比这个要在复杂很多",
+      "music": 0
+    },
+    {
+      "from": 297.24,
+      "to": 299.289,
+      "sid": 138,
+      "location": 2,
+      "content": "后续呢我们会去介绍啊",
+      "music": 0
+    },
+    {
+      "from": 299.289,
+      "to": 302.42,
+      "sid": 139,
+      "location": 2,
+      "content": "这里呢我们先简单使用一下好",
+      "music": 0
+    },
+    {
+      "from": 302.42,
+      "to": 304.1,
+      "sid": 140,
+      "location": 2,
+      "content": "那么获取锁我们明白了",
+      "music": 0
+    },
+    {
+      "from": 304.1,
+      "to": 305.57,
+      "sid": 141,
+      "location": 2,
+      "content": "用这个命令就可以对吧",
+      "music": 0
+    },
+    {
+      "from": 305.57,
+      "to": 308.3,
+      "sid": 142,
+      "location": 2,
+      "content": "那么释放锁呢好",
+      "music": 0
+    },
+    {
+      "from": 308.3,
+      "to": 310.28,
+      "sid": 143,
+      "location": 2,
+      "content": "那你获取锁是给它赋值",
+      "music": 0
+    },
+    {
+      "from": 310.28,
+      "to": 312.08,
+      "sid": 144,
+      "location": 2,
+      "content": "那释放锁其实非常简单",
+      "music": 0
+    },
+    {
+      "from": 312.08,
+      "to": 315.63,
+      "sid": 145,
+      "location": 2,
+      "content": "就是你把这个锁给他干嘛删掉不就好了吗",
+      "music": 0
+    },
+    {
+      "from": 315.63,
+      "to": 317.04,
+      "sid": 146,
+      "location": 2,
+      "content": "啊你把它删掉了",
+      "music": 0
+    },
+    {
+      "from": 317.04,
+      "to": 320.52,
+      "sid": 147,
+      "location": 2,
+      "content": "这时候再有其他人来执行这个set nx操作的时",
+      "music": 0
+    },
+    {
+      "from": 320.52,
+      "to": 320.85,
+      "sid": 148,
+      "location": 2,
+      "content": "候",
+      "music": 0
+    },
+    {
+      "from": 320.85,
+      "to": 322.559,
+      "sid": 149,
+      "location": 2,
+      "content": "是不是就能成功了",
+      "music": 0
+    },
+    {
+      "from": 322.559,
+      "to": 326.66,
+      "sid": 150,
+      "location": 2,
+      "content": "好释放所删除获取锁呢就是给它复制",
+      "music": 0
+    },
+    {
+      "from": 327.46,
+      "to": 328.26,
+      "sid": 151,
+      "location": 2,
+      "content": "当然了",
+      "music": 0
+    },
+    {
+      "from": 328.26,
+      "to": 330.66,
+      "sid": 152,
+      "location": 2,
+      "content": "这里会有一种意外的情况啊",
+      "music": 0
+    },
+    {
+      "from": 330.66,
+      "to": 335.39,
+      "sid": 153,
+      "location": 2,
+      "content": "比如说我们给他啊set nx设置了一把锁",
+      "music": 0
+    },
+    {
+      "from": 335.39,
+      "to": 336.26,
+      "sid": 154,
+      "location": 2,
+      "content": "设置完了以后呢",
+      "music": 0
+    },
+    {
+      "from": 336.26,
+      "to": 336.86,
+      "sid": 155,
+      "location": 2,
+      "content": "因为某种原因",
+      "music": 0
+    },
+    {
+      "from": 336.86,
+      "to": 338.18,
+      "sid": 156,
+      "location": 2,
+      "content": "你这个程序出问题了",
+      "music": 0
+    },
+    {
+      "from": 338.18,
+      "to": 340.28,
+      "sid": 157,
+      "location": 2,
+      "content": "最后呢迟迟的没有人去执行这个",
+      "music": 0
+    },
+    {
+      "from": 340.28,
+      "to": 341.99,
+      "sid": 158,
+      "location": 2,
+      "content": "删除或者释放的动作",
+      "music": 0
+    },
+    {
+      "from": 341.99,
+      "to": 344.1,
+      "sid": 159,
+      "location": 2,
+      "content": "那将来是不是很有可能",
+      "music": 0
+    },
+    {
+      "from": 344.4,
+      "to": 346.47,
+      "sid": 160,
+      "location": 2,
+      "content": "这把锁就永远不会释放了",
+      "music": 0
+    },
+    {
+      "from": 346.47,
+      "to": 349.5,
+      "sid": 161,
+      "location": 2,
+      "content": "所以呢我们在利用三的n x啊设置锁的时候",
+      "music": 0
+    },
+    {
+      "from": 349.5,
+      "to": 351.5,
+      "sid": 162,
+      "location": 2,
+      "content": "往往会给它加一个有效期",
+      "music": 0
+    },
+    {
+      "from": 351.5,
+      "to": 355.21,
+      "sid": 163,
+      "location": 2,
+      "content": "比如说设置有效期为十秒钟啊",
+      "music": 0
+    },
+    {
+      "from": 355.21,
+      "to": 358.15,
+      "sid": 164,
+      "location": 2,
+      "content": "然后呢一般我们的业务执行都在一秒钟以内嘛",
+      "music": 0
+    },
+    {
+      "from": 358.15,
+      "to": 359.65,
+      "sid": 165,
+      "location": 2,
+      "content": "那么在这个业务执行的过程中",
+      "music": 0
+    },
+    {
+      "from": 359.65,
+      "to": 360.49,
+      "sid": 166,
+      "location": 2,
+      "content": "如果正常释放",
+      "music": 0
+    },
+    {
+      "from": 360.49,
+      "to": 361.27,
+      "sid": 167,
+      "location": 2,
+      "content": "没什么好说的",
+      "music": 0
+    },
+    {
+      "from": 361.27,
+      "to": 364.68,
+      "sid": 168,
+      "location": 2,
+      "content": "万一因为某种异常导致我的服务出现故障了",
+      "music": 0
+    },
+    {
+      "from": 364.68,
+      "to": 365.91,
+      "sid": 169,
+      "location": 2,
+      "content": "它永远不释放了",
+      "music": 0
+    },
+    {
+      "from": 365.91,
+      "to": 367.79,
+      "sid": 170,
+      "location": 2,
+      "content": "将来十秒钟到达",
+      "music": 0
+    },
+    {
+      "from": 367.79,
+      "to": 369.47,
+      "sid": 171,
+      "location": 2,
+      "content": "是不是锁还会自动释放呀",
+      "music": 0
+    },
+    {
+      "from": 369.47,
+      "to": 372.59,
+      "sid": 172,
+      "location": 2,
+      "content": "所以说呢啊我们再去设置这把锁的时候",
+      "music": 0
+    },
+    {
+      "from": 372.59,
+      "to": 374.39,
+      "sid": 173,
+      "location": 2,
+      "content": "也会给它设置一个有效期啊",
+      "music": 0
+    },
+    {
+      "from": 374.39,
+      "to": 375.68,
+      "sid": 174,
+      "location": 2,
+      "content": "来做这种兜底",
+      "music": 0
+    },
+    {
+      "from": 375.68,
+      "to": 379.25,
+      "sid": 175,
+      "location": 2,
+      "content": "避免锁呢就是因为某种原因得不到释放",
+      "music": 0
+    },
+    {
+      "from": 379.25,
+      "to": 381.6,
+      "sid": 176,
+      "location": 2,
+      "content": "产生死锁啊",
+      "music": 0
+    },
+    {
+      "from": 381.6,
+      "to": 382.8,
+      "sid": 177,
+      "location": 2,
+      "content": "那么到这里呢",
+      "music": 0
+    },
+    {
+      "from": 382.8,
+      "to": 385.26,
+      "sid": 178,
+      "location": 2,
+      "content": "其实我们就简单给大家介绍一下啊",
+      "music": 0
+    },
+    {
+      "from": 385.26,
+      "to": 388.62,
+      "sid": 179,
+      "location": 2,
+      "content": "这种护士所的一个实现的基本思路啊",
+      "music": 0
+    },
+    {
+      "from": 388.62,
+      "to": 392.1,
+      "sid": 180,
+      "location": 2,
+      "content": "这跟真正的封门锁还会有一定的差距啊",
+      "music": 0
+    },
+    {
+      "from": 392.1,
+      "to": 396.08,
+      "sid": 181,
+      "location": 2,
+      "content": "不过呢这里我们先暂时先这么去做啊行了",
+      "music": 0
+    },
+    {
+      "from": 396.08,
+      "to": 398.3,
+      "sid": 182,
+      "location": 2,
+      "content": "那我们呢嗯回到ppt啊",
+      "music": 0
+    },
+    {
+      "from": 398.3,
+      "to": 400.07,
+      "sid": 183,
+      "location": 2,
+      "content": "继续来分析啊",
+      "music": 0
+    },
+    {
+      "from": 400.07,
+      "to": 402.68,
+      "sid": 184,
+      "location": 2,
+      "content": "我们下边呢其实就可以按照这个流程去",
+      "music": 0
+    },
+    {
+      "from": 402.68,
+      "to": 404.57,
+      "sid": 185,
+      "location": 2,
+      "content": "实现我们的业务功能了",
+      "music": 0
+    },
+    {
+      "from": 404.57,
+      "to": 405.62,
+      "sid": 186,
+      "location": 2,
+      "content": "我们给他截个图",
+      "music": 0
+    },
+    {
+      "from": 405.62,
+      "to": 406.19,
+      "sid": 187,
+      "location": 2,
+      "content": "等一会呢",
+      "music": 0
+    },
+    {
+      "from": 406.19,
+      "to": 409.309,
+      "sid": 188,
+      "location": 2,
+      "content": "我们可以参考这个流程图去实现我们的代码",
+      "music": 0
+    },
+    {
+      "from": 409.309,
+      "to": 412.49,
+      "sid": 189,
+      "location": 2,
+      "content": "ok那下面我们打开一点嗯",
+      "music": 0
+    },
+    {
+      "from": 412.49,
+      "to": 414.38,
+      "sid": 190,
+      "location": 2,
+      "content": "在真正来去写这个业务之前啊",
+      "music": 0
+    },
+    {
+      "from": 414.38,
+      "to": 417.159,
+      "sid": 191,
+      "location": 2,
+      "content": "我们先去啊声明两个方法",
+      "music": 0
+    },
+    {
+      "from": 417.159,
+      "to": 419.799,
+      "sid": 192,
+      "location": 2,
+      "content": "分别来代表获取锁和释放锁",
+      "music": 0
+    },
+    {
+      "from": 419.799,
+      "to": 420.339,
+      "sid": 193,
+      "location": 2,
+      "content": "这样呢",
+      "music": 0
+    },
+    {
+      "from": 420.339,
+      "to": 422.859,
+      "sid": 194,
+      "location": 2,
+      "content": "等一会儿我们使用起来是不是就比较方便了",
+      "music": 0
+    },
+    {
+      "from": 422.859,
+      "to": 424.629,
+      "sid": 195,
+      "location": 2,
+      "content": "我们在这个地方定义两个方法",
+      "music": 0
+    },
+    {
+      "from": 424.629,
+      "to": 428.56,
+      "sid": 196,
+      "location": 2,
+      "content": "private啊啊我们的反义值呢是一个bolding on",
+      "music": 0
+    },
+    {
+      "from": 428.56,
+      "to": 430.24,
+      "sid": 197,
+      "location": 2,
+      "content": "代表成功与否嘛",
+      "music": 0
+    },
+    {
+      "from": 430.24,
+      "to": 433.36,
+      "sid": 198,
+      "location": 2,
+      "content": "然后try a lock尝试呢",
+      "music": 0
+    },
+    {
+      "from": 433.36,
+      "to": 435.21,
+      "sid": 199,
+      "location": 2,
+      "content": "或许所那锁呢",
+      "music": 0
+    },
+    {
+      "from": 435.21,
+      "to": 437.85,
+      "sid": 200,
+      "location": 2,
+      "content": "其实就是rise里的存储的一个key对吧",
+      "music": 0
+    },
+    {
+      "from": 437.85,
+      "to": 441.27,
+      "sid": 201,
+      "location": 2,
+      "content": "所以说呢这个key呢有我们的使用者传给我们",
+      "music": 0
+    },
+    {
+      "from": 441.27,
+      "to": 442.88,
+      "sid": 202,
+      "location": 2,
+      "content": "我们就不在这写死了",
+      "music": 0
+    },
+    {
+      "from": 443.759,
+      "to": 447.139,
+      "sid": 203,
+      "location": 2,
+      "content": "而这里边呢我们其实就是去执行set n x",
+      "music": 0
+    },
+    {
+      "from": 447.139,
+      "to": 450.77,
+      "sid": 204,
+      "location": 2,
+      "content": "我们通过string retemplate sin x啊",
+      "music": 0
+    },
+    {
+      "from": 450.77,
+      "to": 452.18,
+      "sid": 205,
+      "location": 2,
+      "content": "是string操作啊",
+      "music": 0
+    },
+    {
+      "from": 452.18,
+      "to": 454.5,
+      "sid": 206,
+      "location": 2,
+      "content": "所以说呢我们这里要选择ops for什么",
+      "music": 0
+    },
+    {
+      "from": 454.5,
+      "to": 455.04,
+      "sid": 207,
+      "location": 2,
+      "content": "哎",
+      "music": 0
+    },
+    {
+      "from": 455.04,
+      "to": 456.06,
+      "sid": 208,
+      "location": 2,
+      "content": "是不是value啊",
+      "music": 0
+    },
+    {
+      "from": 456.06,
+      "to": 459.63,
+      "sid": 209,
+      "location": 2,
+      "content": "然后呢调用它里边的一个方法叫set",
+      "music": 0
+    },
+    {
+      "from": 459.63,
+      "to": 463.83,
+      "sid": 210,
+      "location": 2,
+      "content": "那么这两个set啊啊你想找set n x是找不到的啊",
+      "music": 0
+    },
+    {
+      "from": 463.83,
+      "to": 467,
+      "sid": 211,
+      "location": 2,
+      "content": "它的n x呢起了个名字叫if upset",
+      "music": 0
+    },
+    {
+      "from": 467,
+      "to": 470.84,
+      "sid": 212,
+      "location": 2,
+      "content": "因为这个单词的意思就是如果存在的意思啊",
+      "music": 0
+    },
+    {
+      "from": 470.84,
+      "to": 472.4,
+      "sid": 213,
+      "location": 2,
+      "content": "所以说呢我们选择它的k啊",
+      "music": 0
+    },
+    {
+      "from": 472.4,
+      "to": 473.909,
+      "sid": 214,
+      "location": 2,
+      "content": "that is a s",
+      "music": 0
+    },
+    {
+      "from": 473.909,
+      "to": 477.029,
+      "sid": 215,
+      "location": 2,
+      "content": "并且呢大家可以看到它在后面是可以设置这个",
+      "music": 0
+    },
+    {
+      "from": 477.029,
+      "to": 478.169,
+      "sid": 216,
+      "location": 2,
+      "content": "过期时间的吧",
+      "music": 0
+    },
+    {
+      "from": 478.169,
+      "to": 481.829,
+      "sid": 217,
+      "location": 2,
+      "content": "所以说呢我们直接用这一个命令就能搞定了啊",
+      "music": 0
+    },
+    {
+      "from": 481.829,
+      "to": 483.19,
+      "sid": 218,
+      "location": 2,
+      "content": "先传k好",
+      "music": 0
+    },
+    {
+      "from": 483.19,
+      "to": 485.5,
+      "sid": 219,
+      "location": 2,
+      "content": "在传这个值值呢其实随意啊",
+      "music": 0
+    },
+    {
+      "from": 485.5,
+      "to": 488.15,
+      "sid": 220,
+      "location": 2,
+      "content": "在目前来讲我们就随意传行了好",
+      "music": 0
+    },
+    {
+      "from": 488.15,
+      "to": 491.32,
+      "sid": 221,
+      "location": 2,
+      "content": "然后呢我们再去设置这个有效期",
+      "music": 0
+    },
+    {
+      "from": 491.32,
+      "to": 493.87,
+      "sid": 222,
+      "location": 2,
+      "content": "有效期啊啊跟你的业务有关",
+      "music": 0
+    },
+    {
+      "from": 493.87,
+      "to": 496.63,
+      "sid": 223,
+      "location": 2,
+      "content": "一般啊正常你的业务执行时长是多少",
+      "music": 0
+    },
+    {
+      "from": 496.63,
+      "to": 497.83,
+      "sid": 224,
+      "location": 2,
+      "content": "你这个锁的有效期啊",
+      "music": 0
+    },
+    {
+      "from": 497.83,
+      "to": 498.909,
+      "sid": 225,
+      "location": 2,
+      "content": "就比它长一些",
+      "music": 0
+    },
+    {
+      "from": 498.909,
+      "to": 501.65,
+      "sid": 226,
+      "location": 2,
+      "content": "长个啊十倍20倍的啊",
+      "music": 0
+    },
+    {
+      "from": 501.65,
+      "to": 503.24,
+      "sid": 227,
+      "location": 2,
+      "content": "就是避免这种异常情况嘛",
+      "music": 0
+    },
+    {
+      "from": 503.24,
+      "to": 505.31,
+      "sid": 228,
+      "location": 2,
+      "content": "啊比方说这里我们就设置十秒钟吧",
+      "music": 0
+    },
+    {
+      "from": 505.31,
+      "to": 507.949,
+      "sid": 229,
+      "location": 2,
+      "content": "好然后呢单位就是seconds好",
+      "music": 0
+    },
+    {
+      "from": 507.949,
+      "to": 512.209,
+      "sid": 230,
+      "location": 2,
+      "content": "那这样呢获取锁的那个代码其实就完成了啊",
+      "music": 0
+    },
+    {
+      "from": 512.209,
+      "to": 514.529,
+      "sid": 231,
+      "location": 2,
+      "content": "这里就拿到了一个结果好",
+      "music": 0
+    },
+    {
+      "from": 514.529,
+      "to": 517.649,
+      "sid": 232,
+      "location": 2,
+      "content": "那么这个结果呢在我们命令行里面是零和一啊",
+      "music": 0
+    },
+    {
+      "from": 517.649,
+      "to": 520.69,
+      "sid": 233,
+      "location": 2,
+      "content": "在这呢spring帮我们转换成了boom",
+      "music": 0
+    },
+    {
+      "from": 520.69,
+      "to": 523.09,
+      "sid": 234,
+      "location": 2,
+      "content": "所以说它其实就是一个最终结果",
+      "music": 0
+    },
+    {
+      "from": 523.09,
+      "to": 524.57,
+      "sid": 235,
+      "location": 2,
+      "content": "blg好",
+      "music": 0
+    },
+    {
+      "from": 524.57,
+      "to": 526.07,
+      "sid": 236,
+      "location": 2,
+      "content": "然后我们需要把这个结果",
+      "music": 0
+    },
+    {
+      "from": 526.07,
+      "to": 528.48,
+      "sid": 237,
+      "location": 2,
+      "content": "转成这种基本类型返回",
+      "music": 0
+    },
+    {
+      "from": 528.48,
+      "to": 530.58,
+      "sid": 238,
+      "location": 2,
+      "content": "那在这里转成基本类型返回啊",
+      "music": 0
+    },
+    {
+      "from": 530.58,
+      "to": 531.78,
+      "sid": 239,
+      "location": 2,
+      "content": "大家千万不要啊",
+      "music": 0
+    },
+    {
+      "from": 531.78,
+      "to": 533.55,
+      "sid": 240,
+      "location": 2,
+      "content": "就是直接返回了",
+      "music": 0
+    },
+    {
+      "from": 533.55,
+      "to": 535.96,
+      "sid": 241,
+      "location": 2,
+      "content": "如果你直接把这个flag返回",
+      "music": 0
+    },
+    {
+      "from": 535.96,
+      "to": 537.97,
+      "sid": 242,
+      "location": 2,
+      "content": "它是会做拆箱的",
+      "music": 0
+    },
+    {
+      "from": 537.97,
+      "to": 539.5,
+      "sid": 243,
+      "location": 2,
+      "content": "那么在这个拆箱的过程中",
+      "music": 0
+    },
+    {
+      "from": 539.5,
+      "to": 541.09,
+      "sid": 244,
+      "location": 2,
+      "content": "是有可能出现空指针的",
+      "music": 0
+    },
+    {
+      "from": 541.09,
+      "to": 543.52,
+      "sid": 245,
+      "location": 2,
+      "content": "所以这里建议大家使用一个工具类啊",
+      "music": 0
+    },
+    {
+      "from": 544.02,
+      "to": 547.94,
+      "sid": 246,
+      "location": 2,
+      "content": "就是我们的柏林u艇youtube啊",
+      "music": 0
+    },
+    {
+      "from": 547.94,
+      "to": 550.13,
+      "sid": 247,
+      "location": 2,
+      "content": "是我们这个hoto boil里面的啊",
+      "music": 0
+    },
+    {
+      "from": 550.13,
+      "to": 552.5,
+      "sid": 248,
+      "location": 2,
+      "content": "他呢可以帮助你做判断啊",
+      "music": 0
+    },
+    {
+      "from": 552.5,
+      "to": 554.28,
+      "sid": 249,
+      "location": 2,
+      "content": "is true is false啊",
+      "music": 0
+    },
+    {
+      "from": 554.28,
+      "to": 556.83,
+      "sid": 250,
+      "location": 2,
+      "content": "或者是呢他也可以直接给你做拆箱",
+      "music": 0
+    },
+    {
+      "from": 556.83,
+      "to": 557.55,
+      "sid": 251,
+      "location": 2,
+      "content": "知道吧",
+      "music": 0
+    },
+    {
+      "from": 557.55,
+      "to": 558.99,
+      "sid": 252,
+      "location": 2,
+      "content": "谁还是比较方便的啊",
+      "music": 0
+    },
+    {
+      "from": 558.99,
+      "to": 562.56,
+      "sid": 253,
+      "location": 2,
+      "content": "好那is true返回这个flag就可以了",
+      "music": 0
+    },
+    {
+      "from": 562.56,
+      "to": 565.92,
+      "sid": 254,
+      "location": 2,
+      "content": "好这样的try lock函数就定义完成了",
+      "music": 0
+    },
+    {
+      "from": 565.92,
+      "to": 567.18,
+      "sid": 255,
+      "location": 2,
+      "content": "尝试获取锁",
+      "music": 0
+    },
+    {
+      "from": 567.18,
+      "to": 570.03,
+      "sid": 256,
+      "location": 2,
+      "content": "那我们再来写一个释放锁的一个代码",
+      "music": 0
+    },
+    {
+      "from": 570.03,
+      "to": 571.74,
+      "sid": 257,
+      "location": 2,
+      "content": "释放锁我们这也分析过啊",
+      "music": 0
+    },
+    {
+      "from": 571.74,
+      "to": 573.919,
+      "sid": 258,
+      "location": 2,
+      "content": "其实就是把锁删掉吧",
+      "music": 0
+    },
+    {
+      "from": 573.919,
+      "to": 576.139,
+      "sid": 259,
+      "location": 2,
+      "content": "所以说这块就不需要什么返回值了",
+      "music": 0
+    },
+    {
+      "from": 576.139,
+      "to": 578,
+      "sid": 260,
+      "location": 2,
+      "content": "直接就是unlock",
+      "music": 0
+    },
+    {
+      "from": 578.1,
+      "to": 578.64,
+      "sid": 261,
+      "location": 2,
+      "content": "好",
+      "music": 0
+    },
+    {
+      "from": 578.64,
+      "to": 579.06,
+      "sid": 262,
+      "location": 2,
+      "content": "当然了",
+      "music": 0
+    },
+    {
+      "from": 579.06,
+      "to": 580.23,
+      "sid": 263,
+      "location": 2,
+      "content": "key点告诉我吧",
+      "music": 0
+    },
+    {
+      "from": 580.23,
+      "to": 582.06,
+      "sid": 264,
+      "location": 2,
+      "content": "然后呢我帮你去释放啊",
+      "music": 0
+    },
+    {
+      "from": 582.06,
+      "to": 585.54,
+      "sid": 265,
+      "location": 2,
+      "content": "也就是删除spence template点啊",
+      "music": 0
+    },
+    {
+      "from": 585.54,
+      "to": 586.699,
+      "sid": 266,
+      "location": 2,
+      "content": "一个delete",
+      "music": 0
+    },
+    {
+      "from": 587.06,
+      "to": 589.67,
+      "sid": 267,
+      "location": 2,
+      "content": "然后呢在这里边呢我们把d传进去",
+      "music": 0
+    },
+    {
+      "from": 589.67,
+      "to": 591.849,
+      "sid": 268,
+      "location": 2,
+      "content": "就能实现一个删除的操作了",
+      "music": 0
+    },
+    {
+      "from": 591.849,
+      "to": 594.909,
+      "sid": 269,
+      "location": 2,
+      "content": "ok啊这样呢try lock and lock也就是获取锁",
+      "music": 0
+    },
+    {
+      "from": 594.909,
+      "to": 595.689,
+      "sid": 270,
+      "location": 2,
+      "content": "释放锁的代码",
+      "music": 0
+    },
+    {
+      "from": 595.689,
+      "to": 596.7,
+      "sid": 271,
+      "location": 2,
+      "content": "我们就完成了",
+      "music": 0
+    },
+    {
+      "from": 596.7,
+      "to": 597.72,
+      "sid": 272,
+      "location": 2,
+      "content": "那么接下来呢",
+      "music": 0
+    },
+    {
+      "from": 597.72,
+      "to": 601.09,
+      "sid": 273,
+      "location": 2,
+      "content": "我们就可以开始修改我们的业务逻辑了",
+      "music": 0
+    },
+    {
+      "from": 601.09,
+      "to": 603.73,
+      "sid": 274,
+      "location": 2,
+      "content": "呃现在这个代码呢是我们之前写的呀",
+      "music": 0
+    },
+    {
+      "from": 603.73,
+      "to": 606.18,
+      "sid": 275,
+      "location": 2,
+      "content": "缓存穿透的一个解决方案",
+      "music": 0
+    },
+    {
+      "from": 606.18,
+      "to": 608.52,
+      "sid": 276,
+      "location": 2,
+      "content": "这个逻辑啊我们先给它封装起来",
+      "music": 0
+    },
+    {
+      "from": 608.52,
+      "to": 609.99,
+      "sid": 277,
+      "location": 2,
+      "content": "就不要去删除了啊",
+      "music": 0
+    },
+    {
+      "from": 609.99,
+      "to": 611.78,
+      "sid": 278,
+      "location": 2,
+      "content": "那我们呢把它ctrl c",
+      "music": 0
+    },
+    {
+      "from": 611.78,
+      "to": 614.93,
+      "sid": 279,
+      "location": 2,
+      "content": "然后在下边呢给他写一个方法",
+      "music": 0
+    },
+    {
+      "from": 614.93,
+      "to": 617.16,
+      "sid": 280,
+      "location": 2,
+      "content": "比如说public啊",
+      "music": 0
+    },
+    {
+      "from": 617.16,
+      "to": 619.32,
+      "sid": 281,
+      "location": 2,
+      "content": "返回值呢是一个shop吧",
+      "music": 0
+    },
+    {
+      "from": 619.32,
+      "to": 621.06,
+      "sid": 282,
+      "location": 2,
+      "content": "你查的是店铺信息嘛",
+      "music": 0
+    },
+    {
+      "from": 621.06,
+      "to": 624.12,
+      "sid": 283,
+      "location": 2,
+      "content": "然后名字呢就叫做query啊",
+      "music": 0
+    },
+    {
+      "from": 624.12,
+      "to": 630.5,
+      "sid": 284,
+      "location": 2,
+      "content": "with这个pass t h r o u g h r代表这个缓存穿透",
+      "music": 0
+    },
+    {
+      "from": 630.5,
+      "to": 633.39,
+      "sid": 285,
+      "location": 2,
+      "content": "然后呢传递给我们的肯定是这个店铺的id嘛",
+      "music": 0
+    },
+    {
+      "from": 633.39,
+      "to": 635.43,
+      "sid": 286,
+      "location": 2,
+      "content": "然后呢把这个逻辑给他整进去",
+      "music": 0
+    },
+    {
+      "from": 635.43,
+      "to": 636.33,
+      "sid": 287,
+      "location": 2,
+      "content": "这种逻辑呢",
+      "music": 0
+    },
+    {
+      "from": 636.33,
+      "to": 637.86,
+      "sid": 288,
+      "location": 2,
+      "content": "因为我们最终返回的是一个效果",
+      "music": 0
+    },
+    {
+      "from": 637.86,
+      "to": 642,
+      "sid": 289,
+      "location": 2,
+      "content": "所以说呢他这块目前嗯返回的这种ok啊什么的",
+      "music": 0
+    },
+    {
+      "from": 642,
+      "to": 642.81,
+      "sid": 290,
+      "location": 2,
+      "content": "我们都把它改掉",
+      "music": 0
+    },
+    {
+      "from": 642.81,
+      "to": 644.37,
+      "sid": 291,
+      "location": 2,
+      "content": "直接返回shop就ok了",
+      "music": 0
+    },
+    {
+      "from": 644.37,
+      "to": 645.38,
+      "sid": 292,
+      "location": 2,
+      "content": "是吧啊",
+      "music": 0
+    },
+    {
+      "from": 645.38,
+      "to": 648.49,
+      "sid": 293,
+      "location": 2,
+      "content": "当然这块的话可以直接这样返回啊",
+      "music": 0
+    },
+    {
+      "from": 648.49,
+      "to": 650.17,
+      "sid": 294,
+      "location": 2,
+      "content": "好然后往下啊",
+      "music": 0
+    },
+    {
+      "from": 650.17,
+      "to": 651.97,
+      "sid": 295,
+      "location": 2,
+      "content": "这里如果不等于now也不返回错了",
+      "music": 0
+    },
+    {
+      "from": 651.97,
+      "to": 654.18,
+      "sid": 296,
+      "location": 2,
+      "content": "就返回一个none就可以了对吧",
+      "music": 0
+    },
+    {
+      "from": 654.18,
+      "to": 656.46,
+      "sid": 297,
+      "location": 2,
+      "content": "然后呢再往下这里也都一样",
+      "music": 0
+    },
+    {
+      "from": 656.46,
+      "to": 657.39,
+      "sid": 298,
+      "location": 2,
+      "content": "就不报错",
+      "music": 0
+    },
+    {
+      "from": 657.39,
+      "to": 660.74,
+      "sid": 299,
+      "location": 2,
+      "content": "咱们都是返回空或者是数据本身空",
+      "music": 0
+    },
+    {
+      "from": 660.74,
+      "to": 662.079,
+      "sid": 300,
+      "location": 2,
+      "content": "或者数据本身",
+      "music": 0
+    },
+    {
+      "from": 663.62,
+      "to": 666.67,
+      "sid": 301,
+      "location": 2,
+      "content": "那这样我们就把缓存穿透的代码给封装了",
+      "music": 0
+    },
+    {
+      "from": 666.67,
+      "to": 669.58,
+      "sid": 302,
+      "location": 2,
+      "content": "这样防止以后咱们的这个代码丢失啊啊啊",
+      "music": 0
+    },
+    {
+      "from": 669.58,
+      "to": 670.94,
+      "sid": 303,
+      "location": 2,
+      "content": "以后同学们也可以参考",
+      "music": 0
+    },
+    {
+      "from": 670.94,
+      "to": 674.839,
+      "sid": 304,
+      "location": 2,
+      "content": "那也就是说呢啊如果说要去实现缓存穿透",
+      "music": 0
+    },
+    {
+      "from": 674.839,
+      "to": 677.749,
+      "sid": 305,
+      "location": 2,
+      "content": "事实上吧我们只需要调这个函数",
+      "music": 0
+    },
+    {
+      "from": 677.749,
+      "to": 678.619,
+      "sid": 306,
+      "location": 2,
+      "content": "拿到这个效果",
+      "music": 0
+    },
+    {
+      "from": 678.619,
+      "to": 680.299,
+      "sid": 307,
+      "location": 2,
+      "content": "是不是就好像穿梭的实现了",
+      "music": 0
+    },
+    {
+      "from": 680.299,
+      "to": 680.809,
+      "sid": 308,
+      "location": 2,
+      "content": "ok啊",
+      "music": 0
+    },
+    {
+      "from": 680.809,
+      "to": 682.159,
+      "sid": 309,
+      "location": 2,
+      "content": "那这样就比较方便了",
+      "music": 0
+    },
+    {
+      "from": 682.159,
+      "to": 683.73,
+      "sid": 310,
+      "location": 2,
+      "content": "那这个代码呢我们也不删",
+      "music": 0
+    },
+    {
+      "from": 683.73,
+      "to": 684.54,
+      "sid": 311,
+      "location": 2,
+      "content": "好",
+      "music": 0
+    },
+    {
+      "from": 684.54,
+      "to": 685.71,
+      "sid": 312,
+      "location": 2,
+      "content": "在这写一下啊",
+      "music": 0
+    },
+    {
+      "from": 685.71,
+      "to": 687.82,
+      "sid": 313,
+      "location": 2,
+      "content": "缓存穿透好",
+      "music": 0
+    },
+    {
+      "from": 687.82,
+      "to": 690.1,
+      "sid": 314,
+      "location": 2,
+      "content": "那么就可以调这个query with pass through啊",
+      "music": 0
+    },
+    {
+      "from": 690.1,
+      "to": 690.94,
+      "sid": 315,
+      "location": 2,
+      "content": "把a分区",
+      "music": 0
+    },
+    {
+      "from": 690.94,
+      "to": 692.7,
+      "sid": 316,
+      "location": 2,
+      "content": "然后得到一个shop好",
+      "music": 0
+    },
+    {
+      "from": 692.7,
+      "to": 694.099,
+      "sid": 317,
+      "location": 2,
+      "content": "然后呢就ok了",
+      "music": 0
+    },
+    {
+      "from": 694.099,
+      "to": 695.269,
+      "sid": 318,
+      "location": 2,
+      "content": "这是一部分",
+      "music": 0
+    },
+    {
+      "from": 695.269,
+      "to": 696.979,
+      "sid": 319,
+      "location": 2,
+      "content": "然后呢下边我们要做的是什么",
+      "music": 0
+    },
+    {
+      "from": 696.979,
+      "to": 698.719,
+      "sid": 320,
+      "location": 2,
+      "content": "我们是不是解决缓存击穿啊",
+      "music": 0
+    },
+    {
+      "from": 698.719,
+      "to": 700.84,
+      "sid": 321,
+      "location": 2,
+      "content": "用互斥锁啊",
+      "music": 0
+    },
+    {
+      "from": 700.84,
+      "to": 703,
+      "sid": 322,
+      "location": 2,
+      "content": "解决缓存的基穿好",
+      "music": 0
+    },
+    {
+      "from": 703,
+      "to": 704.74,
+      "sid": 323,
+      "location": 2,
+      "content": "那我们再定义一个函数啊",
+      "music": 0
+    },
+    {
+      "from": 704.74,
+      "to": 705.46,
+      "sid": 324,
+      "location": 2,
+      "content": "那么这个函数呢",
+      "music": 0
+    },
+    {
+      "from": 705.46,
+      "to": 707.96,
+      "sid": 325,
+      "location": 2,
+      "content": "我们可以在缓存穿透的基础上去写",
+      "music": 0
+    },
+    {
+      "from": 707.96,
+      "to": 710.19,
+      "sid": 326,
+      "location": 2,
+      "content": "所以这两段逻辑可能会非常像啊",
+      "music": 0
+    },
+    {
+      "from": 710.19,
+      "to": 714.36,
+      "sid": 327,
+      "location": 2,
+      "content": "好我们来加一个我们起名字叫query啊",
+      "music": 0
+    },
+    {
+      "from": 714.36,
+      "to": 715.35,
+      "sid": 328,
+      "location": 2,
+      "content": "互斥锁吧",
+      "music": 0
+    },
+    {
+      "from": 715.35,
+      "to": 716.829,
+      "sid": 329,
+      "location": 2,
+      "content": "music啊",
+      "music": 0
+    },
+    {
+      "from": 716.829,
+      "to": 717.729,
+      "sid": 330,
+      "location": 2,
+      "content": "mc啊",
+      "music": 0
+    },
+    {
+      "from": 717.729,
+      "to": 719.229,
+      "sid": 331,
+      "location": 2,
+      "content": "这个就是护士所的意思啊",
+      "music": 0
+    },
+    {
+      "from": 719.229,
+      "to": 721.99,
+      "sid": 332,
+      "location": 2,
+      "content": "好然后呢我们来修改这段逻辑",
+      "music": 0
+    },
+    {
+      "from": 721.99,
+      "to": 724.33,
+      "sid": 333,
+      "location": 2,
+      "content": "那整体修改的业务逻辑啊",
+      "music": 0
+    },
+    {
+      "from": 724.33,
+      "to": 725.14,
+      "sid": 334,
+      "location": 2,
+      "content": "肯定的啊",
+      "music": 0
+    },
+    {
+      "from": 725.14,
+      "to": 727.03,
+      "sid": 335,
+      "location": 2,
+      "content": "要参考我们刚才那幅图",
+      "music": 0
+    },
+    {
+      "from": 727.03,
+      "to": 727.51,
+      "sid": 336,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 727.51,
+      "to": 731.11,
+      "sid": 337,
+      "location": 2,
+      "content": "那么在这我们就先调一下core with metx",
+      "music": 0
+    },
+    {
+      "from": 731.11,
+      "to": 734.84,
+      "sid": 338,
+      "location": 2,
+      "content": "把遗传给他得到一个效果好",
+      "music": 0
+    },
+    {
+      "from": 734.84,
+      "to": 736.76,
+      "sid": 339,
+      "location": 2,
+      "content": "然后呢我们去修改逻辑啊",
+      "music": 0
+    },
+    {
+      "from": 736.76,
+      "to": 738.65,
+      "sid": 340,
+      "location": 2,
+      "content": "我们把那个图拿过来啊",
+      "music": 0
+    },
+    {
+      "from": 738.65,
+      "to": 739.79,
+      "sid": 341,
+      "location": 2,
+      "content": "啊在这里啊",
+      "music": 0
+    },
+    {
+      "from": 739.79,
+      "to": 741.329,
+      "sid": 342,
+      "location": 2,
+      "content": "然后参考他去做就行了",
+      "music": 0
+    },
+    {
+      "from": 741.329,
+      "to": 746.309,
+      "sid": 343,
+      "location": 2,
+      "content": "好那首先我们一步一步来拿到店铺id",
+      "music": 0
+    },
+    {
+      "from": 746.309,
+      "to": 747,
+      "sid": 344,
+      "location": 2,
+      "content": "也就是他",
+      "music": 0
+    },
+    {
+      "from": 747,
+      "to": 748.95,
+      "sid": 345,
+      "location": 2,
+      "content": "然后呢从rise里查询缓存",
+      "music": 0
+    },
+    {
+      "from": 748.95,
+      "to": 750.9,
+      "sid": 346,
+      "location": 2,
+      "content": "也就查这个查完了以后呢",
+      "music": 0
+    },
+    {
+      "from": 750.9,
+      "to": 753.72,
+      "sid": 347,
+      "location": 2,
+      "content": "要去判断一下是否命中啊",
+      "music": 0
+    },
+    {
+      "from": 753.72,
+      "to": 755.86,
+      "sid": 348,
+      "location": 2,
+      "content": "那也就是这部分啊",
+      "music": 0
+    },
+    {
+      "from": 755.86,
+      "to": 757.84,
+      "sid": 349,
+      "location": 2,
+      "content": "这个判断呢如果命中直接返回",
+      "music": 0
+    },
+    {
+      "from": 757.84,
+      "to": 759.88,
+      "sid": 350,
+      "location": 2,
+      "content": "你看it's not blank是不是就命中了",
+      "music": 0
+    },
+    {
+      "from": 759.88,
+      "to": 761.05,
+      "sid": 351,
+      "location": 2,
+      "content": "命中就直接返回了",
+      "music": 0
+    },
+    {
+      "from": 761.05,
+      "to": 763.18,
+      "sid": 352,
+      "location": 2,
+      "content": "好那如果未命中未命中呢",
+      "music": 0
+    },
+    {
+      "from": 763.18,
+      "to": 764.98,
+      "sid": 353,
+      "location": 2,
+      "content": "这块呢其实是判断空值",
+      "music": 0
+    },
+    {
+      "from": 764.98,
+      "to": 766.69,
+      "sid": 354,
+      "location": 2,
+      "content": "这是我们那个穿透的对吧",
+      "music": 0
+    },
+    {
+      "from": 766.69,
+      "to": 768.26,
+      "sid": 355,
+      "location": 2,
+      "content": "如果说是呃空值",
+      "music": 0
+    },
+    {
+      "from": 768.26,
+      "to": 769.73,
+      "sid": 356,
+      "location": 2,
+      "content": "我们其实在rise里存了空",
+      "music": 0
+    },
+    {
+      "from": 769.73,
+      "to": 773.429,
+      "sid": 357,
+      "location": 2,
+      "content": "所以这块呢啊代表是查到的是一个穿透的结果",
+      "music": 0
+    },
+    {
+      "from": 773.429,
+      "to": 774.959,
+      "sid": 358,
+      "location": 2,
+      "content": "所以直接返回no啊",
+      "music": 0
+    },
+    {
+      "from": 774.959,
+      "to": 777.23,
+      "sid": 359,
+      "location": 2,
+      "content": "好那么再往下走到",
+      "music": 0
+    },
+    {
+      "from": 777.23,
+      "to": 778.43,
+      "sid": 360,
+      "location": 2,
+      "content": "这才是未命中",
+      "music": 0
+    },
+    {
+      "from": 778.43,
+      "to": 779.15,
+      "sid": 361,
+      "location": 2,
+      "content": "对不对啊",
+      "music": 0
+    },
+    {
+      "from": 779.15,
+      "to": 779.84,
+      "sid": 362,
+      "location": 2,
+      "content": "也就是说了",
+      "music": 0
+    },
+    {
+      "from": 779.84,
+      "to": 780.83,
+      "sid": 363,
+      "location": 2,
+      "content": "既没有命中数据",
+      "music": 0
+    },
+    {
+      "from": 780.83,
+      "to": 782.09,
+      "sid": 364,
+      "location": 2,
+      "content": "有没有命中那个空值啊",
+      "music": 0
+    },
+    {
+      "from": 782.09,
+      "to": 783.64,
+      "sid": 365,
+      "location": 2,
+      "content": "就是什么都没有好",
+      "music": 0
+    },
+    {
+      "from": 783.64,
+      "to": 785.08,
+      "sid": 366,
+      "location": 2,
+      "content": "未命中未命中的情况下",
+      "music": 0
+    },
+    {
+      "from": 785.08,
+      "to": 786.82,
+      "sid": 367,
+      "location": 2,
+      "content": "我们就要尝试去获取故事锁了",
+      "music": 0
+    },
+    {
+      "from": 786.82,
+      "to": 787.3,
+      "sid": 368,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 787.3,
+      "to": 788.44,
+      "sid": 369,
+      "location": 2,
+      "content": "所以从这开始啊",
+      "music": 0
+    },
+    {
+      "from": 788.44,
+      "to": 790.18,
+      "sid": 370,
+      "location": 2,
+      "content": "业务逻辑就发生变化了",
+      "music": 0
+    },
+    {
+      "from": 790.18,
+      "to": 791.5,
+      "sid": 371,
+      "location": 2,
+      "content": "就跟以前不一样了",
+      "music": 0
+    },
+    {
+      "from": 791.5,
+      "to": 793.859,
+      "sid": 372,
+      "location": 2,
+      "content": "好那么这块呢我们来改一改啊",
+      "music": 0
+    },
+    {
+      "from": 793.92,
+      "to": 796.32,
+      "sid": 373,
+      "location": 2,
+      "content": "好这里呢就要开始干什么了啊",
+      "music": 0
+    },
+    {
+      "from": 796.32,
+      "to": 800.18,
+      "sid": 374,
+      "location": 2,
+      "content": "开始实现这个缓存重建好",
+      "music": 0
+    },
+    {
+      "from": 800.18,
+      "to": 802.85,
+      "sid": 375,
+      "location": 2,
+      "content": "那么很多重建的整个流程里面就比较复杂",
+      "music": 0
+    },
+    {
+      "from": 802.85,
+      "to": 804.68,
+      "sid": 376,
+      "location": 2,
+      "content": "不是一步两步能搞定的啊",
+      "music": 0
+    },
+    {
+      "from": 804.68,
+      "to": 808.8,
+      "sid": 377,
+      "location": 2,
+      "content": "第一个呢是做这个获取互斥锁好",
+      "music": 0
+    },
+    {
+      "from": 808.8,
+      "to": 810.63,
+      "sid": 378,
+      "location": 2,
+      "content": "然后呢获取护车锁",
+      "music": 0
+    },
+    {
+      "from": 810.63,
+      "to": 813.6,
+      "sid": 379,
+      "location": 2,
+      "content": "完了以后还要判断或许有没有成功对吧",
+      "music": 0
+    },
+    {
+      "from": 813.6,
+      "to": 815.42,
+      "sid": 380,
+      "location": 2,
+      "content": "这块判断好",
+      "music": 0
+    },
+    {
+      "from": 815.42,
+      "to": 818.68,
+      "sid": 381,
+      "location": 2,
+      "content": "判断是否获取成功好",
+      "music": 0
+    },
+    {
+      "from": 818.68,
+      "to": 819.82,
+      "sid": 382,
+      "location": 2,
+      "content": "那么结果有两个",
+      "music": 0
+    },
+    {
+      "from": 819.82,
+      "to": 821.17,
+      "sid": 383,
+      "location": 2,
+      "content": "一个是成功的失败对吧",
+      "music": 0
+    },
+    {
+      "from": 821.17,
+      "to": 822.04,
+      "sid": 384,
+      "location": 2,
+      "content": "失败比较简单",
+      "music": 0
+    },
+    {
+      "from": 822.04,
+      "to": 823.09,
+      "sid": 385,
+      "location": 2,
+      "content": "失败的话就休眠",
+      "music": 0
+    },
+    {
+      "from": 823.09,
+      "to": 824.86,
+      "sid": 386,
+      "location": 2,
+      "content": "然后返回重试就行了",
+      "music": 0
+    },
+    {
+      "from": 824.86,
+      "to": 825.83,
+      "sid": 387,
+      "location": 2,
+      "content": "对不对好",
+      "music": 0
+    },
+    {
+      "from": 825.83,
+      "to": 829.79,
+      "sid": 388,
+      "location": 2,
+      "content": "所以这个地方啊如果失败啊",
+      "music": 0
+    },
+    {
+      "from": 829.79,
+      "to": 831.6,
+      "sid": 389,
+      "location": 2,
+      "content": "则休眠啊",
+      "music": 0
+    },
+    {
+      "from": 831.6,
+      "to": 834.36,
+      "sid": 390,
+      "location": 2,
+      "content": "并可能是就行了啊",
+      "music": 0
+    },
+    {
+      "from": 834.36,
+      "to": 836.19,
+      "sid": 391,
+      "location": 2,
+      "content": "那么如果成功了",
+      "music": 0
+    },
+    {
+      "from": 836.19,
+      "to": 837.06,
+      "sid": 392,
+      "location": 2,
+      "content": "灰色成功",
+      "music": 0
+    },
+    {
+      "from": 837.06,
+      "to": 839.61,
+      "sid": 393,
+      "location": 2,
+      "content": "那是不是要去根据数据id查询数据库了",
+      "music": 0
+    },
+    {
+      "from": 839.61,
+      "to": 843.88,
+      "sid": 394,
+      "location": 2,
+      "content": "所以等于是这块了啊啊如何成功好",
+      "music": 0
+    },
+    {
+      "from": 843.88,
+      "to": 845.86,
+      "sid": 395,
+      "location": 2,
+      "content": "我们就根据id查询查询完了以后",
+      "music": 0
+    },
+    {
+      "from": 845.86,
+      "to": 847.06,
+      "sid": 396,
+      "location": 2,
+      "content": "将数据写redis",
+      "music": 0
+    },
+    {
+      "from": 847.06,
+      "to": 848.62,
+      "sid": 397,
+      "location": 2,
+      "content": "将数据写redis啊",
+      "music": 0
+    },
+    {
+      "from": 848.62,
+      "to": 850.21,
+      "sid": 398,
+      "location": 2,
+      "content": "那其实就是这一部分对吧",
+      "music": 0
+    },
+    {
+      "from": 850.21,
+      "to": 852.52,
+      "sid": 399,
+      "location": 2,
+      "content": "这是写空值解决缓存穿透的",
+      "music": 0
+    },
+    {
+      "from": 852.52,
+      "to": 854.44,
+      "sid": 400,
+      "location": 2,
+      "content": "这是写真实数据好",
+      "music": 0
+    },
+    {
+      "from": 854.44,
+      "to": 856.96,
+      "sid": 401,
+      "location": 2,
+      "content": "写完了以后要释放或者锁啊",
+      "music": 0
+    },
+    {
+      "from": 856.96,
+      "to": 858.859,
+      "sid": 402,
+      "location": 2,
+      "content": "在这个地方要释放或者锁",
+      "music": 0
+    },
+    {
+      "from": 859.2,
+      "to": 862.44,
+      "sid": 403,
+      "location": 2,
+      "content": "释放好互斥锁啊",
+      "music": 0
+    },
+    {
+      "from": 862.44,
+      "to": 863,
+      "sid": 404,
+      "location": 2,
+      "content": "ok啊",
+      "music": 0
+    },
+    {
+      "from": 863,
+      "to": 866.81,
+      "sid": 405,
+      "location": 2,
+      "content": "那最后呢返回那咱们这个逻辑是不是就完成了",
+      "music": 0
+    },
+    {
+      "from": 866.81,
+      "to": 869.66,
+      "sid": 406,
+      "location": 2,
+      "content": "所以呢现在我们就把刚才啊添加了这部分",
+      "music": 0
+    },
+    {
+      "from": 869.66,
+      "to": 870.56,
+      "sid": 407,
+      "location": 2,
+      "content": "给他写一写",
+      "music": 0
+    },
+    {
+      "from": 870.56,
+      "to": 872.7,
+      "sid": 408,
+      "location": 2,
+      "content": "这个功能就结束了啊",
+      "music": 0
+    },
+    {
+      "from": 872.7,
+      "to": 874.31,
+      "sid": 409,
+      "location": 2,
+      "content": "来吧一个一个来",
+      "music": 0
+    },
+    {
+      "from": 874.31,
+      "to": 877.28,
+      "sid": 410,
+      "location": 2,
+      "content": "首先呢是啊获取互斥所",
+      "music": 0
+    },
+    {
+      "from": 877.28,
+      "to": 878.33,
+      "sid": 411,
+      "location": 2,
+      "content": "获取护士所呢",
+      "music": 0
+    },
+    {
+      "from": 878.33,
+      "to": 880.07,
+      "sid": 412,
+      "location": 2,
+      "content": "我们刚才已经封装了一个函数了",
+      "music": 0
+    },
+    {
+      "from": 880.07,
+      "to": 881.48,
+      "sid": 413,
+      "location": 2,
+      "content": "叫try lock",
+      "music": 0
+    },
+    {
+      "from": 881.48,
+      "to": 882.23,
+      "sid": 414,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 882.23,
+      "to": 884.15,
+      "sid": 415,
+      "location": 2,
+      "content": "所以啊k直接掉就完了啊",
+      "music": 0
+    },
+    {
+      "from": 884.15,
+      "to": 885.89,
+      "sid": 416,
+      "location": 2,
+      "content": "那这里的k用什么呢",
+      "music": 0
+    },
+    {
+      "from": 885.89,
+      "to": 886.96,
+      "sid": 417,
+      "location": 2,
+      "content": "用什么k呢",
+      "music": 0
+    },
+    {
+      "from": 886.96,
+      "to": 888.04,
+      "sid": 418,
+      "location": 2,
+      "content": "这个地方的key啊",
+      "music": 0
+    },
+    {
+      "from": 888.04,
+      "to": 890.14,
+      "sid": 419,
+      "location": 2,
+      "content": "大家千万不要用前面这个key啊",
+      "music": 0
+    },
+    {
+      "from": 890.14,
+      "to": 891.85,
+      "sid": 420,
+      "location": 2,
+      "content": "这key是不是缓存的k啊",
+      "music": 0
+    },
+    {
+      "from": 891.85,
+      "to": 893.2,
+      "sid": 421,
+      "location": 2,
+      "content": "我们这里是不是锁的",
+      "music": 0
+    },
+    {
+      "from": 893.2,
+      "to": 896.709,
+      "sid": 422,
+      "location": 2,
+      "content": "k说我可以跟网络可以不是同一个啊",
+      "music": 0
+    },
+    {
+      "from": 896.709,
+      "to": 898.269,
+      "sid": 423,
+      "location": 2,
+      "content": "我们起名叫lock key吧",
+      "music": 0
+    },
+    {
+      "from": 898.269,
+      "to": 900.399,
+      "sid": 424,
+      "location": 2,
+      "content": "好那么这个缓存的key的话呢",
+      "music": 0
+    },
+    {
+      "from": 900.399,
+      "to": 901.869,
+      "sid": 425,
+      "location": 2,
+      "content": "我们可以这么做啊",
+      "music": 0
+    },
+    {
+      "from": 901.869,
+      "to": 903.279,
+      "sid": 426,
+      "location": 2,
+      "content": "也就是自己拼接一下",
+      "music": 0
+    },
+    {
+      "from": 903.279,
+      "to": 905.02,
+      "sid": 427,
+      "location": 2,
+      "content": "跟以前一样好",
+      "music": 0
+    },
+    {
+      "from": 905.02,
+      "to": 906.4,
+      "sid": 428,
+      "location": 2,
+      "content": "那首先有个前缀吗",
+      "music": 0
+    },
+    {
+      "from": 906.4,
+      "to": 907.72,
+      "sid": 429,
+      "location": 2,
+      "content": "比如说是叫lock",
+      "music": 0
+    },
+    {
+      "from": 907.72,
+      "to": 909.82,
+      "sid": 430,
+      "location": 2,
+      "content": "代表锁谁的lock呢",
+      "music": 0
+    },
+    {
+      "from": 909.82,
+      "to": 911.36,
+      "sid": 431,
+      "location": 2,
+      "content": "是这个店铺好",
+      "music": 0
+    },
+    {
+      "from": 911.36,
+      "to": 913.2,
+      "sid": 432,
+      "location": 2,
+      "content": "后面跟上什么跟上店铺的",
+      "music": 0
+    },
+    {
+      "from": 913.2,
+      "to": 916.02,
+      "sid": 433,
+      "location": 2,
+      "content": "这样每一个店铺是不是有自己的一个锁",
+      "music": 0
+    },
+    {
+      "from": 916.02,
+      "to": 917.31,
+      "sid": 434,
+      "location": 2,
+      "content": "就行了啊",
+      "music": 0
+    },
+    {
+      "from": 917.31,
+      "to": 918.75,
+      "sid": 435,
+      "location": 2,
+      "content": "然后呢try lock",
+      "music": 0
+    },
+    {
+      "from": 918.75,
+      "to": 919.74,
+      "sid": 436,
+      "location": 2,
+      "content": "try lock以后",
+      "music": 0
+    },
+    {
+      "from": 919.74,
+      "to": 922.41,
+      "sid": 437,
+      "location": 2,
+      "content": "它其实是有一个返回值的啊",
+      "music": 0
+    },
+    {
+      "from": 922.41,
+      "to": 923.55,
+      "sid": 438,
+      "location": 2,
+      "content": "is lock吗",
+      "music": 0
+    },
+    {
+      "from": 923.55,
+      "to": 924.84,
+      "sid": 439,
+      "location": 2,
+      "content": "有没有获取成功",
+      "music": 0
+    },
+    {
+      "from": 924.84,
+      "to": 926.43,
+      "sid": 440,
+      "location": 2,
+      "content": "下面的叫做判断了吗",
+      "music": 0
+    },
+    {
+      "from": 926.43,
+      "to": 929.62,
+      "sid": 441,
+      "location": 2,
+      "content": "好is is luck",
+      "music": 0
+    },
+    {
+      "from": 929.62,
+      "to": 932.54,
+      "sid": 442,
+      "location": 2,
+      "content": "那这个是不是会有所成功的意思对吧",
+      "music": 0
+    },
+    {
+      "from": 932.54,
+      "to": 935.33,
+      "sid": 443,
+      "location": 2,
+      "content": "但是呢我们这个地方要先判断失败",
+      "music": 0
+    },
+    {
+      "from": 935.33,
+      "to": 936.68,
+      "sid": 444,
+      "location": 2,
+      "content": "因为失败更简单嘛",
+      "music": 0
+    },
+    {
+      "from": 936.68,
+      "to": 939.47,
+      "sid": 445,
+      "location": 2,
+      "content": "失败是直接就返回了重试了对吧",
+      "music": 0
+    },
+    {
+      "from": 939.47,
+      "to": 942,
+      "sid": 446,
+      "location": 2,
+      "content": "所以说呢我们取反啊",
+      "music": 0
+    },
+    {
+      "from": 942,
+      "to": 943.38,
+      "sid": 447,
+      "location": 2,
+      "content": "这就代表失败好",
+      "music": 0
+    },
+    {
+      "from": 943.38,
+      "to": 944.04,
+      "sid": 448,
+      "location": 2,
+      "content": "失败了以后",
+      "music": 0
+    },
+    {
+      "from": 944.04,
+      "to": 944.97,
+      "sid": 449,
+      "location": 2,
+      "content": "首先是休眠",
+      "music": 0
+    },
+    {
+      "from": 944.97,
+      "to": 948.06,
+      "sid": 450,
+      "location": 2,
+      "content": "休眠我们通过thread.sleep就行了吧",
+      "music": 0
+    },
+    {
+      "from": 948.06,
+      "to": 949.37,
+      "sid": 451,
+      "location": 2,
+      "content": "这个没什么难度啊",
+      "music": 0
+    },
+    {
+      "from": 949.37,
+      "to": 951.65,
+      "sid": 452,
+      "location": 2,
+      "content": "那么休眠的话不要休眠太长",
+      "music": 0
+    },
+    {
+      "from": 951.65,
+      "to": 953.409,
+      "sid": 453,
+      "location": 2,
+      "content": "因为你并不确定啊",
+      "music": 0
+    },
+    {
+      "from": 953.409,
+      "to": 955.959,
+      "sid": 454,
+      "location": 2,
+      "content": "别人重建到底会花费多长时间",
+      "music": 0
+    },
+    {
+      "from": 955.959,
+      "to": 957.369,
+      "sid": 455,
+      "location": 2,
+      "content": "所以呢我们先试一下",
+      "music": 0
+    },
+    {
+      "from": 957.369,
+      "to": 959.649,
+      "sid": 456,
+      "location": 2,
+      "content": "所以这块你去买个50ms试一试",
+      "music": 0
+    },
+    {
+      "from": 959.649,
+      "to": 961.629,
+      "sid": 457,
+      "location": 2,
+      "content": "然后再去看看有没有啊",
+      "music": 0
+    },
+    {
+      "from": 961.629,
+      "to": 962.859,
+      "sid": 458,
+      "location": 2,
+      "content": "万一成了呢对吧",
+      "music": 0
+    },
+    {
+      "from": 962.859,
+      "to": 964.93,
+      "sid": 459,
+      "location": 2,
+      "content": "所以说这块的时间短一点啊",
+      "music": 0
+    },
+    {
+      "from": 964.93,
+      "to": 966.16,
+      "sid": 460,
+      "location": 2,
+      "content": "好休眠",
+      "music": 0
+    },
+    {
+      "from": 966.16,
+      "to": 968.14,
+      "sid": 461,
+      "location": 2,
+      "content": "那么这块有异常啊",
+      "music": 0
+    },
+    {
+      "from": 968.14,
+      "to": 969.76,
+      "sid": 462,
+      "location": 2,
+      "content": "等一会儿呢我们再去解决它啊",
+      "music": 0
+    },
+    {
+      "from": 969.76,
+      "to": 972.88,
+      "sid": 463,
+      "location": 2,
+      "content": "然后往下休眠完了以后是不是还要重试",
+      "music": 0
+    },
+    {
+      "from": 972.88,
+      "to": 974.17,
+      "sid": 464,
+      "location": 2,
+      "content": "重试是什么意思",
+      "music": 0
+    },
+    {
+      "from": 974.17,
+      "to": 977.41,
+      "sid": 465,
+      "location": 2,
+      "content": "重试就是重新来执行这个查询的动作",
+      "music": 0
+    },
+    {
+      "from": 977.41,
+      "to": 978.63,
+      "sid": 466,
+      "location": 2,
+      "content": "我们看这个流程图",
+      "music": 0
+    },
+    {
+      "from": 978.63,
+      "to": 981,
+      "sid": 467,
+      "location": 2,
+      "content": "重试是不是又重新回到了查询的这个动作",
+      "music": 0
+    },
+    {
+      "from": 981,
+      "to": 982.579,
+      "sid": 468,
+      "location": 2,
+      "content": "查询是不是从这儿开始了",
+      "music": 0
+    },
+    {
+      "from": 982.579,
+      "to": 984.979,
+      "sid": 469,
+      "location": 2,
+      "content": "所以等于是不是又重头回到这个方法了",
+      "music": 0
+    },
+    {
+      "from": 984.979,
+      "to": 986.419,
+      "sid": 470,
+      "location": 2,
+      "content": "所以其实就是干什么",
+      "music": 0
+    },
+    {
+      "from": 986.419,
+      "to": 989.28,
+      "sid": 471,
+      "location": 2,
+      "content": "同学们其实就是在这儿是不是得递归就行了",
+      "music": 0
+    },
+    {
+      "from": 989.82,
+      "to": 990.72,
+      "sid": 472,
+      "location": 2,
+      "content": "对吗",
+      "music": 0
+    },
+    {
+      "from": 990.72,
+      "to": 992.4,
+      "sid": 473,
+      "location": 2,
+      "content": "哎做递归啊",
+      "music": 0
+    },
+    {
+      "from": 992.4,
+      "to": 993.72,
+      "sid": 474,
+      "location": 2,
+      "content": "重来一次好",
+      "music": 0
+    },
+    {
+      "from": 993.72,
+      "to": 995.55,
+      "sid": 475,
+      "location": 2,
+      "content": "等于就是循环循环一直执行",
+      "music": 0
+    },
+    {
+      "from": 995.55,
+      "to": 996.3,
+      "sid": 476,
+      "location": 2,
+      "content": "直到什么",
+      "music": 0
+    },
+    {
+      "from": 996.3,
+      "to": 997.8,
+      "sid": 477,
+      "location": 2,
+      "content": "直到这个判断啊",
+      "music": 0
+    },
+    {
+      "from": 997.8,
+      "to": 1000.49,
+      "sid": 478,
+      "location": 2,
+      "content": "就是要么是这啊呼吸算成功了",
+      "music": 0
+    },
+    {
+      "from": 1000.49,
+      "to": 1003.91,
+      "sid": 479,
+      "location": 2,
+      "content": "要么就是上边是不是拿到了返回的都是可能啊",
+      "music": 0
+    },
+    {
+      "from": 1003.91,
+      "to": 1006.04,
+      "sid": 480,
+      "location": 2,
+      "content": "所以说呢我们在这个地方呢",
+      "music": 0
+    },
+    {
+      "from": 1006.04,
+      "to": 1007.36,
+      "sid": 481,
+      "location": 2,
+      "content": "就是等于做了个递归啊",
+      "music": 0
+    },
+    {
+      "from": 1007.36,
+      "to": 1008.339,
+      "sid": 482,
+      "location": 2,
+      "content": "不断循环",
+      "music": 0
+    },
+    {
+      "from": 1008.84,
+      "to": 1013.07,
+      "sid": 483,
+      "location": 2,
+      "content": "如果这一块啊递归直接return了啊",
+      "music": 0
+    },
+    {
+      "from": 1013.07,
+      "to": 1015.74,
+      "sid": 484,
+      "location": 2,
+      "content": "等于是好这块没有成立",
+      "music": 0
+    },
+    {
+      "from": 1015.74,
+      "to": 1016.97,
+      "sid": 485,
+      "location": 2,
+      "content": "那就是会所成功",
+      "music": 0
+    },
+    {
+      "from": 1016.97,
+      "to": 1019.04,
+      "sid": 486,
+      "location": 2,
+      "content": "会所成功往下走啊",
+      "music": 0
+    },
+    {
+      "from": 1019.04,
+      "to": 1021.41,
+      "sid": 487,
+      "location": 2,
+      "content": "查数据库存一个空值",
+      "music": 0
+    },
+    {
+      "from": 1021.41,
+      "to": 1023.45,
+      "sid": 488,
+      "location": 2,
+      "content": "然后存release好",
+      "music": 0
+    },
+    {
+      "from": 1023.45,
+      "to": 1024.47,
+      "sid": 489,
+      "location": 2,
+      "content": "全部结束",
+      "music": 0
+    },
+    {
+      "from": 1024.47,
+      "to": 1026.03,
+      "sid": 490,
+      "location": 2,
+      "content": "是不是要释放互斥锁了",
+      "music": 0
+    },
+    {
+      "from": 1026.03,
+      "to": 1027.14,
+      "sid": 491,
+      "location": 2,
+      "content": "哎没错啊",
+      "music": 0
+    },
+    {
+      "from": 1027.14,
+      "to": 1029.87,
+      "sid": 492,
+      "location": 2,
+      "content": "那么释放或者左的动作呢其实比较简单",
+      "music": 0
+    },
+    {
+      "from": 1029.87,
+      "to": 1034.34,
+      "sid": 493,
+      "location": 2,
+      "content": "也就是安lock把那个lock key一传",
+      "music": 0
+    },
+    {
+      "from": 1034.34,
+      "to": 1035.63,
+      "sid": 494,
+      "location": 2,
+      "content": "这是不是就释放了",
+      "music": 0
+    },
+    {
+      "from": 1035.63,
+      "to": 1038.829,
+      "sid": 495,
+      "location": 2,
+      "content": "不过我们前面还有个异常没处理啊",
+      "music": 0
+    },
+    {
+      "from": 1038.829,
+      "to": 1041.74,
+      "sid": 496,
+      "location": 2,
+      "content": "那我认为呢你获取所啊",
+      "music": 0
+    },
+    {
+      "from": 1041.74,
+      "to": 1043.72,
+      "sid": 497,
+      "location": 2,
+      "content": "还有整个释放锁这个逻辑啊",
+      "music": 0
+    },
+    {
+      "from": 1043.72,
+      "to": 1044.74,
+      "sid": 498,
+      "location": 2,
+      "content": "是不是啊",
+      "music": 0
+    },
+    {
+      "from": 1044.74,
+      "to": 1047.34,
+      "sid": 499,
+      "location": 2,
+      "content": "应该给他实现一个try finally啊",
+      "music": 0
+    },
+    {
+      "from": 1047.34,
+      "to": 1048.9,
+      "sid": 500,
+      "location": 2,
+      "content": "因为抛异常的情况下",
+      "music": 0
+    },
+    {
+      "from": 1048.9,
+      "to": 1050.28,
+      "sid": 501,
+      "location": 2,
+      "content": "你也要执行unlock",
+      "music": 0
+    },
+    {
+      "from": 1050.28,
+      "to": 1050.83,
+      "sid": 502,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 1050.83,
+      "to": 1053.35,
+      "sid": 503,
+      "location": 2,
+      "content": "所以说呢这块要放到finally里去写啊",
+      "music": 0
+    },
+    {
+      "from": 1053.35,
+      "to": 1056.95,
+      "sid": 504,
+      "location": 2,
+      "content": "我们在这里呢给他来一个呃大的一个try",
+      "music": 0
+    },
+    {
+      "from": 1056.95,
+      "to": 1058.45,
+      "sid": 505,
+      "location": 2,
+      "content": "ctrl加t",
+      "music": 0
+    },
+    {
+      "from": 1058.45,
+      "to": 1059.95,
+      "sid": 506,
+      "location": 2,
+      "content": "然后六啊",
+      "music": 0
+    },
+    {
+      "from": 1059.95,
+      "to": 1062.32,
+      "sid": 507,
+      "location": 2,
+      "content": "然后这块呢cash整一长",
+      "music": 0
+    },
+    {
+      "from": 1062.32,
+      "to": 1064.18,
+      "sid": 508,
+      "location": 2,
+      "content": "这个异常呢我们就不去做处理了",
+      "music": 0
+    },
+    {
+      "from": 1064.18,
+      "to": 1065.32,
+      "sid": 509,
+      "location": 2,
+      "content": "直接往外抛就行了",
+      "music": 0
+    },
+    {
+      "from": 1065.32,
+      "to": 1066.79,
+      "sid": 510,
+      "location": 2,
+      "content": "因为这是一个打断的异常",
+      "music": 0
+    },
+    {
+      "from": 1066.79,
+      "to": 1069.87,
+      "sid": 511,
+      "location": 2,
+      "content": "不用管好好",
+      "music": 0
+    },
+    {
+      "from": 1069.87,
+      "to": 1072.78,
+      "sid": 512,
+      "location": 2,
+      "content": "然后呢在finally要在最终函数里",
+      "music": 0
+    },
+    {
+      "from": 1072.78,
+      "to": 1075.57,
+      "sid": 513,
+      "location": 2,
+      "content": "我们去做释放对吧",
+      "music": 0
+    },
+    {
+      "from": 1075.57,
+      "to": 1078,
+      "sid": 514,
+      "location": 2,
+      "content": "那在这个地方就得十分啊好了",
+      "music": 0
+    },
+    {
+      "from": 1078,
+      "to": 1078.9,
+      "sid": 515,
+      "location": 2,
+      "content": "那么这样呢",
+      "music": 0
+    },
+    {
+      "from": 1078.9,
+      "to": 1082.36,
+      "sid": 516,
+      "location": 2,
+      "content": "我们这个逻辑才算是一个比较严谨的一个",
+      "music": 0
+    },
+    {
+      "from": 1082.36,
+      "to": 1083.45,
+      "sid": 517,
+      "location": 2,
+      "content": "业务逻辑对吧",
+      "music": 0
+    },
+    {
+      "from": 1083.45,
+      "to": 1084.71,
+      "sid": 518,
+      "location": 2,
+      "content": "这就搞定了啊",
+      "music": 0
+    },
+    {
+      "from": 1084.71,
+      "to": 1087.68,
+      "sid": 519,
+      "location": 2,
+      "content": "好那么我们定义的这个方法",
+      "music": 0
+    },
+    {
+      "from": 1087.68,
+      "to": 1091.54,
+      "sid": 520,
+      "location": 2,
+      "content": "它的一个返回值是有可能为now的对吧",
+      "music": 0
+    },
+    {
+      "from": 1091.6,
+      "to": 1094.42,
+      "sid": 521,
+      "location": 2,
+      "content": "但是呢我们在上面啊得到这个结果的时候",
+      "music": 0
+    },
+    {
+      "from": 1094.42,
+      "to": 1097.01,
+      "sid": 522,
+      "location": 2,
+      "content": "并没有对这个闹值啊去做一个判断",
+      "music": 0
+    },
+    {
+      "from": 1097.01,
+      "to": 1099.71,
+      "sid": 523,
+      "location": 2,
+      "content": "那么这里呢当然你这么做也行啊",
+      "music": 0
+    },
+    {
+      "from": 1099.71,
+      "to": 1101.15,
+      "sid": 524,
+      "location": 2,
+      "content": "那前端呢有可能拿到数据",
+      "music": 0
+    },
+    {
+      "from": 1101.15,
+      "to": 1102.35,
+      "sid": 525,
+      "location": 2,
+      "content": "有可能拿到no对吧",
+      "music": 0
+    },
+    {
+      "from": 1102.35,
+      "to": 1104.33,
+      "sid": 526,
+      "location": 2,
+      "content": "但是如果你想反馈的友好一点啊",
+      "music": 0
+    },
+    {
+      "from": 1104.33,
+      "to": 1107.54,
+      "sid": 527,
+      "location": 2,
+      "content": "你其实可以在这对shop的结果做一个判断",
+      "music": 0
+    },
+    {
+      "from": 1107.54,
+      "to": 1109.22,
+      "sid": 528,
+      "location": 2,
+      "content": "如果他是now的情况下",
+      "music": 0
+    },
+    {
+      "from": 1109.22,
+      "to": 1111.44,
+      "sid": 529,
+      "location": 2,
+      "content": "那么你就return一个feel啊",
+      "music": 0
+    },
+    {
+      "from": 1111.44,
+      "to": 1112.28,
+      "sid": 530,
+      "location": 2,
+      "content": "代表一个失败",
+      "music": 0
+    },
+    {
+      "from": 1112.28,
+      "to": 1113.18,
+      "sid": 531,
+      "location": 2,
+      "content": "告诉他说呀",
+      "music": 0
+    },
+    {
+      "from": 1113.18,
+      "to": 1115.199,
+      "sid": 532,
+      "location": 2,
+      "content": "你这个店铺不存在",
+      "music": 0
+    },
+    {
+      "from": 1115.199,
+      "to": 1116.5,
+      "sid": 533,
+      "location": 2,
+      "content": "好就ok了",
+      "music": 0
+    },
+    {
+      "from": 1116.68,
+      "to": 1117.43,
+      "sid": 534,
+      "location": 2,
+      "content": "好",
+      "music": 0
+    },
+    {
+      "from": 1117.43,
+      "to": 1121.9,
+      "sid": 535,
+      "location": 2,
+      "content": "那这样的话呢我们这个功能算是基本上完成了",
+      "music": 0
+    },
+    {
+      "from": 1121.9,
+      "to": 1124.3,
+      "sid": 536,
+      "location": 2,
+      "content": "下面呢我们就可以做测试了啊",
+      "music": 0
+    },
+    {
+      "from": 1124.3,
+      "to": 1125.68,
+      "sid": 537,
+      "location": 2,
+      "content": "不过呢在做测试的时候",
+      "music": 0
+    },
+    {
+      "from": 1125.68,
+      "to": 1127,
+      "sid": 538,
+      "location": 2,
+      "content": "大家要注意一下了",
+      "music": 0
+    },
+    {
+      "from": 1127,
+      "to": 1127.9,
+      "sid": 539,
+      "location": 2,
+      "content": "我们当时讨论的时候",
+      "music": 0
+    },
+    {
+      "from": 1127.9,
+      "to": 1129.1,
+      "sid": 540,
+      "location": 2,
+      "content": "我们讲说什么啊",
+      "music": 0
+    },
+    {
+      "from": 1129.1,
+      "to": 1131.5,
+      "sid": 541,
+      "location": 2,
+      "content": "我们的热点可以它要满足两个条件",
+      "music": 0
+    },
+    {
+      "from": 1131.5,
+      "to": 1132.75,
+      "sid": 542,
+      "location": 2,
+      "content": "第一就是高并发",
+      "music": 0
+    },
+    {
+      "from": 1132.75,
+      "to": 1135.63,
+      "sid": 543,
+      "location": 2,
+      "content": "那么第二呢就是缓存重建的时间比较久",
+      "music": 0
+    },
+    {
+      "from": 1135.63,
+      "to": 1136.71,
+      "sid": 544,
+      "location": 2,
+      "content": "重建时间越久",
+      "music": 0
+    },
+    {
+      "from": 1136.71,
+      "to": 1139.899,
+      "sid": 545,
+      "location": 2,
+      "content": "发生线程并发安全问题的可能性是不是越高",
+      "music": 0
+    },
+    {
+      "from": 1139.94,
+      "to": 1141.56,
+      "sid": 546,
+      "location": 2,
+      "content": "而我们现在的话呢",
+      "music": 0
+    },
+    {
+      "from": 1141.56,
+      "to": 1144.08,
+      "sid": 547,
+      "location": 2,
+      "content": "其实重建的时间是一瞬间就结束了",
+      "music": 0
+    },
+    {
+      "from": 1144.08,
+      "to": 1144.74,
+      "sid": 548,
+      "location": 2,
+      "content": "为什么",
+      "music": 0
+    },
+    {
+      "from": 1144.74,
+      "to": 1147.05,
+      "sid": 549,
+      "location": 2,
+      "content": "因为我们这个产业数据库是在本地",
+      "music": 0
+    },
+    {
+      "from": 1147.05,
+      "to": 1148.37,
+      "sid": 550,
+      "location": 2,
+      "content": "速度是非常快",
+      "music": 0
+    },
+    {
+      "from": 1148.37,
+      "to": 1149.12,
+      "sid": 551,
+      "location": 2,
+      "content": "所以说呢",
+      "music": 0
+    },
+    {
+      "from": 1149.12,
+      "to": 1152.63,
+      "sid": 552,
+      "location": 2,
+      "content": "我们为了让它更容易的发生这种并发的冲突啊",
+      "music": 0
+    },
+    {
+      "from": 1152.63,
+      "to": 1155.59,
+      "sid": 553,
+      "location": 2,
+      "content": "我们在这儿给它也休眠一下啊",
+      "music": 0
+    },
+    {
+      "from": 1155.59,
+      "to": 1157.87,
+      "sid": 554,
+      "location": 2,
+      "content": "也就是thread.sleep休眠",
+      "music": 0
+    },
+    {
+      "from": 1157.87,
+      "to": 1159.25,
+      "sid": 555,
+      "location": 2,
+      "content": "休眠个200ms",
+      "music": 0
+    },
+    {
+      "from": 1159.25,
+      "to": 1161.5,
+      "sid": 556,
+      "location": 2,
+      "content": "模拟下什么模拟一下延迟啊",
+      "music": 0
+    },
+    {
+      "from": 1161.8,
+      "to": 1164.92,
+      "sid": 557,
+      "location": 2,
+      "content": "模拟重建啊的一个延时",
+      "music": 0
+    },
+    {
+      "from": 1164.92,
+      "to": 1167.86,
+      "sid": 558,
+      "location": 2,
+      "content": "那这样一来呢你重建延迟越高",
+      "music": 0
+    },
+    {
+      "from": 1167.86,
+      "to": 1169.24,
+      "sid": 559,
+      "location": 2,
+      "content": "在这200ms内啊",
+      "music": 0
+    },
+    {
+      "from": 1169.24,
+      "to": 1171.98,
+      "sid": 560,
+      "location": 2,
+      "content": "其实并发啊出现的线程是不是越多",
+      "music": 0
+    },
+    {
+      "from": 1171.98,
+      "to": 1174.71,
+      "sid": 561,
+      "location": 2,
+      "content": "那如此制作的线程大家都来执行啊",
+      "music": 0
+    },
+    {
+      "from": 1174.71,
+      "to": 1177.02,
+      "sid": 562,
+      "location": 2,
+      "content": "那么很有可能就会出现安全问题了",
+      "music": 0
+    },
+    {
+      "from": 1177.02,
+      "to": 1179.18,
+      "sid": 563,
+      "location": 2,
+      "content": "这时候就是检验我们这个锁可",
+      "music": 0
+    },
+    {
+      "from": 1179.18,
+      "to": 1181.14,
+      "sid": 564,
+      "location": 2,
+      "content": "可不可靠的一个时间了",
+      "music": 0
+    },
+    {
+      "from": 1181.14,
+      "to": 1182.25,
+      "sid": 565,
+      "location": 2,
+      "content": "对吧好",
+      "music": 0
+    },
+    {
+      "from": 1182.25,
+      "to": 1183.93,
+      "sid": 566,
+      "location": 2,
+      "content": "下边呢我们就重启一下",
+      "music": 0
+    },
+    {
+      "from": 1183.93,
+      "to": 1184.77,
+      "sid": 567,
+      "location": 2,
+      "content": "做个测试啊",
+      "music": 0
+    },
+    {
+      "from": 1184.77,
+      "to": 1185.48,
+      "sid": 568,
+      "location": 2,
+      "content": "重启",
+      "music": 0
+    },
+    {
+      "from": 1187.64,
+      "to": 1188.68,
+      "sid": 569,
+      "location": 2,
+      "content": "好重启完成",
+      "music": 0
+    },
+    {
+      "from": 1188.68,
+      "to": 1190.18,
+      "sid": 570,
+      "location": 2,
+      "content": "我们先把日志清空啊",
+      "music": 0
+    },
+    {
+      "from": 1190.18,
+      "to": 1192.94,
+      "sid": 571,
+      "location": 2,
+      "content": "嗯我们首先呢先去浏览器测试一下",
+      "music": 0
+    },
+    {
+      "from": 1192.94,
+      "to": 1195.13,
+      "sid": 572,
+      "location": 2,
+      "content": "打开浏览器随便访问一下啊",
+      "music": 0
+    },
+    {
+      "from": 1195.13,
+      "to": 1197.71,
+      "sid": 573,
+      "location": 2,
+      "content": "那因为呢我们现在去访问他",
+      "music": 0
+    },
+    {
+      "from": 1197.71,
+      "to": 1200.17,
+      "sid": 574,
+      "location": 2,
+      "content": "其实第一次肯定会走缓存对吧好",
+      "music": 0
+    },
+    {
+      "from": 1200.17,
+      "to": 1202.419,
+      "sid": 575,
+      "location": 2,
+      "content": "那么我们去把缓存给清空啊",
+      "music": 0
+    },
+    {
+      "from": 1202.64,
+      "to": 1206.12,
+      "sid": 576,
+      "location": 2,
+      "content": "好避免呢啊对我们产生影响",
+      "music": 0
+    },
+    {
+      "from": 1206.12,
+      "to": 1207.77,
+      "sid": 577,
+      "location": 2,
+      "content": "现在缓存已经清空了",
+      "music": 0
+    },
+    {
+      "from": 1207.77,
+      "to": 1210.85,
+      "sid": 578,
+      "location": 2,
+      "content": "那同学们接下来如果再访问它会干什么",
+      "music": 0
+    },
+    {
+      "from": 1210.85,
+      "to": 1213.69,
+      "sid": 579,
+      "location": 2,
+      "content": "他是不是就会去重建缓存了",
+      "music": 0
+    },
+    {
+      "from": 1213.69,
+      "to": 1214.74,
+      "sid": 580,
+      "location": 2,
+      "content": "那重建缓存的时候",
+      "music": 0
+    },
+    {
+      "from": 1214.74,
+      "to": 1216.42,
+      "sid": 581,
+      "location": 2,
+      "content": "如果是在高并发的情况下",
+      "music": 0
+    },
+    {
+      "from": 1216.42,
+      "to": 1218.22,
+      "sid": 582,
+      "location": 2,
+      "content": "是有可能出现问题的啊",
+      "music": 0
+    },
+    {
+      "from": 1218.22,
+      "to": 1221.74,
+      "sid": 583,
+      "location": 2,
+      "content": "那么我们就来检验一下这个锁到底安不安全",
+      "music": 0
+    },
+    {
+      "from": 1221.78,
+      "to": 1225.5,
+      "sid": 584,
+      "location": 2,
+      "content": "那我们到底该怎么样去模拟这种啊",
+      "music": 0
+    },
+    {
+      "from": 1225.5,
+      "to": 1227.21,
+      "sid": 585,
+      "location": 2,
+      "content": "高并发的这种场景呢",
+      "music": 0
+    },
+    {
+      "from": 1227.21,
+      "to": 1230.45,
+      "sid": 586,
+      "location": 2,
+      "content": "好这里呢我们就要用到一个开发的工具了啊",
+      "music": 0
+    },
+    {
+      "from": 1230.45,
+      "to": 1232.28,
+      "sid": 587,
+      "location": 2,
+      "content": "就是我们的jmeter",
+      "music": 0
+    },
+    {
+      "from": 1232.28,
+      "to": 1232.97,
+      "sid": 588,
+      "location": 2,
+      "content": "好",
+      "music": 0
+    },
+    {
+      "from": 1232.97,
+      "to": 1235.19,
+      "sid": 589,
+      "location": 2,
+      "content": "在这儿我已经准备好了啊",
+      "music": 0
+    },
+    {
+      "from": 1235.19,
+      "to": 1237.83,
+      "sid": 590,
+      "location": 2,
+      "content": "jpor呢是用来这种做一些并发测试的",
+      "music": 0
+    },
+    {
+      "from": 1237.83,
+      "to": 1240.159,
+      "sid": 591,
+      "location": 2,
+      "content": "或者说一些啊压力测试的啊",
+      "music": 0
+    },
+    {
+      "from": 1240.159,
+      "to": 1242.319,
+      "sid": 592,
+      "location": 2,
+      "content": "在这呢我定了1000个线程",
+      "music": 0
+    },
+    {
+      "from": 1242.319,
+      "to": 1243.699,
+      "sid": 593,
+      "location": 2,
+      "content": "然后呢时间是五秒",
+      "music": 0
+    },
+    {
+      "from": 1243.699,
+      "to": 1245.139,
+      "sid": 594,
+      "location": 2,
+      "content": "那基本上我的q p s",
+      "music": 0
+    },
+    {
+      "from": 1245.139,
+      "to": 1247.34,
+      "sid": 595,
+      "location": 2,
+      "content": "可以达到200的一个样子啊",
+      "music": 0
+    },
+    {
+      "from": 1247.34,
+      "to": 1249.69,
+      "sid": 596,
+      "location": 2,
+      "content": "那我们现在就做一个测试看一看啊",
+      "music": 0
+    },
+    {
+      "from": 1249.69,
+      "to": 1252.93,
+      "sid": 597,
+      "location": 2,
+      "content": "他能不能在高并发情况下保证安全",
+      "music": 0
+    },
+    {
+      "from": 1252.93,
+      "to": 1255.93,
+      "sid": 598,
+      "location": 2,
+      "content": "然后呢我们这个请求的地址呢就是local host",
+      "music": 0
+    },
+    {
+      "from": 1255.93,
+      "to": 1257.31,
+      "sid": 599,
+      "location": 2,
+      "content": "8081下载效果",
+      "music": 0
+    },
+    {
+      "from": 1257.31,
+      "to": 1257.719,
+      "sid": 600,
+      "location": 2,
+      "content": "一",
+      "music": 0
+    },
+    {
+      "from": 1257.719,
+      "to": 1258.799,
+      "sid": 601,
+      "location": 2,
+      "content": "shop一呢",
+      "music": 0
+    },
+    {
+      "from": 1258.799,
+      "to": 1262.039,
+      "sid": 602,
+      "location": 2,
+      "content": "就是我们刚才这个根据id查店铺的这个接口",
+      "music": 0
+    },
+    {
+      "from": 1262.039,
+      "to": 1262.879,
+      "sid": 603,
+      "location": 2,
+      "content": "对吧好",
+      "music": 0
+    },
+    {
+      "from": 1262.879,
+      "to": 1264.379,
+      "sid": 604,
+      "location": 2,
+      "content": "那现在我们就来试一下啊",
+      "music": 0
+    },
+    {
+      "from": 1264.379,
+      "to": 1267.98,
+      "sid": 605,
+      "location": 2,
+      "content": "我们呢去发起这个请求走好",
+      "music": 0
+    },
+    {
+      "from": 1267.98,
+      "to": 1268.88,
+      "sid": 606,
+      "location": 2,
+      "content": "那么很快啊",
+      "music": 0
+    },
+    {
+      "from": 1268.88,
+      "to": 1271.37,
+      "sid": 607,
+      "location": 2,
+      "content": "这1000个线程就已经执行完毕了啊",
+      "music": 0
+    },
+    {
+      "from": 1271.37,
+      "to": 1272.37,
+      "sid": 608,
+      "location": 2,
+      "content": "在五秒钟内",
+      "music": 0
+    },
+    {
+      "from": 1272.37,
+      "to": 1275.19,
+      "sid": 609,
+      "location": 2,
+      "content": "那么这块呢执行的结果其实都是成功的",
+      "music": 0
+    },
+    {
+      "from": 1275.19,
+      "to": 1277.2,
+      "sid": 610,
+      "location": 2,
+      "content": "证明我们数据是不是都查到了",
+      "music": 0
+    },
+    {
+      "from": 1277.2,
+      "to": 1277.95,
+      "sid": 611,
+      "location": 2,
+      "content": "没错吧",
+      "music": 0
+    },
+    {
+      "from": 1277.95,
+      "to": 1282.13,
+      "sid": 612,
+      "location": 2,
+      "content": "然后呢我们这块的q p s基本上能够做到呃",
+      "music": 0
+    },
+    {
+      "from": 1282.13,
+      "to": 1282.91,
+      "sid": 613,
+      "location": 2,
+      "content": "200的样子啊",
+      "music": 0
+    },
+    {
+      "from": 1282.91,
+      "to": 1283.87,
+      "sid": 614,
+      "location": 2,
+      "content": "每秒钟200",
+      "music": 0
+    },
+    {
+      "from": 1283.87,
+      "to": 1287,
+      "sid": 615,
+      "location": 2,
+      "content": "然后呢我们去看一下我们的日志好",
+      "music": 0
+    },
+    {
+      "from": 1287,
+      "to": 1289.46,
+      "sid": 616,
+      "location": 2,
+      "content": "大家看在整个我们的控制台里啊",
+      "music": 0
+    },
+    {
+      "from": 1289.46,
+      "to": 1293.77,
+      "sid": 617,
+      "location": 2,
+      "content": "其实对于数据库的查询制触发了几次呢",
+      "music": 0
+    },
+    {
+      "from": 1293.77,
+      "to": 1294.97,
+      "sid": 618,
+      "location": 2,
+      "content": "一次对不对",
+      "music": 0
+    },
+    {
+      "from": 1294.97,
+      "to": 1296.49,
+      "sid": 619,
+      "location": 2,
+      "content": "只有一次好吧",
+      "music": 0
+    },
+    {
+      "from": 1296.49,
+      "to": 1299.73,
+      "sid": 620,
+      "location": 2,
+      "content": "那就证明在高并发的场景下",
+      "music": 0
+    },
+    {
+      "from": 1299.73,
+      "to": 1301.05,
+      "sid": 621,
+      "location": 2,
+      "content": "如此高并发的场景下",
+      "music": 0
+    },
+    {
+      "from": 1301.05,
+      "to": 1303.83,
+      "sid": 622,
+      "location": 2,
+      "content": "我们并没有说出现啊",
+      "music": 0
+    },
+    {
+      "from": 1303.83,
+      "to": 1305.62,
+      "sid": 623,
+      "location": 2,
+      "content": "所有的请求都达到数据库的情况",
+      "music": 0
+    },
+    {
+      "from": 1305.62,
+      "to": 1306.73,
+      "sid": 624,
+      "location": 2,
+      "content": "而是什么呀",
+      "music": 0
+    },
+    {
+      "from": 1306.73,
+      "to": 1308.2,
+      "sid": 625,
+      "location": 2,
+      "content": "唉只有一个人进来了",
+      "music": 0
+    },
+    {
+      "from": 1308.2,
+      "to": 1310.72,
+      "sid": 626,
+      "location": 2,
+      "content": "说明我们这块基于护士所的这个解决方案",
+      "music": 0
+    },
+    {
+      "from": 1310.72,
+      "to": 1312.23,
+      "sid": 627,
+      "location": 2,
+      "content": "是不是成功了啊",
+      "music": 0
+    },
+    {
+      "from": 1312.23,
+      "to": 1313.14,
+      "sid": 628,
+      "location": 2,
+      "content": "没问题啊",
+      "music": 0
+    },
+    {
+      "from": 1313.14,
+      "to": 1313.86,
+      "sid": 629,
+      "location": 2,
+      "content": "好吧",
+      "music": 0
+    },
+    {
+      "from": 1313.86,
+      "to": 1316.71,
+      "sid": 630,
+      "location": 2,
+      "content": "那我们的这个护士所的功能",
+      "music": 0
+    },
+    {
+      "from": 1316.71,
+      "to": 1318.06,
+      "sid": 631,
+      "location": 2,
+      "content": "到这就演示完毕了啊",
+      "music": 0
+    },
+    {
+      "from": 1318.06,
+      "to": 1319.06,
+      "sid": 632,
+      "location": 2,
+      "content": "那这节课就到这里",
+      "music": 0
+    }
+  ]
+}

@@ -1,0 +1,2392 @@
+{
+  "page": 50,
+  "title": "实战篇-03.优惠券秒杀-添加优惠券",
+  "duration": 650,
+  "basis": "Public Bilibili AI Chinese subtitle; verify identifiers against frames",
+  "body": [
+    {
+      "from": 1.48,
+      "to": 2.32,
+      "sid": 1,
+      "location": 2,
+      "content": "好同学们",
+      "music": 0
+    },
+    {
+      "from": 2.32,
+      "to": 3.28,
+      "sid": 2,
+      "location": 2,
+      "content": "在上节课呢",
+      "music": 0
+    },
+    {
+      "from": 3.28,
+      "to": 7.33,
+      "sid": 3,
+      "location": 2,
+      "content": "我们已经解决了下单时id的唯一性问题",
+      "music": 0
+    },
+    {
+      "from": 7.33,
+      "to": 9.84,
+      "sid": 4,
+      "location": 2,
+      "content": "那接下来呢我们自然就可以学",
+      "music": 0
+    },
+    {
+      "from": 9.84,
+      "to": 13.77,
+      "sid": 5,
+      "location": 2,
+      "content": "实现优惠券的秒杀下单功能了",
+      "music": 0
+    },
+    {
+      "from": 13.77,
+      "to": 15.489,
+      "sid": 6,
+      "location": 2,
+      "content": "那我们一起来看一下啊",
+      "music": 0
+    },
+    {
+      "from": 15.489,
+      "to": 19.57,
+      "sid": 7,
+      "location": 2,
+      "content": "之前也说过嗯在我们黑马点评的网站里啊",
+      "music": 0
+    },
+    {
+      "from": 19.57,
+      "to": 21.97,
+      "sid": 8,
+      "location": 2,
+      "content": "商品就是优惠券啊",
+      "music": 0
+    },
+    {
+      "from": 21.97,
+      "to": 23.98,
+      "sid": 9,
+      "location": 2,
+      "content": "或者讲的是代金券啊",
+      "music": 0
+    },
+    {
+      "from": 23.98,
+      "to": 26.41,
+      "sid": 10,
+      "location": 2,
+      "content": "但这个券呢它分两种",
+      "music": 0
+    },
+    {
+      "from": 26.41,
+      "to": 28.39,
+      "sid": 11,
+      "location": 2,
+      "content": "一种是平价券",
+      "music": 0
+    },
+    {
+      "from": 28.39,
+      "to": 29.89,
+      "sid": 12,
+      "location": 2,
+      "content": "就像我们这里的第一章",
+      "music": 0
+    },
+    {
+      "from": 29.89,
+      "to": 32.56,
+      "sid": 13,
+      "location": 2,
+      "content": "你可以看到47块五带50",
+      "music": 0
+    },
+    {
+      "from": 32.56,
+      "to": 34.66,
+      "sid": 14,
+      "location": 2,
+      "content": "那么等于是打了个九五折嘛",
+      "music": 0
+    },
+    {
+      "from": 34.66,
+      "to": 37.21,
+      "sid": 15,
+      "location": 2,
+      "content": "那这样的券呢平平无奇啊",
+      "music": 0
+    },
+    {
+      "from": 37.21,
+      "to": 38.679,
+      "sid": 16,
+      "location": 2,
+      "content": "比较便宜啊",
+      "music": 0
+    },
+    {
+      "from": 38.679,
+      "to": 41.139,
+      "sid": 17,
+      "location": 2,
+      "content": "所以说呢嗯可以大量发放啊",
+      "music": 0
+    },
+    {
+      "from": 41.139,
+      "to": 41.859,
+      "sid": 18,
+      "location": 2,
+      "content": "随意购买",
+      "music": 0
+    },
+    {
+      "from": 41.859,
+      "to": 43.44,
+      "sid": 19,
+      "location": 2,
+      "content": "就是给你意思一样啊",
+      "music": 0
+    },
+    {
+      "from": 43.44,
+      "to": 45.66,
+      "sid": 20,
+      "location": 2,
+      "content": "但是第二张券呢就不一样了",
+      "music": 0
+    },
+    {
+      "from": 45.66,
+      "to": 48.47,
+      "sid": 21,
+      "location": 2,
+      "content": "那这个券你可以看到他80抵100",
+      "music": 0
+    },
+    {
+      "from": 48.47,
+      "to": 50.51,
+      "sid": 22,
+      "location": 2,
+      "content": "所以说呢它的折扣就比较大了",
+      "music": 0
+    },
+    {
+      "from": 50.51,
+      "to": 51.849,
+      "sid": 23,
+      "location": 2,
+      "content": "达到了八折",
+      "music": 0
+    },
+    {
+      "from": 51.849,
+      "to": 53.709,
+      "sid": 24,
+      "location": 2,
+      "content": "这种券呢就是特价券",
+      "music": 0
+    },
+    {
+      "from": 53.709,
+      "to": 55.509,
+      "sid": 25,
+      "location": 2,
+      "content": "那因此呢折扣这么大",
+      "music": 0
+    },
+    {
+      "from": 55.509,
+      "to": 56.919,
+      "sid": 26,
+      "location": 2,
+      "content": "不能随便发放",
+      "music": 0
+    },
+    {
+      "from": 56.919,
+      "to": 57.759,
+      "sid": 27,
+      "location": 2,
+      "content": "可以看到啊",
+      "music": 0
+    },
+    {
+      "from": 57.759,
+      "to": 59.409,
+      "sid": 28,
+      "location": 2,
+      "content": "它是有一个库存限制的",
+      "music": 0
+    },
+    {
+      "from": 59.409,
+      "to": 60.65,
+      "sid": 29,
+      "location": 2,
+      "content": "就100张啊",
+      "music": 0
+    },
+    {
+      "from": 60.65,
+      "to": 61.52,
+      "sid": 30,
+      "location": 2,
+      "content": "卖完就没了",
+      "music": 0
+    },
+    {
+      "from": 61.52,
+      "to": 64.07,
+      "sid": 31,
+      "location": 2,
+      "content": "所以呢需要大家去抢购",
+      "music": 0
+    },
+    {
+      "from": 64.07,
+      "to": 65.7,
+      "sid": 32,
+      "location": 2,
+      "content": "先到先得",
+      "music": 0
+    },
+    {
+      "from": 65.72,
+      "to": 67.76,
+      "sid": 33,
+      "location": 2,
+      "content": "并且也不是随时都能抢",
+      "music": 0
+    },
+    {
+      "from": 67.76,
+      "to": 70,
+      "sid": 34,
+      "location": 2,
+      "content": "你可以看到他还有时间的限制",
+      "music": 0
+    },
+    {
+      "from": 70,
+      "to": 72.64,
+      "sid": 35,
+      "location": 2,
+      "content": "所以呢这就是我们的两种不同的券",
+      "music": 0
+    },
+    {
+      "from": 72.64,
+      "to": 74.02,
+      "sid": 36,
+      "location": 2,
+      "content": "普通券不用去秒杀",
+      "music": 0
+    },
+    {
+      "from": 74.02,
+      "to": 76.16,
+      "sid": 37,
+      "location": 2,
+      "content": "但是这种特价券是需要去秒杀的",
+      "music": 0
+    },
+    {
+      "from": 76.16,
+      "to": 78.53,
+      "sid": 38,
+      "location": 2,
+      "content": "所以呢我们接下来讲这个秒杀下单",
+      "music": 0
+    },
+    {
+      "from": 78.53,
+      "to": 81.64,
+      "sid": 39,
+      "location": 2,
+      "content": "其实是针对这种特价券而言的",
+      "music": 0
+    },
+    {
+      "from": 81.64,
+      "to": 83.33,
+      "sid": 40,
+      "location": 2,
+      "content": "普通券就没什么好聊的了",
+      "music": 0
+    },
+    {
+      "from": 83.33,
+      "to": 85.85,
+      "sid": 41,
+      "location": 2,
+      "content": "那么这两张券对应的数据库表啊",
+      "music": 0
+    },
+    {
+      "from": 85.85,
+      "to": 88.1,
+      "sid": 42,
+      "location": 2,
+      "content": "一个呢是tb vulture表",
+      "music": 0
+    },
+    {
+      "from": 88.1,
+      "to": 90.65,
+      "sid": 43,
+      "location": 2,
+      "content": "那这个vure就是优惠券的意思",
+      "music": 0
+    },
+    {
+      "from": 90.65,
+      "to": 92.1,
+      "sid": 44,
+      "location": 2,
+      "content": "或者讲代金券啊",
+      "music": 0
+    },
+    {
+      "from": 92.1,
+      "to": 95.1,
+      "sid": 45,
+      "location": 2,
+      "content": "那这里边呢是指普通的这种代金券",
+      "music": 0
+    },
+    {
+      "from": 95.1,
+      "to": 96.9,
+      "sid": 46,
+      "location": 2,
+      "content": "就是没有特价的这种啊",
+      "music": 0
+    },
+    {
+      "from": 96.9,
+      "to": 98.88,
+      "sid": 47,
+      "location": 2,
+      "content": "所以呢它里面就是优秀的基本信息",
+      "music": 0
+    },
+    {
+      "from": 98.88,
+      "to": 99.89,
+      "sid": 48,
+      "location": 2,
+      "content": "使用规则的呢",
+      "music": 0
+    },
+    {
+      "from": 99.89,
+      "to": 100.61,
+      "sid": 49,
+      "location": 2,
+      "content": "第二个呢",
+      "music": 0
+    },
+    {
+      "from": 100.61,
+      "to": 101.69,
+      "sid": 50,
+      "location": 2,
+      "content": "thank you watch",
+      "music": 0
+    },
+    {
+      "from": 101.69,
+      "to": 103.83,
+      "sid": 51,
+      "location": 2,
+      "content": "顾名思义秒杀券啊",
+      "music": 0
+    },
+    {
+      "from": 103.83,
+      "to": 105.27,
+      "sid": 52,
+      "location": 2,
+      "content": "或者讲叫特价券啊",
+      "music": 0
+    },
+    {
+      "from": 105.27,
+      "to": 108.84,
+      "sid": 53,
+      "location": 2,
+      "content": "所以啊这是刚好对应了评价圈和特价券两种",
+      "music": 0
+    },
+    {
+      "from": 108.84,
+      "to": 110.37,
+      "sid": 54,
+      "location": 2,
+      "content": "那我们来看一下它的数据结构",
+      "music": 0
+    },
+    {
+      "from": 110.37,
+      "to": 111.12,
+      "sid": 55,
+      "location": 2,
+      "content": "打开数据库",
+      "music": 0
+    },
+    {
+      "from": 112.5,
+      "to": 114.02,
+      "sid": 56,
+      "location": 2,
+      "content": "首先看vtu",
+      "music": 0
+    },
+    {
+      "from": 114.6,
+      "to": 117.92,
+      "sid": 57,
+      "location": 2,
+      "content": "vtu表里边的字段的第一个主键就不说了啊",
+      "music": 0
+    },
+    {
+      "from": 117.92,
+      "to": 120.4,
+      "sid": 58,
+      "location": 2,
+      "content": "然后下边这个是商铺的id",
+      "music": 0
+    },
+    {
+      "from": 120.4,
+      "to": 122.8,
+      "sid": 59,
+      "location": 2,
+      "content": "你这个券肯定是跟店铺有关联的吗",
+      "music": 0
+    },
+    {
+      "from": 122.8,
+      "to": 125.11,
+      "sid": 60,
+      "location": 2,
+      "content": "是哪个店铺发放代金券",
+      "music": 0
+    },
+    {
+      "from": 125.11,
+      "to": 126.67,
+      "sid": 61,
+      "location": 2,
+      "content": "所以呢讲记录他的id",
+      "music": 0
+    },
+    {
+      "from": 126.67,
+      "to": 128.43,
+      "sid": 62,
+      "location": 2,
+      "content": "然后是单线圈的标题",
+      "music": 0
+    },
+    {
+      "from": 128.43,
+      "to": 130.17,
+      "sid": 63,
+      "location": 2,
+      "content": "你是一个多少钱的代金券啊",
+      "music": 0
+    },
+    {
+      "from": 130.17,
+      "to": 131.91,
+      "sid": 64,
+      "location": 2,
+      "content": "100块的还是50块的呀对吧",
+      "music": 0
+    },
+    {
+      "from": 131.91,
+      "to": 133.08,
+      "sid": 65,
+      "location": 2,
+      "content": "还有副标题",
+      "music": 0
+    },
+    {
+      "from": 133.08,
+      "to": 134.41,
+      "sid": 66,
+      "location": 2,
+      "content": "就是一些描述",
+      "music": 0
+    },
+    {
+      "from": 134.41,
+      "to": 136.09,
+      "sid": 67,
+      "location": 2,
+      "content": "还有使用的规则",
+      "music": 0
+    },
+    {
+      "from": 136.09,
+      "to": 138.589,
+      "sid": 68,
+      "location": 2,
+      "content": "如那么规则了可以有很多",
+      "music": 0
+    },
+    {
+      "from": 138.589,
+      "to": 141.139,
+      "sid": 69,
+      "location": 2,
+      "content": "比如说呃什么时间能够使用啊",
+      "music": 0
+    },
+    {
+      "from": 141.139,
+      "to": 143.059,
+      "sid": 70,
+      "location": 2,
+      "content": "可以叠加多少张使用啊等等",
+      "music": 0
+    },
+    {
+      "from": 143.059,
+      "to": 144.46,
+      "sid": 71,
+      "location": 2,
+      "content": "这些都是规则",
+      "music": 0
+    },
+    {
+      "from": 144.54,
+      "to": 146.34,
+      "sid": 72,
+      "location": 2,
+      "content": "然后呢配value了",
+      "music": 0
+    },
+    {
+      "from": 146.34,
+      "to": 148.62,
+      "sid": 73,
+      "location": 2,
+      "content": "就是他的支付金额嗯",
+      "music": 0
+    },
+    {
+      "from": 148.62,
+      "to": 150.24,
+      "sid": 74,
+      "location": 2,
+      "content": "还有value是实际金额",
+      "music": 0
+    },
+    {
+      "from": 150.24,
+      "to": 154.54,
+      "sid": 75,
+      "location": 2,
+      "content": "比如说啊我们这个47块五抵50",
+      "music": 0
+    },
+    {
+      "from": 154.54,
+      "to": 157.96,
+      "sid": 76,
+      "location": 2,
+      "content": "那么这里的50啊就是它的实际金额啊",
+      "music": 0
+    },
+    {
+      "from": 157.96,
+      "to": 159.7,
+      "sid": 77,
+      "location": 2,
+      "content": "pay value就是你的负的金额",
+      "music": 0
+    },
+    {
+      "from": 159.7,
+      "to": 160.78,
+      "sid": 78,
+      "location": 2,
+      "content": "47块五啊",
+      "music": 0
+    },
+    {
+      "from": 160.78,
+      "to": 164.02,
+      "sid": 79,
+      "location": 2,
+      "content": "所以这两个代表的其实就是你的那个折扣了",
+      "music": 0
+    },
+    {
+      "from": 164.02,
+      "to": 166.329,
+      "sid": 80,
+      "location": 2,
+      "content": "好tap呢是你这个圈的类型",
+      "music": 0
+    },
+    {
+      "from": 166.329,
+      "to": 168.189,
+      "sid": 81,
+      "location": 2,
+      "content": "普通券是零啊",
+      "music": 0
+    },
+    {
+      "from": 168.189,
+      "to": 169.389,
+      "sid": 82,
+      "location": 2,
+      "content": "秒杀券呢是一",
+      "music": 0
+    },
+    {
+      "from": 169.389,
+      "to": 170.68,
+      "sid": 83,
+      "location": 2,
+      "content": "这是一个标识",
+      "music": 0
+    },
+    {
+      "from": 170.68,
+      "to": 172.33,
+      "sid": 84,
+      "location": 2,
+      "content": "status是状态",
+      "music": 0
+    },
+    {
+      "from": 172.33,
+      "to": 173.2,
+      "sid": 85,
+      "location": 2,
+      "content": "可以有上架",
+      "music": 0
+    },
+    {
+      "from": 173.2,
+      "to": 174.6,
+      "sid": 86,
+      "location": 2,
+      "content": "下架和过去三种状态",
+      "music": 0
+    },
+    {
+      "from": 174.6,
+      "to": 177.6,
+      "sid": 87,
+      "location": 2,
+      "content": "也就是说呢我们的管理员可以去操作啊",
+      "music": 0
+    },
+    {
+      "from": 177.6,
+      "to": 179.67,
+      "sid": 88,
+      "location": 2,
+      "content": "那么一个券理论上讲刚刚添加",
+      "music": 0
+    },
+    {
+      "from": 179.67,
+      "to": 181.519,
+      "sid": 89,
+      "location": 2,
+      "content": "它应该是一个下架状态",
+      "music": 0
+    },
+    {
+      "from": 181.519,
+      "to": 183.65,
+      "sid": 90,
+      "location": 2,
+      "content": "管理员呢去检验啊",
+      "music": 0
+    },
+    {
+      "from": 183.65,
+      "to": 186.77,
+      "sid": 91,
+      "location": 2,
+      "content": "审核通过可以给它上架去使用",
+      "music": 0
+    },
+    {
+      "from": 186.77,
+      "to": 188.3,
+      "sid": 92,
+      "location": 2,
+      "content": "如果觉得你的车有问题",
+      "music": 0
+    },
+    {
+      "from": 188.3,
+      "to": 189.73,
+      "sid": 93,
+      "location": 2,
+      "content": "就可以不去上架了",
+      "music": 0
+    },
+    {
+      "from": 189.73,
+      "to": 191.77,
+      "sid": 94,
+      "location": 2,
+      "content": "所以呢它会有一个上架下架的状态",
+      "music": 0
+    },
+    {
+      "from": 191.77,
+      "to": 194.05,
+      "sid": 95,
+      "location": 2,
+      "content": "并且呢如果这个券将来我不想再用了",
+      "music": 0
+    },
+    {
+      "from": 194.05,
+      "to": 195.73,
+      "sid": 96,
+      "location": 2,
+      "content": "我也可以让它处于一个过期状态",
+      "music": 0
+    },
+    {
+      "from": 195.73,
+      "to": 197.04,
+      "sid": 97,
+      "location": 2,
+      "content": "也都是没问题的啊",
+      "music": 0
+    },
+    {
+      "from": 197.2,
+      "to": 199.51,
+      "sid": 98,
+      "location": 2,
+      "content": "好这是券的状态啊",
+      "music": 0
+    },
+    {
+      "from": 199.51,
+      "to": 201.64,
+      "sid": 99,
+      "location": 2,
+      "content": "最后两个就是一个通用字段了",
+      "music": 0
+    },
+    {
+      "from": 201.64,
+      "to": 203.06,
+      "sid": 100,
+      "location": 2,
+      "content": "时间没什么好聊的",
+      "music": 0
+    },
+    {
+      "from": 203.06,
+      "to": 204.98,
+      "sid": 101,
+      "location": 2,
+      "content": "那这是第一张表格写表",
+      "music": 0
+    },
+    {
+      "from": 204.98,
+      "to": 206.6,
+      "sid": 102,
+      "location": 2,
+      "content": "可以看到这里面并没有库存啊",
+      "music": 0
+    },
+    {
+      "from": 206.6,
+      "to": 209.51,
+      "sid": 103,
+      "location": 2,
+      "content": "所以说呢它其实也可以理解成是平价券啊",
+      "music": 0
+    },
+    {
+      "from": 209.51,
+      "to": 211.67,
+      "sid": 104,
+      "location": 2,
+      "content": "就是任意的人都可以来购买",
+      "music": 0
+    },
+    {
+      "from": 211.67,
+      "to": 212.6,
+      "sid": 105,
+      "location": 2,
+      "content": "随意购买啊",
+      "music": 0
+    },
+    {
+      "from": 212.72,
+      "to": 214.58,
+      "sid": 106,
+      "location": 2,
+      "content": "而第二张表叫",
+      "music": 0
+    },
+    {
+      "from": 214.58,
+      "to": 215.6,
+      "sid": 107,
+      "location": 2,
+      "content": "thank you watch",
+      "music": 0
+    },
+    {
+      "from": 215.6,
+      "to": 216.62,
+      "sid": 108,
+      "location": 2,
+      "content": "秒杀券",
+      "music": 0
+    },
+    {
+      "from": 216.62,
+      "to": 218.06,
+      "sid": 109,
+      "location": 2,
+      "content": "可以看到这张券啊",
+      "music": 0
+    },
+    {
+      "from": 218.06,
+      "to": 220.24,
+      "sid": 110,
+      "location": 2,
+      "content": "它的一个主键啊",
+      "music": 0
+    },
+    {
+      "from": 220.24,
+      "to": 220.9,
+      "sid": 111,
+      "location": 2,
+      "content": "非常特殊",
+      "music": 0
+    },
+    {
+      "from": 220.9,
+      "to": 222.24,
+      "sid": 112,
+      "location": 2,
+      "content": "叫watcher id",
+      "music": 0
+    },
+    {
+      "from": 222.24,
+      "to": 223.86,
+      "sid": 113,
+      "location": 2,
+      "content": "而且也没有自增长",
+      "music": 0
+    },
+    {
+      "from": 223.86,
+      "to": 228.74,
+      "sid": 114,
+      "location": 2,
+      "content": "那么这个id啊其实就是vtuer表中的id",
+      "music": 0
+    },
+    {
+      "from": 228.74,
+      "to": 229.709,
+      "sid": 115,
+      "location": 2,
+      "content": "为什么呢",
+      "music": 0
+    },
+    {
+      "from": 229.709,
+      "to": 233.429,
+      "sid": 116,
+      "location": 2,
+      "content": "因为秒杀券它首先是一个圈",
+      "music": 0
+    },
+    {
+      "from": 233.429,
+      "to": 234.209,
+      "sid": 117,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 234.209,
+      "to": 238.34,
+      "sid": 118,
+      "location": 2,
+      "content": "所以说它具备voc中的所有信息",
+      "music": 0
+    },
+    {
+      "from": 238.34,
+      "to": 239.3,
+      "sid": 119,
+      "location": 2,
+      "content": "除此以外呢",
+      "music": 0
+    },
+    {
+      "from": 239.3,
+      "to": 241.01,
+      "sid": 120,
+      "location": 2,
+      "content": "又因为它是个秒杀券",
+      "music": 0
+    },
+    {
+      "from": 241.01,
+      "to": 243.44,
+      "sid": 121,
+      "location": 2,
+      "content": "所以他又多了一些别的信息",
+      "music": 0
+    },
+    {
+      "from": 243.44,
+      "to": 245.78,
+      "sid": 122,
+      "location": 2,
+      "content": "那因此我们是不是可以这么认为呢",
+      "music": 0
+    },
+    {
+      "from": 245.78,
+      "to": 252.66,
+      "sid": 123,
+      "location": 2,
+      "content": "就是说vtu表它里边啊包含的呢既有秒杀券",
+      "music": 0
+    },
+    {
+      "from": 252.66,
+      "to": 254.22,
+      "sid": 124,
+      "location": 2,
+      "content": "也有非秒杀券",
+      "music": 0
+    },
+    {
+      "from": 254.22,
+      "to": 254.7,
+      "sid": 125,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 254.7,
+      "to": 257.46,
+      "sid": 126,
+      "location": 2,
+      "content": "所以你看这里有两种标识吗",
+      "music": 0
+    },
+    {
+      "from": 257.46,
+      "to": 258.33,
+      "sid": 127,
+      "location": 2,
+      "content": "零和一嘛",
+      "music": 0
+    },
+    {
+      "from": 258.33,
+      "to": 261.709,
+      "sid": 128,
+      "location": 2,
+      "content": "而这里边的秒杀券",
+      "music": 0
+    },
+    {
+      "from": 261.709,
+      "to": 265.72,
+      "sid": 129,
+      "location": 2,
+      "content": "将来呢在cq表中会对应一些信息",
+      "music": 0
+    },
+    {
+      "from": 265.74,
+      "to": 267.81,
+      "sid": 130,
+      "location": 2,
+      "content": "等于是一个拓展字段了是吧",
+      "music": 0
+    },
+    {
+      "from": 267.81,
+      "to": 269.22,
+      "sid": 131,
+      "location": 2,
+      "content": "那这里面拓展出了什么字段呢",
+      "music": 0
+    },
+    {
+      "from": 269.22,
+      "to": 270.16,
+      "sid": 132,
+      "location": 2,
+      "content": "d库存",
+      "music": 0
+    },
+    {
+      "from": 270.4,
+      "to": 272.83,
+      "sid": 133,
+      "location": 2,
+      "content": "因为秒杀券要有库存上限嘛",
+      "music": 0
+    },
+    {
+      "from": 272.83,
+      "to": 275.35,
+      "sid": 134,
+      "location": 2,
+      "content": "然后呢创建时间和更新时间",
+      "music": 0
+    },
+    {
+      "from": 275.35,
+      "to": 276.91,
+      "sid": 135,
+      "location": 2,
+      "content": "这俩就是基本的没什么好说的",
+      "music": 0
+    },
+    {
+      "from": 276.91,
+      "to": 279.73,
+      "sid": 136,
+      "location": 2,
+      "content": "然后关键这还有一个生效时间和失效时间",
+      "music": 0
+    },
+    {
+      "from": 279.73,
+      "to": 282.53,
+      "sid": 137,
+      "location": 2,
+      "content": "就是说这个券什么时候可以开始抢啊",
+      "music": 0
+    },
+    {
+      "from": 282.53,
+      "to": 283.7,
+      "sid": 138,
+      "location": 2,
+      "content": "什么时候结束抢",
+      "music": 0
+    },
+    {
+      "from": 283.7,
+      "to": 285.83,
+      "sid": 139,
+      "location": 2,
+      "content": "实上他这个抢不能随时都能抢",
+      "music": 0
+    },
+    {
+      "from": 285.83,
+      "to": 287.27,
+      "sid": 140,
+      "location": 2,
+      "content": "它是有一个生效时间的",
+      "music": 0
+    },
+    {
+      "from": 287.27,
+      "to": 289.79,
+      "sid": 141,
+      "location": 2,
+      "content": "在这段时间范围内可以去抢购",
+      "music": 0
+    },
+    {
+      "from": 289.79,
+      "to": 290.33,
+      "sid": 142,
+      "location": 2,
+      "content": "好",
+      "music": 0
+    },
+    {
+      "from": 290.33,
+      "to": 292.85,
+      "sid": 143,
+      "location": 2,
+      "content": "这呢就是秒杀圈的信息",
+      "music": 0
+    },
+    {
+      "from": 292.85,
+      "to": 294.98,
+      "sid": 144,
+      "location": 2,
+      "content": "核心就是三个库存和时间",
+      "music": 0
+    },
+    {
+      "from": 296.199,
+      "to": 301.799,
+      "sid": 145,
+      "location": 2,
+      "content": "所以这张表是对秒杀券的一个信息的补充啊",
+      "music": 0
+    },
+    {
+      "from": 301.799,
+      "to": 303.539,
+      "sid": 146,
+      "location": 2,
+      "content": "好了两张券就讲完了",
+      "music": 0
+    },
+    {
+      "from": 303.539,
+      "to": 304.71,
+      "sid": 147,
+      "location": 2,
+      "content": "那我们可以看一下",
+      "music": 0
+    },
+    {
+      "from": 304.71,
+      "to": 308.7,
+      "sid": 148,
+      "location": 2,
+      "content": "目前啊我们的普通券里其实是有一张的",
+      "music": 0
+    },
+    {
+      "from": 308.7,
+      "to": 312.21,
+      "sid": 149,
+      "location": 2,
+      "content": "但是这个秒杀券里是一张都没有的啊",
+      "music": 0
+    },
+    {
+      "from": 312.21,
+      "to": 315.78,
+      "sid": 150,
+      "location": 2,
+      "content": "那所以等一会呢我们需要去添加啊一些圈",
+      "music": 0
+    },
+    {
+      "from": 315.78,
+      "to": 317.28,
+      "sid": 151,
+      "location": 2,
+      "content": "这样才能去做我们测试嘛",
+      "music": 0
+    },
+    {
+      "from": 317.28,
+      "to": 319.12,
+      "sid": 152,
+      "location": 2,
+      "content": "我们也可以打开浏览器看一下",
+      "music": 0
+    },
+    {
+      "from": 319.14,
+      "to": 320.22,
+      "sid": 153,
+      "location": 2,
+      "content": "在目前啊",
+      "music": 0
+    },
+    {
+      "from": 320.22,
+      "to": 324.7,
+      "sid": 154,
+      "location": 2,
+      "content": "我们这个103茶餐厅这个店铺里面是没有呃",
+      "music": 0
+    },
+    {
+      "from": 324.82,
+      "to": 326.02,
+      "sid": 155,
+      "location": 2,
+      "content": "抢购券的",
+      "music": 0
+    },
+    {
+      "from": 326.02,
+      "to": 328.56,
+      "sid": 156,
+      "location": 2,
+      "content": "没有是没有秒杀券的啊",
+      "music": 0
+    },
+    {
+      "from": 328.56,
+      "to": 330.51,
+      "sid": 157,
+      "location": 2,
+      "content": "只有这种普通的单线圈对吧",
+      "music": 0
+    },
+    {
+      "from": 330.51,
+      "to": 333.36,
+      "sid": 158,
+      "location": 2,
+      "content": "然后呢我们去添加一个怎么添加呢",
+      "music": 0
+    },
+    {
+      "from": 333.36,
+      "to": 335.62,
+      "sid": 159,
+      "location": 2,
+      "content": "我回来ppt看一下好",
+      "music": 0
+    },
+    {
+      "from": 335.62,
+      "to": 338.909,
+      "sid": 160,
+      "location": 2,
+      "content": "那在这儿呢我们其实提供了一个接口啊",
+      "music": 0
+    },
+    {
+      "from": 338.909,
+      "to": 341.459,
+      "sid": 161,
+      "location": 2,
+      "content": "是用来添加秒杀优惠券的啊",
+      "music": 0
+    },
+    {
+      "from": 341.459,
+      "to": 343.379,
+      "sid": 162,
+      "location": 2,
+      "content": "叫vtual control",
+      "music": 0
+    },
+    {
+      "from": 343.379,
+      "to": 343.859,
+      "sid": 163,
+      "location": 2,
+      "content": "然后呢",
+      "music": 0
+    },
+    {
+      "from": 343.859,
+      "to": 347.19,
+      "sid": 164,
+      "location": 2,
+      "content": "它对应的这个路径呢是vtuer下面的secu",
+      "music": 0
+    },
+    {
+      "from": 347.19,
+      "to": 349.4,
+      "sid": 165,
+      "location": 2,
+      "content": "然后请求方式post",
+      "music": 0
+    },
+    {
+      "from": 349.4,
+      "to": 352.7,
+      "sid": 166,
+      "location": 2,
+      "content": "然后接收的呢是一个jason的lucas body啊",
+      "music": 0
+    },
+    {
+      "from": 352.7,
+      "to": 355.76,
+      "sid": 167,
+      "location": 2,
+      "content": "然后这里边呢是一个vtu对象好",
+      "music": 0
+    },
+    {
+      "from": 355.76,
+      "to": 358.34,
+      "sid": 168,
+      "location": 2,
+      "content": "所以呢我们只需要去调用这个接口啊",
+      "music": 0
+    },
+    {
+      "from": 358.34,
+      "to": 362.26,
+      "sid": 169,
+      "location": 2,
+      "content": "它就能帮我们啊去新增这个优惠券了",
+      "music": 0
+    },
+    {
+      "from": 362.26,
+      "to": 365.44,
+      "sid": 170,
+      "location": 2,
+      "content": "那这个新增里边呢我们可以去代码来看一下",
+      "music": 0
+    },
+    {
+      "from": 365.44,
+      "to": 372.12,
+      "sid": 171,
+      "location": 2,
+      "content": "打开地找到我们的version control control vtu",
+      "music": 0
+    },
+    {
+      "from": 372.12,
+      "to": 372.9,
+      "sid": 172,
+      "location": 2,
+      "content": "看错了",
+      "music": 0
+    },
+    {
+      "from": 372.9,
+      "to": 374.7,
+      "sid": 173,
+      "location": 2,
+      "content": "那么这个秒杀功能里面呢",
+      "music": 0
+    },
+    {
+      "from": 374.7,
+      "to": 376.2,
+      "sid": 174,
+      "location": 2,
+      "content": "它其实接收的时候啊",
+      "music": 0
+    },
+    {
+      "from": 376.2,
+      "to": 378.44,
+      "sid": 175,
+      "location": 2,
+      "content": "虽然看起来只接触了vtu对象啊",
+      "music": 0
+    },
+    {
+      "from": 378.44,
+      "to": 381.56,
+      "sid": 176,
+      "location": 2,
+      "content": "其实在这里边它会带上什么呢",
+      "music": 0
+    },
+    {
+      "from": 381.56,
+      "to": 385.18,
+      "sid": 177,
+      "location": 2,
+      "content": "往下翻可以看到它其实会带上库存",
+      "music": 0
+    },
+    {
+      "from": 385.18,
+      "to": 386.65,
+      "sid": 178,
+      "location": 2,
+      "content": "开始时间和结束时间",
+      "music": 0
+    },
+    {
+      "from": 386.65,
+      "to": 390.73,
+      "sid": 179,
+      "location": 2,
+      "content": "也就是说呢他会把秒杀券的核心的这三个字段",
+      "music": 0
+    },
+    {
+      "from": 390.73,
+      "to": 391.6,
+      "sid": 180,
+      "location": 2,
+      "content": "是不是带上了",
+      "music": 0
+    },
+    {
+      "from": 391.6,
+      "to": 392.65,
+      "sid": 181,
+      "location": 2,
+      "content": "因此你提交的时候",
+      "music": 0
+    },
+    {
+      "from": 392.65,
+      "to": 393.84,
+      "sid": 182,
+      "location": 2,
+      "content": "这几个都提交了",
+      "music": 0
+    },
+    {
+      "from": 393.84,
+      "to": 396.72,
+      "sid": 183,
+      "location": 2,
+      "content": "那么最终呢他在实现这个业务的时候呢",
+      "music": 0
+    },
+    {
+      "from": 396.72,
+      "to": 400.06,
+      "sid": 184,
+      "location": 2,
+      "content": "他就会帮你第一啊新增普通圈",
+      "music": 0
+    },
+    {
+      "from": 400.06,
+      "to": 402.36,
+      "sid": 185,
+      "location": 2,
+      "content": "第二新增这个秒杀券",
+      "music": 0
+    },
+    {
+      "from": 402.36,
+      "to": 405.25,
+      "sid": 186,
+      "location": 2,
+      "content": "所以两张表的信息都会帮你去新增啊",
+      "music": 0
+    },
+    {
+      "from": 405.25,
+      "to": 407.2,
+      "sid": 187,
+      "location": 2,
+      "content": "ok这个业务就看完了",
+      "music": 0
+    },
+    {
+      "from": 407.2,
+      "to": 408.97,
+      "sid": 188,
+      "location": 2,
+      "content": "下面呢我们就去添加一个",
+      "music": 0
+    },
+    {
+      "from": 408.97,
+      "to": 410.669,
+      "sid": 189,
+      "location": 2,
+      "content": "我们打开这个postman",
+      "music": 0
+    },
+    {
+      "from": 410.669,
+      "to": 414.389,
+      "sid": 190,
+      "location": 2,
+      "content": "这里理论上讲将来是从后台管理的接口里啊",
+      "music": 0
+    },
+    {
+      "from": 414.389,
+      "to": 416.069,
+      "sid": 191,
+      "location": 2,
+      "content": "后台管理的一个界面里添加的",
+      "music": 0
+    },
+    {
+      "from": 418.48,
+      "to": 421.03,
+      "sid": 192,
+      "location": 2,
+      "content": "所以说我们这里直接利用postman来添加了",
+      "music": 0
+    },
+    {
+      "from": 421.03,
+      "to": 424.03,
+      "sid": 193,
+      "location": 2,
+      "content": "在这儿有一个叫做添加秒杀圈的一个业务啊",
+      "music": 0
+    },
+    {
+      "from": 424.03,
+      "to": 425.47,
+      "sid": 194,
+      "location": 2,
+      "content": "我提前就已经写好了",
+      "music": 0
+    },
+    {
+      "from": 425.47,
+      "to": 429.04,
+      "sid": 195,
+      "location": 2,
+      "content": "大家可以看到啊啊vtusq这样一个接口",
+      "music": 0
+    },
+    {
+      "from": 429.04,
+      "to": 430.38,
+      "sid": 196,
+      "location": 2,
+      "content": "然后是post",
+      "music": 0
+    },
+    {
+      "from": 430.38,
+      "to": 433.2,
+      "sid": 197,
+      "location": 2,
+      "content": "然后在这里呢是准备好的一个json数据啊",
+      "music": 0
+    },
+    {
+      "from": 433.2,
+      "to": 435.06,
+      "sid": 198,
+      "location": 2,
+      "content": "关联的店铺是二啊",
+      "music": 0
+    },
+    {
+      "from": 435.06,
+      "to": 436.77,
+      "sid": 199,
+      "location": 2,
+      "content": "我们来关联1号店铺吧",
+      "music": 0
+    },
+    {
+      "from": 436.77,
+      "to": 441.039,
+      "sid": 200,
+      "location": 2,
+      "content": "就是那个嗯刚才那个茶餐厅嘛",
+      "music": 0
+    },
+    {
+      "from": 441.039,
+      "to": 443.75,
+      "sid": 201,
+      "location": 2,
+      "content": "然后呢标题是100元的代金券",
+      "music": 0
+    },
+    {
+      "from": 443.75,
+      "to": 447.32,
+      "sid": 202,
+      "location": 2,
+      "content": "周一到周五吧啊这种券的话",
+      "music": 0
+    },
+    {
+      "from": 447.32,
+      "to": 449.54,
+      "sid": 203,
+      "location": 2,
+      "content": "特价券周末就不让你用了是吧",
+      "music": 0
+    },
+    {
+      "from": 449.54,
+      "to": 451.43,
+      "sid": 204,
+      "location": 2,
+      "content": "周一到周五可以使用好",
+      "music": 0
+    },
+    {
+      "from": 451.43,
+      "to": 452.45,
+      "sid": 205,
+      "location": 2,
+      "content": "然后全场通用",
+      "music": 0
+    },
+    {
+      "from": 452.45,
+      "to": 452.99,
+      "sid": 206,
+      "location": 2,
+      "content": "无需预约",
+      "music": 0
+    },
+    {
+      "from": 452.99,
+      "to": 454.61,
+      "sid": 207,
+      "location": 2,
+      "content": "这是它的一个基本规则",
+      "music": 0
+    },
+    {
+      "from": 454.61,
+      "to": 456.71,
+      "sid": 208,
+      "location": 2,
+      "content": "然后配value是支付金额",
+      "music": 0
+    },
+    {
+      "from": 456.71,
+      "to": 458.09,
+      "sid": 209,
+      "location": 2,
+      "content": "然后一个xy轴的十负",
+      "music": 0
+    },
+    {
+      "from": 458.09,
+      "to": 459.71,
+      "sid": 210,
+      "location": 2,
+      "content": "你a就是80抵100诶",
+      "music": 0
+    },
+    {
+      "from": 459.71,
+      "to": 462.14,
+      "sid": 211,
+      "location": 2,
+      "content": "注意到这两个数怎么8000抵1万呢",
+      "music": 0
+    },
+    {
+      "from": 462.14,
+      "to": 464.31,
+      "sid": 212,
+      "location": 2,
+      "content": "这两个其实是他的单位啊",
+      "music": 0
+    },
+    {
+      "from": 464.31,
+      "to": 465.57,
+      "sid": 213,
+      "location": 2,
+      "content": "我们在我们数据库里",
+      "music": 0
+    },
+    {
+      "from": 465.57,
+      "to": 467.88,
+      "sid": 214,
+      "location": 2,
+      "content": "这两个东西的单位是分啊",
+      "music": 0
+    },
+    {
+      "from": 467.88,
+      "to": 469.38,
+      "sid": 215,
+      "location": 2,
+      "content": "这样可以避免出现小数嘛",
+      "music": 0
+    },
+    {
+      "from": 469.38,
+      "to": 470.55,
+      "sid": 216,
+      "location": 2,
+      "content": "以分为单位的",
+      "music": 0
+    },
+    {
+      "from": 470.55,
+      "to": 472.44,
+      "sid": 217,
+      "location": 2,
+      "content": "所以说呢他8000其实对呢",
+      "music": 0
+    },
+    {
+      "from": 472.44,
+      "to": 473.58,
+      "sid": 218,
+      "location": 2,
+      "content": "其实80块钱啊",
+      "music": 0
+    },
+    {
+      "from": 473.58,
+      "to": 475.31,
+      "sid": 219,
+      "location": 2,
+      "content": "对比的是100好",
+      "music": 0
+    },
+    {
+      "from": 475.31,
+      "to": 476.21,
+      "sid": 220,
+      "location": 2,
+      "content": "那类型是一",
+      "music": 0
+    },
+    {
+      "from": 476.21,
+      "to": 478.04,
+      "sid": 221,
+      "location": 2,
+      "content": "也就是一个特价券秒杀圈",
+      "music": 0
+    },
+    {
+      "from": 478.04,
+      "to": 479.75,
+      "sid": 222,
+      "location": 2,
+      "content": "stock库存是100",
+      "music": 0
+    },
+    {
+      "from": 479.75,
+      "to": 481.13,
+      "sid": 223,
+      "location": 2,
+      "content": "只是开始时间和结束时间",
+      "music": 0
+    },
+    {
+      "from": 481.13,
+      "to": 483.72,
+      "sid": 224,
+      "location": 2,
+      "content": "你可以随便去做一个设置啊",
+      "music": 0
+    },
+    {
+      "from": 483.72,
+      "to": 485.25,
+      "sid": 225,
+      "location": 2,
+      "content": "那都是没问题的",
+      "music": 0
+    },
+    {
+      "from": 485.25,
+      "to": 487.94,
+      "sid": 226,
+      "location": 2,
+      "content": "好比如说我们设置到这个啊",
+      "music": 0
+    },
+    {
+      "from": 487.94,
+      "to": 491.78,
+      "sid": 227,
+      "location": 2,
+      "content": "1月26号到1月26号的下午两点啊",
+      "music": 0
+    },
+    {
+      "from": 491.78,
+      "to": 494.299,
+      "sid": 228,
+      "location": 2,
+      "content": "这一期间都可以去购买啊",
+      "music": 0
+    },
+    {
+      "from": 494.299,
+      "to": 496.279,
+      "sid": 229,
+      "location": 2,
+      "content": "啊或者是可以设置24点",
+      "music": 0
+    },
+    {
+      "from": 496.279,
+      "to": 498.36,
+      "sid": 230,
+      "location": 2,
+      "content": "这一段时间都可以购买好",
+      "music": 0
+    },
+    {
+      "from": 498.599,
+      "to": 500.819,
+      "sid": 231,
+      "location": 2,
+      "content": "这是我们这个代言圈的一个信息啊",
+      "music": 0
+    },
+    {
+      "from": 500.819,
+      "to": 502.2,
+      "sid": 232,
+      "location": 2,
+      "content": "然后我们去分类一下",
+      "music": 0
+    },
+    {
+      "from": 502.46,
+      "to": 505.88,
+      "sid": 233,
+      "location": 2,
+      "content": "我们可以看到的这里确实是新增成功了啊",
+      "music": 0
+    },
+    {
+      "from": 505.88,
+      "to": 507.32,
+      "sid": 234,
+      "location": 2,
+      "content": "然后我们去数据库里看一下",
+      "music": 0
+    },
+    {
+      "from": 507.32,
+      "to": 510.57,
+      "sid": 235,
+      "location": 2,
+      "content": "打开数据库开始刷新好",
+      "music": 0
+    },
+    {
+      "from": 510.57,
+      "to": 511.44,
+      "sid": 236,
+      "location": 2,
+      "content": "确实有一个圈儿啊",
+      "music": 0
+    },
+    {
+      "from": 511.44,
+      "to": 513.66,
+      "sid": 237,
+      "location": 2,
+      "content": "然后在这边来看一下唉",
+      "music": 0
+    },
+    {
+      "from": 513.66,
+      "to": 515.16,
+      "sid": 238,
+      "location": 2,
+      "content": "是不是也会有一张券啊",
+      "music": 0
+    },
+    {
+      "from": 515.16,
+      "to": 518.7,
+      "sid": 239,
+      "location": 2,
+      "content": "好那么这里呢生成这个新的券的i d为七啊",
+      "music": 0
+    },
+    {
+      "from": 518.7,
+      "to": 520.14,
+      "sid": 240,
+      "location": 2,
+      "content": "然后对应到这边也是七啊",
+      "music": 0
+    },
+    {
+      "from": 520.14,
+      "to": 521.52,
+      "sid": 241,
+      "location": 2,
+      "content": "所以他俩是有关联的",
+      "music": 0
+    },
+    {
+      "from": 521.52,
+      "to": 523.08,
+      "sid": 242,
+      "location": 2,
+      "content": "这边库存是100对吧",
+      "music": 0
+    },
+    {
+      "from": 523.08,
+      "to": 526.92,
+      "sid": 243,
+      "location": 2,
+      "content": "ok那我们这个秒杀券添加就成功了",
+      "music": 0
+    },
+    {
+      "from": 526.92,
+      "to": 528.03,
+      "sid": 244,
+      "location": 2,
+      "content": "这时候我们回到浏览器",
+      "music": 0
+    },
+    {
+      "from": 528.03,
+      "to": 529.38,
+      "sid": 245,
+      "location": 2,
+      "content": "我们再刷新一下",
+      "music": 0
+    },
+    {
+      "from": 529.88,
+      "to": 532.1,
+      "sid": 246,
+      "location": 2,
+      "content": "那可以看到是不是多了一张券啊",
+      "music": 0
+    },
+    {
+      "from": 532.1,
+      "to": 534.26,
+      "sid": 247,
+      "location": 2,
+      "content": "好那么这张券呢就准备好了",
+      "music": 0
+    },
+    {
+      "from": 534.26,
+      "to": 536.66,
+      "sid": 248,
+      "location": 2,
+      "content": "已经可以开始去做抢购了",
+      "music": 0
+    },
+    {
+      "from": 536.66,
+      "to": 539,
+      "sid": 249,
+      "location": 2,
+      "content": "现在我们去点击抢购啊",
+      "music": 0
+    },
+    {
+      "from": 539,
+      "to": 540.35,
+      "sid": 250,
+      "location": 2,
+      "content": "他说你要先登录",
+      "music": 0
+    },
+    {
+      "from": 540.35,
+      "to": 544.55,
+      "sid": 251,
+      "location": 2,
+      "content": "我登录一下13456789001",
+      "music": 0
+    },
+    {
+      "from": 544.55,
+      "to": 546.8,
+      "sid": 252,
+      "location": 2,
+      "content": "发送一个验证码好",
+      "music": 0
+    },
+    {
+      "from": 546.8,
+      "to": 548.81,
+      "sid": 253,
+      "location": 2,
+      "content": "然后我们去看一下release",
+      "music": 0
+    },
+    {
+      "from": 548.81,
+      "to": 549.86,
+      "sid": 254,
+      "location": 2,
+      "content": "在这里的话",
+      "music": 0
+    },
+    {
+      "from": 549.86,
+      "to": 553.12,
+      "sid": 255,
+      "location": 2,
+      "content": "我们刷新找到这个验证码",
+      "music": 0
+    },
+    {
+      "from": 553.38,
+      "to": 556.38,
+      "sid": 256,
+      "location": 2,
+      "content": "听证码是捞给你们扣的好",
+      "music": 0
+    },
+    {
+      "from": 556.38,
+      "to": 561.94,
+      "sid": 257,
+      "location": 2,
+      "content": "161139登录请先确认用户协议",
+      "music": 0
+    },
+    {
+      "from": 561.94,
+      "to": 563.4,
+      "sid": 258,
+      "location": 2,
+      "content": "登录好",
+      "music": 0
+    },
+    {
+      "from": 563.4,
+      "to": 564.06,
+      "sid": 259,
+      "location": 2,
+      "content": "登录成功",
+      "music": 0
+    },
+    {
+      "from": 564.06,
+      "to": 566.64,
+      "sid": 260,
+      "location": 2,
+      "content": "我们再回到那个店铺",
+      "music": 0
+    },
+    {
+      "from": 566.64,
+      "to": 567.18,
+      "sid": 261,
+      "location": 2,
+      "content": "好",
+      "music": 0
+    },
+    {
+      "from": 567.18,
+      "to": 568.23,
+      "sid": 262,
+      "location": 2,
+      "content": "也就这一圈了对吧",
+      "music": 0
+    },
+    {
+      "from": 568.23,
+      "to": 570.6,
+      "sid": 263,
+      "location": 2,
+      "content": "现在我们在这点钱够好",
+      "music": 0
+    },
+    {
+      "from": 570.6,
+      "to": 572.079,
+      "sid": 264,
+      "location": 2,
+      "content": "他说功能尚未完成",
+      "music": 0
+    },
+    {
+      "from": 572.079,
+      "to": 574.329,
+      "sid": 265,
+      "location": 2,
+      "content": "但是最起码这个接口我们是不是看到了",
+      "music": 0
+    },
+    {
+      "from": 574.329,
+      "to": 576.639,
+      "sid": 266,
+      "location": 2,
+      "content": "所以下一步我们做的事情就很简单",
+      "music": 0
+    },
+    {
+      "from": 576.639,
+      "to": 578.74,
+      "sid": 267,
+      "location": 2,
+      "content": "是不是来去实现这个接口",
+      "music": 0
+    },
+    {
+      "from": 578.74,
+      "to": 581.14,
+      "sid": 268,
+      "location": 2,
+      "content": "完成下单的功能就ok了啊",
+      "music": 0
+    },
+    {
+      "from": 581.14,
+      "to": 584.41,
+      "sid": 269,
+      "location": 2,
+      "content": "我们可以看到这个接口的使用方式是post啊",
+      "music": 0
+    },
+    {
+      "from": 584.41,
+      "to": 587.62,
+      "sid": 270,
+      "location": 2,
+      "content": "那路径呢叫watchorder seq",
+      "music": 0
+    },
+    {
+      "from": 587.62,
+      "to": 591.489,
+      "sid": 271,
+      "location": 2,
+      "content": "也就是啊优惠券订单的这样一个秒杀",
+      "music": 0
+    },
+    {
+      "from": 591.489,
+      "to": 593.829,
+      "sid": 272,
+      "location": 2,
+      "content": "然后后面跟上的这个七啊",
+      "music": 0
+    },
+    {
+      "from": 593.829,
+      "to": 595.179,
+      "sid": 273,
+      "location": 2,
+      "content": "其实就是当前券的id",
+      "music": 0
+    },
+    {
+      "from": 595.179,
+      "to": 597.72,
+      "sid": 274,
+      "location": 2,
+      "content": "就是你要抢的是哪一个券嘛",
+      "music": 0
+    },
+    {
+      "from": 597.72,
+      "to": 600.78,
+      "sid": 275,
+      "location": 2,
+      "content": "啊那么我们接收到这些信息了以后",
+      "music": 0
+    },
+    {
+      "from": 600.78,
+      "to": 602.94,
+      "sid": 276,
+      "location": 2,
+      "content": "就可以去对应这个券去的下单",
+      "music": 0
+    },
+    {
+      "from": 602.94,
+      "to": 604.76,
+      "sid": 277,
+      "location": 2,
+      "content": "扣除这个对应的库存",
+      "music": 0
+    },
+    {
+      "from": 604.76,
+      "to": 608,
+      "sid": 278,
+      "location": 2,
+      "content": "好完成整个这个秒杀的过程啊",
+      "music": 0
+    },
+    {
+      "from": 608,
+      "to": 610.38,
+      "sid": 279,
+      "location": 2,
+      "content": "好那么我们回到ppt",
+      "music": 0
+    },
+    {
+      "from": 610.54,
+      "to": 611.17,
+      "sid": 280,
+      "location": 2,
+      "content": "好",
+      "music": 0
+    },
+    {
+      "from": 611.17,
+      "to": 612.34,
+      "sid": 281,
+      "location": 2,
+      "content": "那么我们这节课呢",
+      "music": 0
+    },
+    {
+      "from": 612.34,
+      "to": 615.13,
+      "sid": 282,
+      "location": 2,
+      "content": "其实主要是给大家介绍了一下两种不同圈",
+      "music": 0
+    },
+    {
+      "from": 615.13,
+      "to": 616.63,
+      "sid": 283,
+      "location": 2,
+      "content": "它的一个数据结构啊",
+      "music": 0
+    },
+    {
+      "from": 616.63,
+      "to": 618.82,
+      "sid": 284,
+      "location": 2,
+      "content": "然后我们的核心呢其实是秒杀券",
+      "music": 0
+    },
+    {
+      "from": 618.82,
+      "to": 621.47,
+      "sid": 285,
+      "location": 2,
+      "content": "所以我们利用这个接口呢添加了一张秒杀券",
+      "music": 0
+    },
+    {
+      "from": 621.47,
+      "to": 623.45,
+      "sid": 286,
+      "location": 2,
+      "content": "而秒杀券一旦添加",
+      "music": 0
+    },
+    {
+      "from": 623.45,
+      "to": 625.73,
+      "sid": 287,
+      "location": 2,
+      "content": "用户就可以去抢购对应的券了啊",
+      "music": 0
+    },
+    {
+      "from": 625.73,
+      "to": 629.9,
+      "sid": 288,
+      "location": 2,
+      "content": "点击啊限时抢购就可以去发送请求",
+      "music": 0
+    },
+    {
+      "from": 629.9,
+      "to": 631.31,
+      "sid": 289,
+      "location": 2,
+      "content": "对应的请求的这些信息啊",
+      "music": 0
+    },
+    {
+      "from": 631.31,
+      "to": 635.019,
+      "sid": 290,
+      "location": 2,
+      "content": "我们也都分析过了方式路径参数啊",
+      "music": 0
+    },
+    {
+      "from": 635.019,
+      "to": 636.279,
+      "sid": 291,
+      "location": 2,
+      "content": "那么最后还有返回值",
+      "music": 0
+    },
+    {
+      "from": 636.279,
+      "to": 637.959,
+      "sid": 292,
+      "location": 2,
+      "content": "返回值是当前那个订单的id啊",
+      "music": 0
+    },
+    {
+      "from": 637.959,
+      "to": 639.519,
+      "sid": 293,
+      "location": 2,
+      "content": "订单id一定要返回给前端",
+      "music": 0
+    },
+    {
+      "from": 639.519,
+      "to": 640.779,
+      "sid": 294,
+      "location": 2,
+      "content": "前端才可以去支付嘛",
+      "music": 0
+    },
+    {
+      "from": 640.779,
+      "to": 641.78,
+      "sid": 295,
+      "location": 2,
+      "content": "对吧好",
+      "music": 0
+    },
+    {
+      "from": 641.78,
+      "to": 644.84,
+      "sid": 296,
+      "location": 2,
+      "content": "所以呢整个流程我们就明白了啊",
+      "music": 0
+    },
+    {
+      "from": 644.84,
+      "to": 648.02,
+      "sid": 297,
+      "location": 2,
+      "content": "下节课呢我们就一起来动手实现好",
+      "music": 0
+    },
+    {
+      "from": 648.02,
+      "to": 649,
+      "sid": 298,
+      "location": 2,
+      "content": "那这节课先到这里",
+      "music": 0
+    }
+  ]
+}

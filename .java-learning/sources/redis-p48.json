@@ -1,0 +1,3016 @@
+{
+  "page": 48,
+  "title": "实战篇-01.优惠券秒杀-全局唯一ID",
+  "duration": 860,
+  "basis": "Public Bilibili AI Chinese subtitle; verify identifiers against frames",
+  "body": [
+    {
+      "from": 0.26,
+      "to": 1.73,
+      "sid": 1,
+      "location": 2,
+      "content": "零基础学it",
+      "music": 0
+    },
+    {
+      "from": 1.73,
+      "to": 5.2,
+      "sid": 2,
+      "location": 2,
+      "content": "月薪过万就来黑马程序员",
+      "music": 0
+    },
+    {
+      "from": 6.88,
+      "to": 8.01,
+      "sid": 3,
+      "location": 2,
+      "content": "好同学们",
+      "music": 0
+    },
+    {
+      "from": 8.01,
+      "to": 9.93,
+      "sid": 4,
+      "location": 2,
+      "content": "经过前面两章的学习呢",
+      "music": 0
+    },
+    {
+      "from": 9.93,
+      "to": 12.57,
+      "sid": 5,
+      "location": 2,
+      "content": "我们已经掌握了如何利用release啊",
+      "music": 0
+    },
+    {
+      "from": 15.24,
+      "to": 19.59,
+      "sid": 6,
+      "location": 2,
+      "content": "还有啊如何利用race去添加查询业务的缓存",
+      "music": 0
+    },
+    {
+      "from": 19.59,
+      "to": 23.1,
+      "sid": 7,
+      "location": 2,
+      "content": "并且去应对缓存使用时出现的",
+      "music": 0
+    },
+    {
+      "from": 23.1,
+      "to": 24.54,
+      "sid": 8,
+      "location": 2,
+      "content": "各种各样的问题啊",
+      "music": 0
+    },
+    {
+      "from": 24.54,
+      "to": 26.52,
+      "sid": 9,
+      "location": 2,
+      "content": "那么接下来的第三章呢",
+      "music": 0
+    },
+    {
+      "from": 26.52,
+      "to": 28.02,
+      "sid": 10,
+      "location": 2,
+      "content": "我们继续来看一看啊",
+      "music": 0
+    },
+    {
+      "from": 28.02,
+      "to": 32.379,
+      "sid": 11,
+      "location": 2,
+      "content": "release如何去解决我们的秒杀业务",
+      "music": 0
+    },
+    {
+      "from": 32.379,
+      "to": 36.77,
+      "sid": 12,
+      "location": 2,
+      "content": "那可以说呀聊电商一定离不开秒杀",
+      "music": 0
+    },
+    {
+      "from": 36.77,
+      "to": 39.86,
+      "sid": 13,
+      "location": 2,
+      "content": "而release呢在整个秒杀业务中",
+      "music": 0
+    },
+    {
+      "from": 39.86,
+      "to": 42.769,
+      "sid": 14,
+      "location": 2,
+      "content": "扮演了非常重要的角色",
+      "music": 0
+    },
+    {
+      "from": 42.769,
+      "to": 44.869,
+      "sid": 15,
+      "location": 2,
+      "content": "所以呢通过这一章的学习呢",
+      "music": 0
+    },
+    {
+      "from": 44.869,
+      "to": 47.899,
+      "sid": 16,
+      "location": 2,
+      "content": "相信大家应该对于release在秒杀中的应用",
+      "music": 0
+    },
+    {
+      "from": 47.899,
+      "to": 50.34,
+      "sid": 17,
+      "location": 2,
+      "content": "会有一个充分的认识啊",
+      "music": 0
+    },
+    {
+      "from": 50.34,
+      "to": 51.48,
+      "sid": 18,
+      "location": 2,
+      "content": "那在这一章里呢",
+      "music": 0
+    },
+    {
+      "from": 51.48,
+      "to": 53.22,
+      "sid": 19,
+      "location": 2,
+      "content": "我们会分成以下几部分",
+      "music": 0
+    },
+    {
+      "from": 53.22,
+      "to": 57.38,
+      "sid": 20,
+      "location": 2,
+      "content": "首先呢就是全局唯一id来看一下release啊",
+      "music": 0
+    },
+    {
+      "from": 57.38,
+      "to": 58.88,
+      "sid": 21,
+      "location": 2,
+      "content": "它的一个自增功能啊",
+      "music": 0
+    },
+    {
+      "from": 58.88,
+      "to": 62.06,
+      "sid": 22,
+      "location": 2,
+      "content": "如何去解决这种id的这种唯一性啊",
+      "music": 0
+    },
+    {
+      "from": 62.06,
+      "to": 64.46,
+      "sid": 23,
+      "location": 2,
+      "content": "那么第二呢我们还会去讲解一下",
+      "music": 0
+    },
+    {
+      "from": 64.46,
+      "to": 67.4,
+      "sid": 24,
+      "location": 2,
+      "content": "如何去实现我们的秒杀业务啊",
+      "music": 0
+    },
+    {
+      "from": 67.4,
+      "to": 69.479,
+      "sid": 25,
+      "location": 2,
+      "content": "看一下整个秒杀的业务流程",
+      "music": 0
+    },
+    {
+      "from": 69.479,
+      "to": 72.839,
+      "sid": 26,
+      "location": 2,
+      "content": "接下来呢就是秒杀过程中会出现的一些问题了",
+      "music": 0
+    },
+    {
+      "from": 72.839,
+      "to": 73.739,
+      "sid": 27,
+      "location": 2,
+      "content": "比如超卖问题",
+      "music": 0
+    },
+    {
+      "from": 73.739,
+      "to": 74.7,
+      "sid": 28,
+      "location": 2,
+      "content": "验证一单问题",
+      "music": 0
+    },
+    {
+      "from": 74.7,
+      "to": 78.06,
+      "sid": 29,
+      "location": 2,
+      "content": "那么这些问题对应的解决方案是什么啊",
+      "music": 0
+    },
+    {
+      "from": 78.06,
+      "to": 79.35,
+      "sid": 30,
+      "location": 2,
+      "content": "有的时候呢我们会用锁",
+      "music": 0
+    },
+    {
+      "from": 79.35,
+      "to": 81.82,
+      "sid": 31,
+      "location": 2,
+      "content": "有的时候呢我们会用到其他的一些方案啊",
+      "music": 0
+    },
+    {
+      "from": 81.82,
+      "to": 83.68,
+      "sid": 32,
+      "location": 2,
+      "content": "所以呢后边呢我们还会去学习啊",
+      "music": 0
+    },
+    {
+      "from": 83.68,
+      "to": 85.66,
+      "sid": 33,
+      "location": 2,
+      "content": "girace的这种分布式锁的方案",
+      "music": 0
+    },
+    {
+      "from": 85.66,
+      "to": 90.28,
+      "sid": 34,
+      "location": 2,
+      "content": "还有呢利用rise啊去优化整个秒杀的业务流程",
+      "music": 0
+    },
+    {
+      "from": 90.28,
+      "to": 92.18,
+      "sid": 35,
+      "location": 2,
+      "content": "而让它的性能更好",
+      "music": 0
+    },
+    {
+      "from": 92.18,
+      "to": 94.58,
+      "sid": 36,
+      "location": 2,
+      "content": "那么这种嗯对于秒杀的优化呢",
+      "music": 0
+    },
+    {
+      "from": 94.58,
+      "to": 96.65,
+      "sid": 37,
+      "location": 2,
+      "content": "一定会用到这种消息队列",
+      "music": 0
+    },
+    {
+      "from": 96.65,
+      "to": 99.28,
+      "sid": 38,
+      "location": 2,
+      "content": "因为消息队列可以实现这种异步秒杀",
+      "music": 0
+    },
+    {
+      "from": 99.28,
+      "to": 101.35,
+      "sid": 39,
+      "location": 2,
+      "content": "我们会去介绍一下rise啊",
+      "music": 0
+    },
+    {
+      "from": 101.35,
+      "to": 103.9,
+      "sid": 40,
+      "location": 2,
+      "content": "它实现消息队列的三种不同的方式",
+      "music": 0
+    },
+    {
+      "from": 103.9,
+      "to": 105.78,
+      "sid": 41,
+      "location": 2,
+      "content": "并且给大家去做对比",
+      "music": 0
+    },
+    {
+      "from": 105.86,
+      "to": 109.76,
+      "sid": 42,
+      "location": 2,
+      "content": "ok以上呢就是我们这一章的详细内容了",
+      "music": 0
+    },
+    {
+      "from": 109.76,
+      "to": 112.34,
+      "sid": 43,
+      "location": 2,
+      "content": "那么下边呢我们就进入第一部分啊",
+      "music": 0
+    },
+    {
+      "from": 112.34,
+      "to": 113.6,
+      "sid": 44,
+      "location": 2,
+      "content": "全局v i d",
+      "music": 0
+    },
+    {
+      "from": 113.62,
+      "to": 114.88,
+      "sid": 45,
+      "location": 2,
+      "content": "那么这个概念啊",
+      "music": 0
+    },
+    {
+      "from": 114.88,
+      "to": 117.24,
+      "sid": 46,
+      "location": 2,
+      "content": "很多同学可能第一次听说啊",
+      "music": 0
+    },
+    {
+      "from": 117.26,
+      "to": 121.72,
+      "sid": 47,
+      "location": 2,
+      "content": "那我们通过这个业务啊来给大家去分析一下",
+      "music": 0
+    },
+    {
+      "from": 121.98,
+      "to": 124.6,
+      "sid": 48,
+      "location": 2,
+      "content": "在我们的整个黑娃点评业务当中",
+      "music": 0
+    },
+    {
+      "from": 124.6,
+      "to": 129.34,
+      "sid": 49,
+      "location": 2,
+      "content": "可以说啊呃唯一的商品就是这个优惠券了啊",
+      "music": 0
+    },
+    {
+      "from": 129.34,
+      "to": 132.34,
+      "sid": 50,
+      "location": 2,
+      "content": "用户呢会去抢购我们的这个优惠券",
+      "music": 0
+    },
+    {
+      "from": 132.34,
+      "to": 133.9,
+      "sid": 51,
+      "location": 2,
+      "content": "而当它抢购时",
+      "music": 0
+    },
+    {
+      "from": 133.9,
+      "to": 135.64,
+      "sid": 52,
+      "location": 2,
+      "content": "自然就会需要生成订单",
+      "music": 0
+    },
+    {
+      "from": 135.64,
+      "to": 139.79,
+      "sid": 53,
+      "location": 2,
+      "content": "那么这个订单我们就会把它保存在tb vulture",
+      "music": 0
+    },
+    {
+      "from": 139.79,
+      "to": 141.35,
+      "sid": 54,
+      "location": 2,
+      "content": "order这张表当中",
+      "music": 0
+    },
+    {
+      "from": 141.35,
+      "to": 143.3,
+      "sid": 55,
+      "location": 2,
+      "content": "那么vure呢就是优惠券的意思",
+      "music": 0
+    },
+    {
+      "from": 143.3,
+      "to": 144.649,
+      "sid": 56,
+      "location": 2,
+      "content": "order就是订单啊",
+      "music": 0
+    },
+    {
+      "from": 144.649,
+      "to": 147.229,
+      "sid": 57,
+      "location": 2,
+      "content": "那么我们一起来看一下数据库中的这张表",
+      "music": 0
+    },
+    {
+      "from": 147.229,
+      "to": 149.209,
+      "sid": 58,
+      "location": 2,
+      "content": "打开我们数据库好",
+      "music": 0
+    },
+    {
+      "from": 149.209,
+      "to": 150.08,
+      "sid": 59,
+      "location": 2,
+      "content": "就是它了啊",
+      "music": 0
+    },
+    {
+      "from": 150.08,
+      "to": 152,
+      "sid": 60,
+      "location": 2,
+      "content": "那么这张表呢大家可以看到啊",
+      "music": 0
+    },
+    {
+      "from": 152,
+      "to": 153.87,
+      "sid": 61,
+      "location": 2,
+      "content": "里面的字段也不是特别的多",
+      "music": 0
+    },
+    {
+      "from": 153.87,
+      "to": 156.81,
+      "sid": 62,
+      "location": 2,
+      "content": "首先呢这个字段啊是他的呃",
+      "music": 0
+    },
+    {
+      "from": 156.81,
+      "to": 158.67,
+      "sid": 63,
+      "location": 2,
+      "content": "存储的一个用户的id啊",
+      "music": 0
+    },
+    {
+      "from": 158.67,
+      "to": 160.17,
+      "sid": 64,
+      "location": 2,
+      "content": "就是谁来购买的",
+      "music": 0
+    },
+    {
+      "from": 160.17,
+      "to": 161.68,
+      "sid": 65,
+      "location": 2,
+      "content": "要记录下来对吧好",
+      "music": 0
+    },
+    {
+      "from": 161.68,
+      "to": 164.02,
+      "sid": 66,
+      "location": 2,
+      "content": "然后呢是购买的代金券的id",
+      "music": 0
+    },
+    {
+      "from": 164.02,
+      "to": 164.68,
+      "sid": 67,
+      "location": 2,
+      "content": "watchid",
+      "music": 0
+    },
+    {
+      "from": 164.68,
+      "to": 167.32,
+      "sid": 68,
+      "location": 2,
+      "content": "也就是说谁购买的购买了什么啊",
+      "music": 0
+    },
+    {
+      "from": 167.32,
+      "to": 169.91,
+      "sid": 69,
+      "location": 2,
+      "content": "好然后呢购买了以后将来要去支付",
+      "music": 0
+    },
+    {
+      "from": 169.91,
+      "to": 173.15,
+      "sid": 70,
+      "location": 2,
+      "content": "那么支付就要记录一下支付的方式对吧",
+      "music": 0
+    },
+    {
+      "from": 173.15,
+      "to": 175.7,
+      "sid": 71,
+      "location": 2,
+      "content": "然后呢嗯在订单刚刚创建时",
+      "music": 0
+    },
+    {
+      "from": 175.7,
+      "to": 177.48,
+      "sid": 72,
+      "location": 2,
+      "content": "默认肯定是未支付的一个状态",
+      "music": 0
+    },
+    {
+      "from": 177.48,
+      "to": 178.86,
+      "sid": 73,
+      "location": 2,
+      "content": "如果将来你支付了",
+      "music": 0
+    },
+    {
+      "from": 178.86,
+      "to": 180.54,
+      "sid": 74,
+      "location": 2,
+      "content": "它就变成e支付啊",
+      "music": 0
+    },
+    {
+      "from": 180.54,
+      "to": 181.5,
+      "sid": 75,
+      "location": 2,
+      "content": "如果说支付完了",
+      "music": 0
+    },
+    {
+      "from": 181.5,
+      "to": 183.7,
+      "sid": 76,
+      "location": 2,
+      "content": "将来你拿到店里去嗯",
+      "music": 0
+    },
+    {
+      "from": 183.7,
+      "to": 184.78,
+      "sid": 77,
+      "location": 2,
+      "content": "使用这张券了",
+      "music": 0
+    },
+    {
+      "from": 184.78,
+      "to": 185.92,
+      "sid": 78,
+      "location": 2,
+      "content": "就会变成乙和销",
+      "music": 0
+    },
+    {
+      "from": 185.92,
+      "to": 189.55,
+      "sid": 79,
+      "location": 2,
+      "content": "如果说你下了单以后未支付直接取消了",
+      "music": 0
+    },
+    {
+      "from": 189.55,
+      "to": 191,
+      "sid": 80,
+      "location": 2,
+      "content": "那么就会是已取消",
+      "music": 0
+    },
+    {
+      "from": 191,
+      "to": 192.38,
+      "sid": 81,
+      "location": 2,
+      "content": "或者说呢你付款了",
+      "music": 0
+    },
+    {
+      "from": 192.38,
+      "to": 193.88,
+      "sid": 82,
+      "location": 2,
+      "content": "但是你没有去店里用",
+      "music": 0
+    },
+    {
+      "from": 193.88,
+      "to": 194.93,
+      "sid": 83,
+      "location": 2,
+      "content": "你直接退款了",
+      "music": 0
+    },
+    {
+      "from": 194.93,
+      "to": 196.82,
+      "sid": 84,
+      "location": 2,
+      "content": "那么就会出现退款中和已退款的",
+      "music": 0
+    },
+    {
+      "from": 196.82,
+      "to": 198.08,
+      "sid": 85,
+      "location": 2,
+      "content": "这样的一个状态啊",
+      "music": 0
+    },
+    {
+      "from": 198.08,
+      "to": 200.87,
+      "sid": 86,
+      "location": 2,
+      "content": "这是我们订单的一些常见的状态啊",
+      "music": 0
+    },
+    {
+      "from": 200.87,
+      "to": 202.4,
+      "sid": 87,
+      "location": 2,
+      "content": "那与这些状态对应的呢",
+      "music": 0
+    },
+    {
+      "from": 202.4,
+      "to": 203.6,
+      "sid": 88,
+      "location": 2,
+      "content": "还有对应的时间",
+      "music": 0
+    },
+    {
+      "from": 203.6,
+      "to": 204.44,
+      "sid": 89,
+      "location": 2,
+      "content": "创建时间",
+      "music": 0
+    },
+    {
+      "from": 204.44,
+      "to": 204.92,
+      "sid": 90,
+      "location": 2,
+      "content": "支付时间",
+      "music": 0
+    },
+    {
+      "from": 204.92,
+      "to": 205.34,
+      "sid": 91,
+      "location": 2,
+      "content": "合约时间",
+      "music": 0
+    },
+    {
+      "from": 205.34,
+      "to": 206.6,
+      "sid": 92,
+      "location": 2,
+      "content": "退款时间等等",
+      "music": 0
+    },
+    {
+      "from": 206.6,
+      "to": 210.3,
+      "sid": 93,
+      "location": 2,
+      "content": "那么以上就是订单表中的一些核心字段了啊",
+      "music": 0
+    },
+    {
+      "from": 210.3,
+      "to": 212.82,
+      "sid": 94,
+      "location": 2,
+      "content": "那么需要特别注意的是这个主键",
+      "music": 0
+    },
+    {
+      "from": 212.82,
+      "to": 217.319,
+      "sid": 95,
+      "location": 2,
+      "content": "大家看这个主键它并没有采用自增长",
+      "music": 0
+    },
+    {
+      "from": 217.319,
+      "to": 217.89,
+      "sid": 96,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 217.89,
+      "to": 219.33,
+      "sid": 97,
+      "location": 2,
+      "content": "像我们之前的店铺",
+      "music": 0
+    },
+    {
+      "from": 219.33,
+      "to": 221.91,
+      "sid": 98,
+      "location": 2,
+      "content": "它就是auto increment自增长的id",
+      "music": 0
+    },
+    {
+      "from": 221.91,
+      "to": 225.78,
+      "sid": 99,
+      "location": 2,
+      "content": "那为什么我们的订单表没有采用自增长呢",
+      "music": 0
+    },
+    {
+      "from": 225.92,
+      "to": 228.74,
+      "sid": 100,
+      "location": 2,
+      "content": "好这就是我们接下来要聊的话题了",
+      "music": 0
+    },
+    {
+      "from": 228.74,
+      "to": 230.06,
+      "sid": 101,
+      "location": 2,
+      "content": "我们回到预定啊",
+      "music": 0
+    },
+    {
+      "from": 230.88,
+      "to": 231.68,
+      "sid": 102,
+      "location": 2,
+      "content": "因为什么呢",
+      "music": 0
+    },
+    {
+      "from": 231.68,
+      "to": 235.04,
+      "sid": 103,
+      "location": 2,
+      "content": "因为订单如果它使用的数据库自增长id啊",
+      "music": 0
+    },
+    {
+      "from": 235.04,
+      "to": 236.21,
+      "sid": 104,
+      "location": 2,
+      "content": "会存在一些问题",
+      "music": 0
+    },
+    {
+      "from": 236.21,
+      "to": 238.92,
+      "sid": 105,
+      "location": 2,
+      "content": "第一个就是id的规律太明显了",
+      "music": 0
+    },
+    {
+      "from": 238.92,
+      "to": 242.39,
+      "sid": 106,
+      "location": 2,
+      "content": "你看你这个id订单编号id",
+      "music": 0
+    },
+    {
+      "from": 242.39,
+      "to": 245.45,
+      "sid": 107,
+      "location": 2,
+      "content": "他将来是要发送给我们的用户的",
+      "music": 0
+    },
+    {
+      "from": 245.45,
+      "to": 247.07,
+      "sid": 108,
+      "location": 2,
+      "content": "因为用户在我的订单列表中",
+      "music": 0
+    },
+    {
+      "from": 247.07,
+      "to": 250.25,
+      "sid": 109,
+      "location": 2,
+      "content": "是不是能看到详细的每一个订单的这个编号啊",
+      "music": 0
+    },
+    {
+      "from": 250.25,
+      "to": 252.64,
+      "sid": 110,
+      "location": 2,
+      "content": "所以呢这个id会暴露给用户",
+      "music": 0
+    },
+    {
+      "from": 252.64,
+      "to": 255.94,
+      "sid": 111,
+      "location": 2,
+      "content": "而如果你的id规律性太明显的话",
+      "music": 0
+    },
+    {
+      "from": 255.94,
+      "to": 260.56,
+      "sid": 112,
+      "location": 2,
+      "content": "那么用户就能够根据id啊去猜测到一些信息",
+      "music": 0
+    },
+    {
+      "from": 260.56,
+      "to": 263.89,
+      "sid": 113,
+      "location": 2,
+      "content": "比方说啊我呢今天下了一单",
+      "music": 0
+    },
+    {
+      "from": 263.89,
+      "to": 265,
+      "sid": 114,
+      "location": 2,
+      "content": "第二天的同一时刻",
+      "music": 0
+    },
+    {
+      "from": 265,
+      "to": 266.44,
+      "sid": 115,
+      "location": 2,
+      "content": "我又下一单好",
+      "music": 0
+    },
+    {
+      "from": 266.44,
+      "to": 268.48,
+      "sid": 116,
+      "location": 2,
+      "content": "第一个单的id呢我看了一下",
+      "music": 0
+    },
+    {
+      "from": 268.48,
+      "to": 269.669,
+      "sid": 117,
+      "location": 2,
+      "content": "诶是十",
+      "music": 0
+    },
+    {
+      "from": 269.669,
+      "to": 273.809,
+      "sid": 118,
+      "location": 2,
+      "content": "第二天我同一时刻下了单的id竟然是100",
+      "music": 0
+    },
+    {
+      "from": 273.809,
+      "to": 274.859,
+      "sid": 119,
+      "location": 2,
+      "content": "那我就知道了",
+      "music": 0
+    },
+    {
+      "from": 274.859,
+      "to": 277.08,
+      "sid": 120,
+      "location": 2,
+      "content": "在昨天的一天内",
+      "music": 0
+    },
+    {
+      "from": 277.08,
+      "to": 279.99,
+      "sid": 121,
+      "location": 2,
+      "content": "你们这个商城总共才下了多少单呢",
+      "music": 0
+    },
+    {
+      "from": 279.99,
+      "to": 281.72,
+      "sid": 122,
+      "location": 2,
+      "content": "90单是不是诶",
+      "music": 0
+    },
+    {
+      "from": 281.84,
+      "to": 285.4,
+      "sid": 123,
+      "location": 2,
+      "content": "那么是不是就暴露了信息给用户了呀",
+      "music": 0
+    },
+    {
+      "from": 285.4,
+      "to": 288.04,
+      "sid": 124,
+      "location": 2,
+      "content": "所以说呢id的规律性太明显了",
+      "music": 0
+    },
+    {
+      "from": 288.04,
+      "to": 289.24,
+      "sid": 125,
+      "location": 2,
+      "content": "这其实是不好的",
+      "music": 0
+    },
+    {
+      "from": 289.24,
+      "to": 292.19,
+      "sid": 126,
+      "location": 2,
+      "content": "容易让用户猜测到一些信息好",
+      "music": 0
+    },
+    {
+      "from": 292.19,
+      "to": 296.5,
+      "sid": 127,
+      "location": 2,
+      "content": "那么第二个点呢是受到了单表数据量的限制",
+      "music": 0
+    },
+    {
+      "from": 296.5,
+      "to": 298.66,
+      "sid": 128,
+      "location": 2,
+      "content": "订单它的一个特点啊",
+      "music": 0
+    },
+    {
+      "from": 298.66,
+      "to": 300.1,
+      "sid": 129,
+      "location": 2,
+      "content": "就是数据量比较大",
+      "music": 0
+    },
+    {
+      "from": 300.1,
+      "to": 300.88,
+      "sid": 130,
+      "location": 2,
+      "content": "为什么呢",
+      "music": 0
+    },
+    {
+      "from": 300.88,
+      "to": 304.12,
+      "sid": 131,
+      "location": 2,
+      "content": "因为啊用户只要在产生购买的行为",
+      "music": 0
+    },
+    {
+      "from": 304.12,
+      "to": 306.8,
+      "sid": 132,
+      "location": 2,
+      "content": "就会不停的产生新的订单",
+      "music": 0
+    },
+    {
+      "from": 306.8,
+      "to": 309.89,
+      "sid": 133,
+      "location": 2,
+      "content": "你想看如果网站做到一定的规模",
+      "music": 0
+    },
+    {
+      "from": 309.89,
+      "to": 312.799,
+      "sid": 134,
+      "location": 2,
+      "content": "用户量达到了数百万",
+      "music": 0
+    },
+    {
+      "from": 312.799,
+      "to": 315.979,
+      "sid": 135,
+      "location": 2,
+      "content": "这个时候每天都会产生数10万",
+      "music": 0
+    },
+    {
+      "from": 315.979,
+      "to": 317.509,
+      "sid": 136,
+      "location": 2,
+      "content": "甚至近百万的订单",
+      "music": 0
+    },
+    {
+      "from": 317.509,
+      "to": 319.3,
+      "sid": 137,
+      "location": 2,
+      "content": "那这个时候1年下来呢",
+      "music": 0
+    },
+    {
+      "from": 319.5,
+      "to": 321.96,
+      "sid": 138,
+      "location": 2,
+      "content": "是不是可能会达到数千万的订单",
+      "music": 0
+    },
+    {
+      "from": 321.96,
+      "to": 323.97,
+      "sid": 139,
+      "location": 2,
+      "content": "那2年3年4年呢",
+      "music": 0
+    },
+    {
+      "from": 323.97,
+      "to": 326.93,
+      "sid": 140,
+      "location": 2,
+      "content": "是不会达到数亿甚至数10亿的订单",
+      "music": 0
+    },
+    {
+      "from": 326.93,
+      "to": 328.49,
+      "sid": 141,
+      "location": 2,
+      "content": "那这个时候同学们",
+      "music": 0
+    },
+    {
+      "from": 328.49,
+      "to": 332.6,
+      "sid": 142,
+      "location": 2,
+      "content": "单张表还能够保存如此多的数据吗",
+      "music": 0
+    },
+    {
+      "from": 332.74,
+      "to": 334.18,
+      "sid": 143,
+      "location": 2,
+      "content": "显然不能",
+      "music": 0
+    },
+    {
+      "from": 334.18,
+      "to": 335.05,
+      "sid": 144,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 335.05,
+      "to": 336.67,
+      "sid": 145,
+      "location": 2,
+      "content": "那如果无法保存",
+      "music": 0
+    },
+    {
+      "from": 336.67,
+      "to": 338.32,
+      "sid": 146,
+      "location": 2,
+      "content": "你就要把它分到多张表",
+      "music": 0
+    },
+    {
+      "from": 338.32,
+      "to": 338.94,
+      "sid": 147,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 338.94,
+      "to": 341.58,
+      "sid": 148,
+      "location": 2,
+      "content": "那如果我们每张表都是采用自增长",
+      "music": 0
+    },
+    {
+      "from": 341.58,
+      "to": 342.76,
+      "sid": 149,
+      "location": 2,
+      "content": "会出现什么问题",
+      "music": 0
+    },
+    {
+      "from": 342.76,
+      "to": 345.52,
+      "sid": 150,
+      "location": 2,
+      "content": "你要知道mysql的自增长",
+      "music": 0
+    },
+    {
+      "from": 345.52,
+      "to": 348.43,
+      "sid": 151,
+      "location": 2,
+      "content": "每张表是不是各自计算自己的自增长",
+      "music": 0
+    },
+    {
+      "from": 348.43,
+      "to": 349.75,
+      "sid": 152,
+      "location": 2,
+      "content": "大家都从一开始增",
+      "music": 0
+    },
+    {
+      "from": 349.75,
+      "to": 350.32,
+      "sid": 153,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 350.32,
+      "to": 351.67,
+      "sid": 154,
+      "location": 2,
+      "content": "那如果多张表",
+      "music": 0
+    },
+    {
+      "from": 351.67,
+      "to": 355.22,
+      "sid": 155,
+      "location": 2,
+      "content": "这个自增的id是不是一定会出现重复",
+      "music": 0
+    },
+    {
+      "from": 355.74,
+      "to": 358.92,
+      "sid": 156,
+      "location": 2,
+      "content": "而我们订单id它还有一个特点",
+      "music": 0
+    },
+    {
+      "from": 358.92,
+      "to": 360.48,
+      "sid": 157,
+      "location": 2,
+      "content": "就是不应该重复",
+      "music": 0
+    },
+    {
+      "from": 360.48,
+      "to": 362.49,
+      "sid": 158,
+      "location": 2,
+      "content": "因为从业务的角度来考虑啊",
+      "music": 0
+    },
+    {
+      "from": 362.49,
+      "to": 365.1,
+      "sid": 159,
+      "location": 2,
+      "content": "将来我们的一些售后的服务啊",
+      "music": 0
+    },
+    {
+      "from": 365.1,
+      "to": 367.86,
+      "sid": 160,
+      "location": 2,
+      "content": "用户往往会拿着订单来去问我们",
+      "music": 0
+    },
+    {
+      "from": 367.86,
+      "to": 369.18,
+      "sid": 161,
+      "location": 2,
+      "content": "说我这个订单怎么怎么样了",
+      "music": 0
+    },
+    {
+      "from": 369.18,
+      "to": 369.69,
+      "sid": 162,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 369.69,
+      "to": 371.76,
+      "sid": 163,
+      "location": 2,
+      "content": "如果你的id是重复的",
+      "music": 0
+    },
+    {
+      "from": 371.76,
+      "to": 373.82,
+      "sid": 164,
+      "location": 2,
+      "content": "将来不就会出问题了吗",
+      "music": 0
+    },
+    {
+      "from": 373.82,
+      "to": 376.34,
+      "sid": 165,
+      "location": 2,
+      "content": "所以说呢这也就是我们订单的两个特点",
+      "music": 0
+    },
+    {
+      "from": 376.34,
+      "to": 377.3,
+      "sid": 166,
+      "location": 2,
+      "content": "第一数据量大",
+      "music": 0
+    },
+    {
+      "from": 377.3,
+      "to": 379.94,
+      "sid": 167,
+      "location": 2,
+      "content": "第二呢它的订单id需要唯一性",
+      "music": 0
+    },
+    {
+      "from": 379.94,
+      "to": 382.85,
+      "sid": 168,
+      "location": 2,
+      "content": "但是呢当我们把表做了拆分",
+      "music": 0
+    },
+    {
+      "from": 382.85,
+      "to": 384.95,
+      "sid": 169,
+      "location": 2,
+      "content": "出现了这种分布式的这种存储时",
+      "music": 0
+    },
+    {
+      "from": 384.95,
+      "to": 388.52,
+      "sid": 170,
+      "location": 2,
+      "content": "那么它就会违背这种危险",
+      "music": 0
+    },
+    {
+      "from": 389.319,
+      "to": 393.599,
+      "sid": 171,
+      "location": 2,
+      "content": "那么这个时候就必然用到我们今天要讲的这个",
+      "music": 0
+    },
+    {
+      "from": 393.599,
+      "to": 395.02,
+      "sid": 172,
+      "location": 2,
+      "content": "全局id生成器了",
+      "music": 0
+    },
+    {
+      "from": 395.44,
+      "to": 398.68,
+      "sid": 173,
+      "location": 2,
+      "content": "全局id生成器呢是一种在分布系统下",
+      "music": 0
+    },
+    {
+      "from": 398.68,
+      "to": 402.679,
+      "sid": 174,
+      "location": 2,
+      "content": "用来生成全局唯一d的工具",
+      "music": 0
+    },
+    {
+      "from": 402.679,
+      "to": 404.269,
+      "sid": 175,
+      "location": 2,
+      "content": "注意这个特点唯一对吧",
+      "music": 0
+    },
+    {
+      "from": 404.269,
+      "to": 405.349,
+      "sid": 176,
+      "location": 2,
+      "content": "而且是全局唯一的",
+      "music": 0
+    },
+    {
+      "from": 405.349,
+      "to": 409.09,
+      "sid": 177,
+      "location": 2,
+      "content": "那这里的全局呢也就是说在同一个业务下啊",
+      "music": 0
+    },
+    {
+      "from": 409.09,
+      "to": 411.67,
+      "sid": 178,
+      "location": 2,
+      "content": "不管你这个分配系统将来有多少个服务",
+      "music": 0
+    },
+    {
+      "from": 411.67,
+      "to": 412.55,
+      "sid": 179,
+      "location": 2,
+      "content": "多少个节点",
+      "music": 0
+    },
+    {
+      "from": 412.55,
+      "to": 415.659,
+      "sid": 180,
+      "location": 2,
+      "content": "那这个业务下面又分成了多少张不同的表",
+      "music": 0
+    },
+    {
+      "from": 415.659,
+      "to": 419.799,
+      "sid": 181,
+      "location": 2,
+      "content": "那么最终只要你用这个id生成器得到的id",
+      "music": 0
+    },
+    {
+      "from": 419.799,
+      "to": 422.61,
+      "sid": 182,
+      "location": 2,
+      "content": "他一定是当前业务内唯一的",
+      "music": 0
+    },
+    {
+      "from": 422.61,
+      "to": 424.03,
+      "sid": 183,
+      "location": 2,
+      "content": "不会出现冲突的",
+      "music": 0
+    },
+    {
+      "from": 424.03,
+      "to": 424.87,
+      "sid": 184,
+      "location": 2,
+      "content": "当然了",
+      "music": 0
+    },
+    {
+      "from": 424.87,
+      "to": 427.87,
+      "sid": 185,
+      "location": 2,
+      "content": "你不同业务这个时候即便冲突了",
+      "music": 0
+    },
+    {
+      "from": 427.87,
+      "to": 429.6,
+      "sid": 186,
+      "location": 2,
+      "content": "是不是也没有什么关系啊",
+      "music": 0
+    },
+    {
+      "from": 429.6,
+      "to": 432.12,
+      "sid": 187,
+      "location": 2,
+      "content": "好那么这个全局唯一id啊",
+      "music": 0
+    },
+    {
+      "from": 432.12,
+      "to": 434.97,
+      "sid": 188,
+      "location": 2,
+      "content": "因为经常是用在这种分布式系统下到",
+      "music": 0
+    },
+    {
+      "from": 434.97,
+      "to": 437.22,
+      "sid": 189,
+      "location": 2,
+      "content": "所以也被称为叫分布式v e d",
+      "music": 0
+    },
+    {
+      "from": 437.22,
+      "to": 438.99,
+      "sid": 190,
+      "location": 2,
+      "content": "虽然我们是一个单体项目",
+      "music": 0
+    },
+    {
+      "from": 438.99,
+      "to": 441.21,
+      "sid": 191,
+      "location": 2,
+      "content": "但是呢我以为我们数据量啊",
+      "music": 0
+    },
+    {
+      "from": 441.21,
+      "to": 442.62,
+      "sid": 192,
+      "location": 2,
+      "content": "将来可能也会很大",
+      "music": 0
+    },
+    {
+      "from": 442.62,
+      "to": 444.36,
+      "sid": 193,
+      "location": 2,
+      "content": "所以说呢也会用到它啊",
+      "music": 0
+    },
+    {
+      "from": 444.36,
+      "to": 445.4,
+      "sid": 194,
+      "location": 2,
+      "content": "也是没有问题的",
+      "music": 0
+    },
+    {
+      "from": 445.4,
+      "to": 449.6,
+      "sid": 195,
+      "location": 2,
+      "content": "那么这样的一个全局v i d它需要满足的特性",
+      "music": 0
+    },
+    {
+      "from": 449.6,
+      "to": 450.57,
+      "sid": 196,
+      "location": 2,
+      "content": "以下五个",
+      "music": 0
+    },
+    {
+      "from": 450.57,
+      "to": 451.89,
+      "sid": 197,
+      "location": 2,
+      "content": "第一个就是唯一性",
+      "music": 0
+    },
+    {
+      "from": 451.89,
+      "to": 452.7,
+      "sid": 198,
+      "location": 2,
+      "content": "当然说了啊",
+      "music": 0
+    },
+    {
+      "from": 452.7,
+      "to": 453.99,
+      "sid": 199,
+      "location": 2,
+      "content": "很多很多的业务啊",
+      "music": 0
+    },
+    {
+      "from": 453.99,
+      "to": 457.32,
+      "sid": 200,
+      "location": 2,
+      "content": "他必须要求你唯一都要订单订单id",
+      "music": 0
+    },
+    {
+      "from": 457.32,
+      "to": 459.12,
+      "sid": 201,
+      "location": 2,
+      "content": "你跟另外一个订单id冲突了",
+      "music": 0
+    },
+    {
+      "from": 459.12,
+      "to": 460.44,
+      "sid": 202,
+      "location": 2,
+      "content": "将来就会产生纠纷",
+      "music": 0
+    },
+    {
+      "from": 460.44,
+      "to": 461.74,
+      "sid": 203,
+      "location": 2,
+      "content": "是不是好",
+      "music": 0
+    },
+    {
+      "from": 461.74,
+      "to": 464.12,
+      "sid": 204,
+      "location": 2,
+      "content": "那么第二个特点呢就是高可用",
+      "music": 0
+    },
+    {
+      "from": 464.12,
+      "to": 466.1,
+      "sid": 205,
+      "location": 2,
+      "content": "你作为一个id的生成器",
+      "music": 0
+    },
+    {
+      "from": 466.1,
+      "to": 468.26,
+      "sid": 206,
+      "location": 2,
+      "content": "你必须确保我任何时候来找你",
+      "music": 0
+    },
+    {
+      "from": 468.26,
+      "to": 470.36,
+      "sid": 207,
+      "location": 2,
+      "content": "你都能给我生成这个正确的id",
+      "music": 0
+    },
+    {
+      "from": 470.36,
+      "to": 471.32,
+      "sid": 208,
+      "location": 2,
+      "content": "你不能说我来找你",
+      "music": 0
+    },
+    {
+      "from": 471.32,
+      "to": 472.24,
+      "sid": 209,
+      "location": 2,
+      "content": "结果你挂了",
+      "music": 0
+    },
+    {
+      "from": 472.24,
+      "to": 473.62,
+      "sid": 210,
+      "location": 2,
+      "content": "那你不行了啊",
+      "music": 0
+    },
+    {
+      "from": 473.62,
+      "to": 475.78,
+      "sid": 211,
+      "location": 2,
+      "content": "导致我们别的业务也没法运行了对吧",
+      "music": 0
+    },
+    {
+      "from": 475.78,
+      "to": 478.48,
+      "sid": 212,
+      "location": 2,
+      "content": "第三个呢是我们的高性能",
+      "music": 0
+    },
+    {
+      "from": 478.48,
+      "to": 480.76,
+      "sid": 213,
+      "location": 2,
+      "content": "也就是说你不仅仅要能够正确的生成id",
+      "music": 0
+    },
+    {
+      "from": 480.76,
+      "to": 483.96,
+      "sid": 214,
+      "location": 2,
+      "content": "还要保证生成id的速度足够快",
+      "music": 0
+    },
+    {
+      "from": 483.96,
+      "to": 487.31,
+      "sid": 215,
+      "location": 2,
+      "content": "你不能说我身上一个id我要耗费几秒钟",
+      "music": 0
+    },
+    {
+      "from": 487.31,
+      "to": 488.45,
+      "sid": 216,
+      "location": 2,
+      "content": "那你这样来",
+      "music": 0
+    },
+    {
+      "from": 488.45,
+      "to": 492.11,
+      "sid": 217,
+      "location": 2,
+      "content": "不就导致了我们别的业务就被你拖慢了吗",
+      "music": 0
+    },
+    {
+      "from": 492.11,
+      "to": 493.91,
+      "sid": 218,
+      "location": 2,
+      "content": "整体性能是不是都下降了呀",
+      "music": 0
+    },
+    {
+      "from": 493.91,
+      "to": 495,
+      "sid": 219,
+      "location": 2,
+      "content": "那肯定不行",
+      "music": 0
+    },
+    {
+      "from": 495.02,
+      "to": 498.18,
+      "sid": 220,
+      "location": 2,
+      "content": "那么第四个就是递增",
+      "music": 0
+    },
+    {
+      "from": 498.3,
+      "to": 499.92,
+      "sid": 221,
+      "location": 2,
+      "content": "它要有一个单调的",
+      "music": 0
+    },
+    {
+      "from": 499.92,
+      "to": 502.01,
+      "sid": 222,
+      "location": 2,
+      "content": "这样电动特性是不断变大的",
+      "music": 0
+    },
+    {
+      "from": 502.01,
+      "to": 505.37,
+      "sid": 223,
+      "location": 2,
+      "content": "因为我们这个id是来替代数据库自增id的",
+      "music": 0
+    },
+    {
+      "from": 505.37,
+      "to": 507.53,
+      "sid": 224,
+      "location": 2,
+      "content": "虽然我们不一定能够像数据库那样",
+      "music": 0
+    },
+    {
+      "from": 507.53,
+      "to": 509.23,
+      "sid": 225,
+      "location": 2,
+      "content": "1234这样挨着去增高",
+      "music": 0
+    },
+    {
+      "from": 509.23,
+      "to": 511.93,
+      "sid": 226,
+      "location": 2,
+      "content": "但是一定要确保整体的一个逐渐变大的",
+      "music": 0
+    },
+    {
+      "from": 511.93,
+      "to": 512.789,
+      "sid": 227,
+      "location": 2,
+      "content": "一个才行",
+      "music": 0
+    },
+    {
+      "from": 512.789,
+      "to": 515.489,
+      "sid": 228,
+      "location": 2,
+      "content": "因为这样可以有利于数据库创建索引啊",
+      "music": 0
+    },
+    {
+      "from": 515.489,
+      "to": 518.76,
+      "sid": 229,
+      "location": 2,
+      "content": "提高这个插入式的一个速度啊",
+      "music": 0
+    },
+    {
+      "from": 518.76,
+      "to": 521.25,
+      "sid": 230,
+      "location": 2,
+      "content": "最后呢还要确保这种安全性",
+      "music": 0
+    },
+    {
+      "from": 521.25,
+      "to": 523.53,
+      "sid": 231,
+      "location": 2,
+      "content": "你看数据库的这种自增",
+      "music": 0
+    },
+    {
+      "from": 523.53,
+      "to": 526.26,
+      "sid": 232,
+      "location": 2,
+      "content": "它呢是1234这样简单的紫灯",
+      "music": 0
+    },
+    {
+      "from": 526.26,
+      "to": 528.15,
+      "sid": 233,
+      "location": 2,
+      "content": "这种自增呢确实比较简单",
+      "music": 0
+    },
+    {
+      "from": 528.15,
+      "to": 528.81,
+      "sid": 234,
+      "location": 2,
+      "content": "比较快捷",
+      "music": 0
+    },
+    {
+      "from": 528.81,
+      "to": 530.49,
+      "sid": 235,
+      "location": 2,
+      "content": "但是它会存在一个安全问题",
+      "music": 0
+    },
+    {
+      "from": 530.49,
+      "to": 531.42,
+      "sid": 236,
+      "location": 2,
+      "content": "我们刚刚说过了",
+      "music": 0
+    },
+    {
+      "from": 531.42,
+      "to": 534.359,
+      "sid": 237,
+      "location": 2,
+      "content": "是不是容易让用户猜测到一些信息",
+      "music": 0
+    },
+    {
+      "from": 534.46,
+      "to": 538.48,
+      "sid": 238,
+      "location": 2,
+      "content": "所以说我们的id在满足前面四个特性的基础上",
+      "music": 0
+    },
+    {
+      "from": 538.48,
+      "to": 539.5,
+      "sid": 239,
+      "location": 2,
+      "content": "你还要确保安全",
+      "music": 0
+    },
+    {
+      "from": 539.5,
+      "to": 541.7,
+      "sid": 240,
+      "location": 2,
+      "content": "你的规律性不能太明显",
+      "music": 0
+    },
+    {
+      "from": 541.7,
+      "to": 544.25,
+      "sid": 241,
+      "location": 2,
+      "content": "好让别人能够猜测到你的其他订单id",
+      "music": 0
+    },
+    {
+      "from": 544.25,
+      "to": 546.78,
+      "sid": 242,
+      "location": 2,
+      "content": "这是不行的好",
+      "music": 0
+    },
+    {
+      "from": 546.78,
+      "to": 548.88,
+      "sid": 243,
+      "location": 2,
+      "content": "那同学们可以思考一下",
+      "music": 0
+    },
+    {
+      "from": 548.88,
+      "to": 553.8,
+      "sid": 244,
+      "location": 2,
+      "content": "我们能不能利用redis来去满足这五个特性啊",
+      "music": 0
+    },
+    {
+      "from": 553.8,
+      "to": 556.859,
+      "sid": 245,
+      "location": 2,
+      "content": "得到一种全局id的生成的方案呢",
+      "music": 0
+    },
+    {
+      "from": 557,
+      "to": 558.89,
+      "sid": 246,
+      "location": 2,
+      "content": "大家可以思考一下",
+      "music": 0
+    },
+    {
+      "from": 558.89,
+      "to": 561.439,
+      "sid": 247,
+      "location": 2,
+      "content": "利用我们rise中的什么东西来实现",
+      "music": 0
+    },
+    {
+      "from": 562.7,
+      "to": 563.86,
+      "sid": 248,
+      "location": 2,
+      "content": "哎没错",
+      "music": 0
+    },
+    {
+      "from": 563.86,
+      "to": 565.99,
+      "sid": 249,
+      "location": 2,
+      "content": "我们之前其实给大家提到过了对吧",
+      "music": 0
+    },
+    {
+      "from": 565.99,
+      "to": 567.46,
+      "sid": 250,
+      "location": 2,
+      "content": "我们的redis",
+      "music": 0
+    },
+    {
+      "from": 567.46,
+      "to": 572.239,
+      "sid": 251,
+      "location": 2,
+      "content": "它的string数据结构里边是有一种自增特性的啊",
+      "music": 0
+    },
+    {
+      "from": 572.239,
+      "to": 574.03,
+      "sid": 252,
+      "location": 2,
+      "content": "有一个increase的命令对吧",
+      "music": 0
+    },
+    {
+      "from": 574.03,
+      "to": 576.31,
+      "sid": 253,
+      "location": 2,
+      "content": "而这个increamei呢",
+      "music": 0
+    },
+    {
+      "from": 576.31,
+      "to": 577.87,
+      "sid": 254,
+      "location": 2,
+      "content": "首先它可以确保唯一",
+      "music": 0
+    },
+    {
+      "from": 577.87,
+      "to": 581.15,
+      "sid": 255,
+      "location": 2,
+      "content": "因为什么release是独立于数据库之外的",
+      "music": 0
+    },
+    {
+      "from": 581.15,
+      "to": 582.86,
+      "sid": 256,
+      "location": 2,
+      "content": "不管你数据库有几张表",
+      "music": 0
+    },
+    {
+      "from": 582.86,
+      "to": 585.35,
+      "sid": 257,
+      "location": 2,
+      "content": "或者说你有几个不同的数据库",
+      "music": 0
+    },
+    {
+      "from": 585.35,
+      "to": 587.75,
+      "sid": 258,
+      "location": 2,
+      "content": "但是我们rise他只有一个",
+      "music": 0
+    },
+    {
+      "from": 587.75,
+      "to": 590.54,
+      "sid": 259,
+      "location": 2,
+      "content": "这时候当所有人都来访问race的时候",
+      "music": 0
+    },
+    {
+      "from": 590.54,
+      "to": 592.77,
+      "sid": 260,
+      "location": 2,
+      "content": "他的自尊一定是唯一的",
+      "music": 0
+    },
+    {
+      "from": 592.77,
+      "to": 595.71,
+      "sid": 261,
+      "location": 2,
+      "content": "不会存在说多个自增的情况",
+      "music": 0
+    },
+    {
+      "from": 595.71,
+      "to": 596.31,
+      "sid": 262,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 596.31,
+      "to": 599.53,
+      "sid": 263,
+      "location": 2,
+      "content": "所以说唯一性一定能够保证好",
+      "music": 0
+    },
+    {
+      "from": 599.53,
+      "to": 601.03,
+      "sid": 264,
+      "location": 2,
+      "content": "那么高可用呢",
+      "music": 0
+    },
+    {
+      "from": 601.03,
+      "to": 602.32,
+      "sid": 265,
+      "location": 2,
+      "content": "这就更不用提了吧",
+      "music": 0
+    },
+    {
+      "from": 602.32,
+      "to": 605.29,
+      "sid": 266,
+      "location": 2,
+      "content": "那么release将来我们会去讲集群方案",
+      "music": 0
+    },
+    {
+      "from": 605.29,
+      "to": 606.19,
+      "sid": 267,
+      "location": 2,
+      "content": "主从方案",
+      "music": 0
+    },
+    {
+      "from": 606.19,
+      "to": 607.12,
+      "sid": 268,
+      "location": 2,
+      "content": "哨兵方案",
+      "music": 0
+    },
+    {
+      "from": 607.12,
+      "to": 610.76,
+      "sid": 269,
+      "location": 2,
+      "content": "那么这个方案是不是可以确保它的高可用啊",
+      "music": 0
+    },
+    {
+      "from": 610.76,
+      "to": 614.02,
+      "sid": 270,
+      "location": 2,
+      "content": "高性能呢高性能更不用提了",
+      "music": 0
+    },
+    {
+      "from": 614.02,
+      "to": 616.57,
+      "sid": 271,
+      "location": 2,
+      "content": "我们raise就是以性能著称的呀",
+      "music": 0
+    },
+    {
+      "from": 616.57,
+      "to": 619.36,
+      "sid": 272,
+      "location": 2,
+      "content": "啊它比数据库的性能要好太多太多了",
+      "music": 0
+    },
+    {
+      "from": 619.36,
+      "to": 620.099,
+      "sid": 273,
+      "location": 2,
+      "content": "对不对",
+      "music": 0
+    },
+    {
+      "from": 620.18,
+      "to": 621.32,
+      "sid": 274,
+      "location": 2,
+      "content": "递增",
+      "music": 0
+    },
+    {
+      "from": 621.32,
+      "to": 624.26,
+      "sid": 275,
+      "location": 2,
+      "content": "那么release也是采用自增方案的",
+      "music": 0
+    },
+    {
+      "from": 624.26,
+      "to": 625.52,
+      "sid": 276,
+      "location": 2,
+      "content": "1234这样自增",
+      "music": 0
+    },
+    {
+      "from": 625.52,
+      "to": 629.459,
+      "sid": 277,
+      "location": 2,
+      "content": "所以说呢它肯定能够保证整体的这种递增性",
+      "music": 0
+    },
+    {
+      "from": 629.54,
+      "to": 631.18,
+      "sid": 278,
+      "location": 2,
+      "content": "安全性呢",
+      "music": 0
+    },
+    {
+      "from": 631.9,
+      "to": 633.96,
+      "sid": 279,
+      "location": 2,
+      "content": "哎这个就麻烦点了啊",
+      "music": 0
+    },
+    {
+      "from": 633.96,
+      "to": 636.66,
+      "sid": 280,
+      "location": 2,
+      "content": "如果说我们的race采用的这种低端find",
+      "music": 0
+    },
+    {
+      "from": 636.66,
+      "to": 639.8,
+      "sid": 281,
+      "location": 2,
+      "content": "123456789与我们数据库一样",
+      "music": 0
+    },
+    {
+      "from": 639.8,
+      "to": 643.28,
+      "sid": 282,
+      "location": 2,
+      "content": "那这个时候它就不存在安全性了啊",
+      "music": 0
+    },
+    {
+      "from": 643.28,
+      "to": 645.599,
+      "sid": 283,
+      "location": 2,
+      "content": "因为太容易猜测出规律来",
+      "music": 0
+    },
+    {
+      "from": 645.88,
+      "to": 649.36,
+      "sid": 284,
+      "location": 2,
+      "content": "所以说我们在利用raise的这种increase",
+      "music": 0
+    },
+    {
+      "from": 649.36,
+      "to": 651.61,
+      "sid": 285,
+      "location": 2,
+      "content": "实现全局唯一id时",
+      "music": 0
+    },
+    {
+      "from": 651.61,
+      "to": 658.199,
+      "sid": 286,
+      "location": 2,
+      "content": "我们不能直接把redis的这个自身数值拿来当作",
+      "music": 0
+    },
+    {
+      "from": 658.62,
+      "to": 659.54,
+      "sid": 287,
+      "location": 2,
+      "content": "那怎么办呢",
+      "music": 0
+    },
+    {
+      "from": 659.54,
+      "to": 662.9,
+      "sid": 288,
+      "location": 2,
+      "content": "我们可以给它拼接一点别的信息啊",
+      "music": 0
+    },
+    {
+      "from": 662.9,
+      "to": 664.82,
+      "sid": 289,
+      "location": 2,
+      "content": "让它的规律性不那么明显",
+      "music": 0
+    },
+    {
+      "from": 664.82,
+      "to": 666.05,
+      "sid": 290,
+      "location": 2,
+      "content": "怎么拼接呢",
+      "music": 0
+    },
+    {
+      "from": 666.05,
+      "to": 668,
+      "sid": 291,
+      "location": 2,
+      "content": "好那在这儿呢",
+      "music": 0
+    },
+    {
+      "from": 668,
+      "to": 670.88,
+      "sid": 292,
+      "location": 2,
+      "content": "为了提高数据库的一个性能啊",
+      "music": 0
+    },
+    {
+      "from": 670.88,
+      "to": 673.28,
+      "sid": 293,
+      "location": 2,
+      "content": "我们这个id啊会采用数值类型",
+      "music": 0
+    },
+    {
+      "from": 674.04,
+      "to": 676.22,
+      "sid": 294,
+      "location": 2,
+      "content": "说直白点就是java里的浪形",
+      "music": 0
+    },
+    {
+      "from": 676.22,
+      "to": 678.01,
+      "sid": 295,
+      "location": 2,
+      "content": "然后直接插入数据库啊",
+      "music": 0
+    },
+    {
+      "from": 678.01,
+      "to": 680.53,
+      "sid": 296,
+      "location": 2,
+      "content": "因为数值类型在数据库里占用空间更小",
+      "music": 0
+    },
+    {
+      "from": 680.53,
+      "to": 682.42,
+      "sid": 297,
+      "location": 2,
+      "content": "建立索引是更方便啊",
+      "music": 0
+    },
+    {
+      "from": 682.42,
+      "to": 684.28,
+      "sid": 298,
+      "location": 2,
+      "content": "速度会更快好",
+      "music": 0
+    },
+    {
+      "from": 684.28,
+      "to": 685.96,
+      "sid": 299,
+      "location": 2,
+      "content": "那么这里呢我们采用java浪形",
+      "music": 0
+    },
+    {
+      "from": 685.96,
+      "to": 687.7,
+      "sid": 300,
+      "location": 2,
+      "content": "所以它占用的是八个字节啊",
+      "music": 0
+    },
+    {
+      "from": 687.7,
+      "to": 689.32,
+      "sid": 301,
+      "location": 2,
+      "content": "啊这里共是八个字节",
+      "music": 0
+    },
+    {
+      "from": 689.32,
+      "to": 690.92,
+      "sid": 302,
+      "location": 2,
+      "content": "也就是64个比特币",
+      "music": 0
+    },
+    {
+      "from": 690.92,
+      "to": 694.04,
+      "sid": 303,
+      "location": 2,
+      "content": "而其中的第一个比特位是符号位",
+      "music": 0
+    },
+    {
+      "from": 694.04,
+      "to": 694.88,
+      "sid": 304,
+      "location": 2,
+      "content": "永远是零",
+      "music": 0
+    },
+    {
+      "from": 694.88,
+      "to": 696.98,
+      "sid": 305,
+      "location": 2,
+      "content": "代表我们id永远是正数好",
+      "music": 0
+    },
+    {
+      "from": 696.98,
+      "to": 700.07,
+      "sid": 306,
+      "location": 2,
+      "content": "那么接下来呢我们会在中间一部分啊",
+      "music": 0
+    },
+    {
+      "from": 700.07,
+      "to": 703.02,
+      "sid": 307,
+      "location": 2,
+      "content": "整上31个比特币作为时间戳",
+      "music": 0
+    },
+    {
+      "from": 704.2,
+      "to": 705.48,
+      "sid": 308,
+      "location": 2,
+      "content": "那么这个时间戳呢",
+      "music": 0
+    },
+    {
+      "from": 705.48,
+      "to": 708.39,
+      "sid": 309,
+      "location": 2,
+      "content": "其实就是来去增加我们id复杂性的啊",
+      "music": 0
+    },
+    {
+      "from": 708.39,
+      "to": 710.7,
+      "sid": 310,
+      "location": 2,
+      "content": "不是单纯的rise自增了",
+      "music": 0
+    },
+    {
+      "from": 710.7,
+      "to": 711.78,
+      "sid": 311,
+      "location": 2,
+      "content": "带上一个时间",
+      "music": 0
+    },
+    {
+      "from": 711.78,
+      "to": 714.12,
+      "sid": 312,
+      "location": 2,
+      "content": "这个时间戳为什么是31位呢",
+      "music": 0
+    },
+    {
+      "from": 714.12,
+      "to": 716.58,
+      "sid": 313,
+      "location": 2,
+      "content": "因为我们将来会以秒为单位",
+      "music": 0
+    },
+    {
+      "from": 716.58,
+      "to": 717.6,
+      "sid": 314,
+      "location": 2,
+      "content": "也就是说什么呢",
+      "music": 0
+    },
+    {
+      "from": 717.6,
+      "to": 719.93,
+      "sid": 315,
+      "location": 2,
+      "content": "我们会定一个初始的时间",
+      "music": 0
+    },
+    {
+      "from": 719.93,
+      "to": 722.63,
+      "sid": 316,
+      "location": 2,
+      "content": "比如说从2000年开始",
+      "music": 0
+    },
+    {
+      "from": 722.63,
+      "to": 724.34,
+      "sid": 317,
+      "location": 2,
+      "content": "1月1号开始好",
+      "music": 0
+    },
+    {
+      "from": 724.34,
+      "to": 726.11,
+      "sid": 318,
+      "location": 2,
+      "content": "然后呢我会算一下",
+      "music": 0
+    },
+    {
+      "from": 726.11,
+      "to": 727.79,
+      "sid": 319,
+      "location": 2,
+      "content": "当前你下单这一刻的时间",
+      "music": 0
+    },
+    {
+      "from": 727.79,
+      "to": 729.86,
+      "sid": 320,
+      "location": 2,
+      "content": "与那个时间的时间差是多少秒",
+      "music": 0
+    },
+    {
+      "from": 729.86,
+      "to": 731.3,
+      "sid": 321,
+      "location": 2,
+      "content": "那么这里就记录下来",
+      "music": 0
+    },
+    {
+      "from": 731.86,
+      "to": 736.56,
+      "sid": 322,
+      "location": 2,
+      "content": "而31位啊代表的是21亿多吧",
+      "music": 0
+    },
+    {
+      "from": 736.56,
+      "to": 739.59,
+      "sid": 323,
+      "location": 2,
+      "content": "算下来这个秒数呢大概能支持69年",
+      "music": 0
+    },
+    {
+      "from": 739.59,
+      "to": 742,
+      "sid": 324,
+      "location": 2,
+      "content": "也就是说69年都用不完",
+      "music": 0
+    },
+    {
+      "from": 742.26,
+      "to": 744.16,
+      "sid": 325,
+      "location": 2,
+      "content": "那完全够了对吧",
+      "music": 0
+    },
+    {
+      "from": 744.54,
+      "to": 747.3,
+      "sid": 326,
+      "location": 2,
+      "content": "那么接下来最后那有人说了",
+      "music": 0
+    },
+    {
+      "from": 747.3,
+      "to": 749.94,
+      "sid": 327,
+      "location": 2,
+      "content": "如果说我一秒钟下了多个单呢",
+      "music": 0
+    },
+    {
+      "from": 749.94,
+      "to": 752.13,
+      "sid": 328,
+      "location": 2,
+      "content": "那你的时间戳不就重复重复了",
+      "music": 0
+    },
+    {
+      "from": 752.13,
+      "to": 753.03,
+      "sid": 329,
+      "location": 2,
+      "content": "没关系",
+      "music": 0
+    },
+    {
+      "from": 753.03,
+      "to": 755.43,
+      "sid": 330,
+      "location": 2,
+      "content": "如果说时间出冲突的情况下",
+      "music": 0
+    },
+    {
+      "from": 755.43,
+      "to": 757.43,
+      "sid": 331,
+      "location": 2,
+      "content": "我们后续这部分啊",
+      "music": 0
+    },
+    {
+      "from": 757.43,
+      "to": 759.56,
+      "sid": 332,
+      "location": 2,
+      "content": "32个比特位就是序列号了",
+      "music": 0
+    },
+    {
+      "from": 759.56,
+      "to": 762.26,
+      "sid": 333,
+      "location": 2,
+      "content": "它里面就是rise自增的那个值了啊",
+      "music": 0
+    },
+    {
+      "from": 762.26,
+      "to": 764.51,
+      "sid": 334,
+      "location": 2,
+      "content": "那么从一开始自增咔咔一顿增",
+      "music": 0
+    },
+    {
+      "from": 764.51,
+      "to": 765.92,
+      "sid": 335,
+      "location": 2,
+      "content": "当年时间重复的时候",
+      "music": 0
+    },
+    {
+      "from": 765.92,
+      "to": 767.16,
+      "sid": 336,
+      "location": 2,
+      "content": "这里就是不同的",
+      "music": 0
+    },
+    {
+      "from": 767.32,
+      "to": 771.07,
+      "sid": 337,
+      "location": 2,
+      "content": "那么理论上讲我们支持什么一秒钟内啊",
+      "music": 0
+    },
+    {
+      "from": 771.07,
+      "to": 772.87,
+      "sid": 338,
+      "location": 2,
+      "content": "二的32个订单量",
+      "music": 0
+    },
+    {
+      "from": 772.87,
+      "to": 774.02,
+      "sid": 339,
+      "location": 2,
+      "content": "理论上啊",
+      "music": 0
+    },
+    {
+      "from": 774.02,
+      "to": 775.79,
+      "sid": 340,
+      "location": 2,
+      "content": "但实际上不可能那么高对吧",
+      "music": 0
+    },
+    {
+      "from": 775.79,
+      "to": 779.749,
+      "sid": 341,
+      "location": 2,
+      "content": "每秒钟像淘宝也就是几10万的订单",
+      "music": 0
+    },
+    {
+      "from": 779.749,
+      "to": 781.399,
+      "sid": 342,
+      "location": 2,
+      "content": "而且仅仅是在双11时刻",
+      "music": 0
+    },
+    {
+      "from": 781.399,
+      "to": 784.14,
+      "sid": 343,
+      "location": 2,
+      "content": "平常的话你最多也就是几千",
+      "music": 0
+    },
+    {
+      "from": 784.14,
+      "to": 786.939,
+      "sid": 344,
+      "location": 2,
+      "content": "所以说呢完全够用了啊",
+      "music": 0
+    },
+    {
+      "from": 786.939,
+      "to": 789.039,
+      "sid": 345,
+      "location": 2,
+      "content": "好这是我们这个i d的一个组成",
+      "music": 0
+    },
+    {
+      "from": 789.039,
+      "to": 789.819,
+      "sid": 346,
+      "location": 2,
+      "content": "三部分",
+      "music": 0
+    },
+    {
+      "from": 789.819,
+      "to": 791.169,
+      "sid": 347,
+      "location": 2,
+      "content": "符号位永远是零",
+      "music": 0
+    },
+    {
+      "from": 791.169,
+      "to": 793.239,
+      "sid": 348,
+      "location": 2,
+      "content": "代表正数时间戳31个比例",
+      "music": 0
+    },
+    {
+      "from": 793.239,
+      "to": 796.23,
+      "sid": 349,
+      "location": 2,
+      "content": "可以用69年序列号32个比特币啊",
+      "music": 0
+    },
+    {
+      "from": 796.23,
+      "to": 797.22,
+      "sid": 350,
+      "location": 2,
+      "content": "秒内的计数器",
+      "music": 0
+    },
+    {
+      "from": 797.22,
+      "to": 800.74,
+      "sid": 351,
+      "location": 2,
+      "content": "理论上支持每秒钟二的32次方个不同id",
+      "music": 0
+    },
+    {
+      "from": 800.78,
+      "to": 804.38,
+      "sid": 352,
+      "location": 2,
+      "content": "那么这样呢首先整体来讲肯定是唯一的啊",
+      "music": 0
+    },
+    {
+      "from": 804.38,
+      "to": 807.56,
+      "sid": 353,
+      "location": 2,
+      "content": "时间嗯不同的情况下时间戳就不一样",
+      "music": 0
+    },
+    {
+      "from": 807.56,
+      "to": 808.46,
+      "sid": 354,
+      "location": 2,
+      "content": "肯定是不同的",
+      "music": 0
+    },
+    {
+      "from": 808.46,
+      "to": 809.78,
+      "sid": 355,
+      "location": 2,
+      "content": "而时间相同的情况下",
+      "music": 0
+    },
+    {
+      "from": 809.78,
+      "to": 810.62,
+      "sid": 356,
+      "location": 2,
+      "content": "序列号不一样",
+      "music": 0
+    },
+    {
+      "from": 810.62,
+      "to": 812.63,
+      "sid": 357,
+      "location": 2,
+      "content": "所以整体一定是唯一好",
+      "music": 0
+    },
+    {
+      "from": 812.63,
+      "to": 814.55,
+      "sid": 358,
+      "location": 2,
+      "content": "然后呢整体又是单调递增的",
+      "music": 0
+    },
+    {
+      "from": 814.55,
+      "to": 815.75,
+      "sid": 359,
+      "location": 2,
+      "content": "因为时间是越来越大的",
+      "music": 0
+    },
+    {
+      "from": 815.75,
+      "to": 817.01,
+      "sid": 360,
+      "location": 2,
+      "content": "序列号也是越来越大的",
+      "music": 0
+    },
+    {
+      "from": 817.01,
+      "to": 819.18,
+      "sid": 361,
+      "location": 2,
+      "content": "另外呢安全性也能得到保障",
+      "music": 0
+    },
+    {
+      "from": 819.36,
+      "to": 822.18,
+      "sid": 362,
+      "location": 2,
+      "content": "因为整体我们这个复杂度就高了很多了",
+      "music": 0
+    },
+    {
+      "from": 822.18,
+      "to": 823.5,
+      "sid": 363,
+      "location": 2,
+      "content": "不再是简单的自增了",
+      "music": 0
+    },
+    {
+      "from": 823.5,
+      "to": 825.48,
+      "sid": 364,
+      "location": 2,
+      "content": "所以说这个规律上呢就不容易",
+      "music": 0
+    },
+    {
+      "from": 825.48,
+      "to": 827.44,
+      "sid": 365,
+      "location": 2,
+      "content": "那么被人猜到了好",
+      "music": 0
+    },
+    {
+      "from": 827.44,
+      "to": 828.34,
+      "sid": 366,
+      "location": 2,
+      "content": "综上所述呢",
+      "music": 0
+    },
+    {
+      "from": 828.34,
+      "to": 831.85,
+      "sid": 367,
+      "location": 2,
+      "content": "我们利用race啊就能够满足分布式啊",
+      "music": 0
+    },
+    {
+      "from": 831.85,
+      "to": 834.28,
+      "sid": 368,
+      "location": 2,
+      "content": "就是全局唯一id的五个特性",
+      "music": 0
+    },
+    {
+      "from": 834.28,
+      "to": 838.44,
+      "sid": 369,
+      "location": 2,
+      "content": "当然redis并不是全局唯一id的啊",
+      "music": 0
+    },
+    {
+      "from": 838.44,
+      "to": 839.79,
+      "sid": 370,
+      "location": 2,
+      "content": "唯一实现方案啊",
+      "music": 0
+    },
+    {
+      "from": 839.79,
+      "to": 841.65,
+      "sid": 371,
+      "location": 2,
+      "content": "还有很多其他方案啊",
+      "music": 0
+    },
+    {
+      "from": 841.65,
+      "to": 843.93,
+      "sid": 372,
+      "location": 2,
+      "content": "在这儿呢我们会去讲解啊",
+      "music": 0
+    },
+    {
+      "from": 843.93,
+      "to": 845.7,
+      "sid": 373,
+      "location": 2,
+      "content": "基于rise的方案好",
+      "music": 0
+    },
+    {
+      "from": 845.7,
+      "to": 847.23,
+      "sid": 374,
+      "location": 2,
+      "content": "那么这节课呢我们先到这里",
+      "music": 0
+    },
+    {
+      "from": 847.23,
+      "to": 850.92,
+      "sid": 375,
+      "location": 2,
+      "content": "下节课我们就动手写代码来实现啊",
+      "music": 0
+    },
+    {
+      "from": 850.92,
+      "to": 852.24,
+      "sid": 376,
+      "location": 2,
+      "content": "这个id的生理器",
+      "music": 0
+    }
+  ]
+}
